@@ -1,0 +1,503 @@
+// EngineTests.cpp — Projet's measurement program (./build.sh tests).
+//
+// Writes Measurements/report.md:
+//   1. Import: placement, length and level of the placeholder copies (Ogg
+//      Vorbis and FLAC) for sources at 44.1, 48 and 96 kHz.
+//   2. Playback timing: boxes land on exactly the right sample, at any block size.
+//   3. Locating inside a box.
+//   4. Fade shapes and crossfades of overlapping boxes.
+//   5. Playback with the device at another rate than the project.
+//   6. CPU.
+//   7. Import speed and placeholder size (Ogg vs FLAC).
+
+#include <JuceHeader.h>
+#include "../Source/Engine/Importer.h"
+#include "../Source/Engine/SoundData.h"
+#include "../Source/Engine/Arrangement.h"
+#include "../Source/Engine/PlaybackEngine.h"
+#include "../Source/Model/Project.h"
+
+#include <random>
+
+using namespace projet;
+
+namespace
+{
+
+juce::String md;
+bool quick = false;
+int failures = 0;
+
+void line (const juce::String& s = {})       { md << s << "\n"; }
+void check (bool ok, const juce::String& what)
+{
+    if (! ok) { ++failures; std::cout << "  FAIL: " << what << std::endl; }
+}
+
+juce::String fmt (double v, int decimals)    { return juce::String (v, decimals); }
+
+double now()                                  { return juce::Time::getMillisecondCounterHiRes() * 0.001; }
+
+/** Peak position near `expected` (samples), with parabolic interpolation. */
+double findPeak (const float* x, int64_t length, double expected, int window)
+{
+    const auto c = (int64_t) std::llround (expected);
+    int64_t best = juce::jlimit ((int64_t) 0, length - 1, c);
+    float bestV = -1.0f;
+    for (int64_t i = juce::jmax ((int64_t) 0, c - window); i < juce::jmin (length, c + window + 1); ++i)
+        if (std::abs (x[i]) > bestV) { bestV = std::abs (x[i]); best = i; }
+
+    if (best <= 0 || best >= length - 1) return (double) best;
+    const double a = std::abs (x[best - 1]), b = std::abs (x[best]), d = std::abs (x[best + 1]);
+    const double den = a - 2.0 * b + d;
+    return (double) best + (std::abs (den) > 1.0e-12 ? 0.5 * (a - d) / den : 0.0);
+}
+
+/** A test source: quiet noise, impulses at the given times, a 1 kHz sine from 8 to 9 s. */
+juce::AudioBuffer<float> makeSource (double rate, double seconds, const std::vector<double>& impulses)
+{
+    const int n = (int) std::llround (seconds * rate);
+    juce::AudioBuffer<float> b (2, n);
+    std::mt19937 rng (1234);
+    std::normal_distribution<float> noise (0.0f, 0.001f);
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        auto* x = b.getWritePointer (ch);
+        for (int i = 0; i < n; ++i) x[i] = noise (rng);
+        for (double t : impulses)
+        {
+            const auto k = (int) std::llround (t * rate);
+            if (k < n) x[k] = 0.8f;
+        }
+        for (int i = (int) (8.0 * rate); i < juce::jmin (n, (int) (9.0 * rate)); ++i)
+            x[i] = 0.5f * (float) std::sin (2.0 * juce::MathConstants<double>::pi * 1000.0 * (double) i / rate);
+    }
+    return b;
+}
+
+bool writeWav (const juce::AudioBuffer<float>& b, double rate, const juce::File& f, int bits = 24)
+{
+    f.deleteFile();
+    std::unique_ptr<juce::OutputStream> out = f.createOutputStream();
+    juce::WavAudioFormat wav;
+    auto w = wav.createWriterFor (out, juce::AudioFormatWriterOptions{}.withSampleRate (rate).withNumChannels (2).withBitsPerSample (bits));
+    if (w == nullptr) return false;
+    w->writeFromAudioSampleBuffer (b, 0, b.getNumSamples());
+    return true;
+}
+
+double rmsDb (const float* x, int64_t from, int64_t to)
+{
+    double s = 0.0;
+    for (int64_t i = from; i < to; ++i) s += (double) x[i] * x[i];
+    return 10.0 * std::log10 (s / (double) juce::jmax ((int64_t) 1, to - from) + 1.0e-30);
+}
+
+//==============================================================================
+void testImport (const juce::File& work, juce::AudioFormatManager& formats)
+{
+    line ("## 1. Import: placement, length and level");
+    line();
+    line ("A 10 s test file (quiet noise, single-sample clicks at 1.000, 2.500 and 7.250 s, a 1 kHz sine from 8 to 9 s) "
+          "imported into a 48 kHz project. **Click error**: where each click lands in the placeholder, compared with where it "
+          "should be, in samples at 48 kHz (largest of the three; parabolic interpolation, so fractions are meaningful). "
+          "**Length**: placeholder length minus the expected length. **Level**: change of the sine's level.");
+    line();
+    line ("| Source rate | Placeholder | Click error (samples) | Length (samples) | Level (dB) |");
+    line ("| --- | --- | --- | --- | --- |");
+
+    const std::vector<double> clicks { 1.0, 2.5, 7.25 };
+    const double target = 48000.0;
+
+    for (double rate : { 44100.0, 48000.0, 96000.0 })
+    {
+        auto source = makeSource (rate, 10.0, clicks);
+        auto wav = work.getChildFile ("source " + juce::String ((int) rate) + ".wav");
+        writeWav (source, rate, wav);
+
+        for (auto format : { juce::String ("ogg"), juce::String ("flac") })
+        {
+            ImportSettings settings;
+            settings.targetRate = target;
+            settings.format = format;
+            auto dest = work.getChildFile ("placeholder " + juce::String ((int) rate) + "." + format);
+            auto r = ImportSteps::run (wav, dest, settings, formats);
+            check (r.ok, "import " + dest.getFileName() + ": " + r.error);
+            if (! r.ok) continue;
+
+            juce::String err;
+            auto data = SoundData::load (dest, "x", formats, err);
+            check (data != nullptr, "load " + dest.getFileName());
+            if (data == nullptr) continue;
+
+            double worst = 0.0;
+            for (double t : clicks)
+                worst = juce::jmax (worst, std::abs (findPeak (data->audio.getReadPointer (0), data->length(), t * target, 64) - t * target));
+
+            const auto expectedLength = (int64_t) std::ceil (10.0 * target);
+            const auto lengthError = data->length() - expectedLength;
+
+            const double levelIn = rmsDb (source.getReadPointer (0), (int64_t) (8.2 * rate), (int64_t) (8.8 * rate));
+            const double levelOut = rmsDb (data->audio.getReadPointer (0), (int64_t) (8.2 * target), (int64_t) (8.8 * target));
+
+            line ("| " + fmt (rate / 1000.0, 1) + " kHz | " + (format == "ogg" ? "Ogg Vorbis q0.7" : "FLAC 24-bit") + " | "
+                  + fmt (worst, 3) + " | " + juce::String (lengthError) + " | " + fmt (levelOut - levelIn, 3) + " |");
+
+            check (worst < 1.0, "click placement " + dest.getFileName());
+            check (lengthError == 0, "length " + dest.getFileName());
+            check (std::abs (levelOut - levelIn) < 0.1, "level " + dest.getFileName());
+        }
+    }
+    line();
+}
+
+//==============================================================================
+/** Runs the engine offline and returns the output. */
+juce::AudioBuffer<float> render (PlaybackEngine& engine, double deviceRate, double seconds, int block, double from = 0.0)
+{
+    engine.prepare (deviceRate, block);
+    engine.locate (from);
+    engine.play();
+    const int n = (int) std::llround (seconds * deviceRate);
+    juce::AudioBuffer<float> out (2, n);
+    out.clear();
+    for (int pos = 0; pos < n; pos += block)
+    {
+        const int num = juce::jmin (block, n - pos);
+        float* ch[2] = { out.getWritePointer (0, pos), out.getWritePointer (1, pos) };
+        engine.process (ch, 2, num);
+    }
+    engine.stop();
+    return out;
+}
+
+std::shared_ptr<const SoundData> impulseSound (double rate, double seconds)
+{
+    juce::AudioBuffer<float> b (2, (int) std::llround (seconds * rate));
+    b.clear();
+    b.setSample (0, 0, 1.0f);
+    b.setSample (1, 0, 1.0f);
+    return SoundData::fromBuffer (std::move (b), rate, "impulse");
+}
+
+std::shared_ptr<const SoundData> constantSound (double rate, double seconds, float value = 1.0f)
+{
+    juce::AudioBuffer<float> b (2, (int) std::llround (seconds * rate));
+    for (int ch = 0; ch < 2; ++ch) juce::FloatVectorOperations::fill (b.getWritePointer (ch), value, b.getNumSamples());
+    return SoundData::fromBuffer (std::move (b), rate, "dc");
+}
+
+std::shared_ptr<const SoundData> rampSound (double rate, double seconds)
+{
+    const int n = (int) std::llround (seconds * rate);
+    juce::AudioBuffer<float> b (2, n);
+    for (int i = 0; i < n; ++i) { b.setSample (0, i, (float) i / (float) n); b.setSample (1, i, (float) i / (float) n); }
+    return SoundData::fromBuffer (std::move (b), rate, "ramp");
+}
+
+Clip makeClip (std::shared_ptr<const SoundData> s, double startSeconds, double rate)
+{
+    Clip c;
+    c.sound = s;
+    c.start = std::llround (startSeconds * rate);
+    c.length = s->length();
+    return c;
+}
+
+std::shared_ptr<const Arrangement> arrangementOf (std::vector<Clip> clips, double rate)
+{
+    auto a = std::make_shared<Arrangement>();
+    a->sampleRate = rate;
+    a->clips = std::move (clips);
+    std::sort (a->clips.begin(), a->clips.end(), [] (const Clip& x, const Clip& y) { return x.start < y.start; });
+    for (auto& c : a->clips) a->end = juce::jmax (a->end, c.end());
+    return a;
+}
+
+void testTiming()
+{
+    line ("## 2. Playback timing");
+    line();
+    line ("Boxes holding a single click, placed at 1.000, 2.500, 3.333 333 and 5.000 021 s in a 48 kHz project, played "
+          "with the device at 48 kHz. **Error**: largest distance between where a click sounds and the sample its box "
+          "starts on (round(start x 48000)).");
+    line();
+    line ("| Block size | Error (samples) |");
+    line ("| --- | --- |");
+
+    const double rate = 48000.0;
+    auto click = impulseSound (rate, 0.1);
+    const std::vector<double> starts { 1.0, 2.5, 3.333333, 5.000021 };
+    std::vector<Clip> clips;
+    for (double t : starts) clips.push_back (makeClip (click, t, rate));
+
+    PlaybackEngine engine;
+    engine.setArrangement (arrangementOf (clips, rate));
+
+    for (int block : { 32, 64, 333, 512, 4096 })
+    {
+        auto out = render (engine, rate, 6.0, block);
+        int64_t worst = 0;
+        for (double t : starts)
+        {
+            const auto expected = std::llround (t * rate);
+            int64_t found = -1;
+            for (int64_t i = expected - 200; i < expected + 200; ++i)
+                if (out.getSample (0, (int) i) > 0.5f) { found = i; break; }
+            worst = juce::jmax (worst, found < 0 ? (int64_t) 999999 : (int64_t) std::abs (found - expected));
+        }
+        line ("| " + juce::String (block) + " | " + juce::String (worst) + " |");
+        check (worst == 0, "timing at block " + juce::String (block));
+    }
+    line();
+}
+
+void testLocate()
+{
+    line ("## 3. Locating inside a box");
+    line();
+    line ("A box holding a ramp (each sample's value is its index) starts at 1.000 s. Playback starts at a position inside "
+          "it; the first output sample must be the ramp's sample at that position.");
+    line();
+    line ("| Start position (s) | Expected sample | Played sample | Match |");
+    line ("| --- | --- | --- | --- |");
+
+    const double rate = 48000.0;
+    auto ramp = rampSound (rate, 4.0);
+    PlaybackEngine engine;
+    engine.setArrangement (arrangementOf ({ makeClip (ramp, 1.0, rate) }, rate));
+
+    for (double from : { 1.0, 1.2345, 2.5, 4.99997 })
+    {
+        auto out = render (engine, rate, 0.01, 512, from);
+        const auto expectedIndex = std::llround (from * rate) - std::llround (1.0 * rate);
+        const float expected = (float) expectedIndex / (float) ramp->length();
+        const float got = out.getSample (0, 0);
+        const auto playedIndex = std::llround ((double) got * (double) ramp->length());
+        const bool ok = std::abs (got - expected) < 1.0e-6f;
+        line ("| " + fmt (from, 5) + " | " + juce::String (expectedIndex) + " | " + juce::String (playedIndex) + " | " + (ok ? "yes" : "no") + " |");
+        check (ok, "locate " + fmt (from, 5));
+    }
+    line();
+}
+
+void testFades()
+{
+    line ("## 4. Fades and crossfades");
+    line();
+    line ("A box of constant level 1.0 with a 100 ms fade in and out. Gain halfway through the fade (expected: linear 0.5, "
+          "equal power 0.707, S-curve 0.5), at the last sample of the fade in (expected 1 within a sample's step) and at "
+          "the last sample of the box (expected 0).");
+    line();
+    line ("| Shape | Halfway | End of fade in | Last sample |");
+    line ("| --- | --- | --- | --- |");
+
+    const double rate = 48000.0;
+    auto dc = constantSound (rate, 1.0);
+
+    for (auto shape : { FadeShape::linear, FadeShape::equalPower, FadeShape::sCurve })
+    {
+        auto c = makeClip (dc, 0.5, rate);
+        c.fadeIn = c.fadeOut = (int64_t) (0.1 * rate);
+        c.inShape = c.outShape = shape;
+        PlaybackEngine engine;
+        engine.setArrangement (arrangementOf ({ c }, rate));
+        auto out = render (engine, rate, 2.0, 512);
+        const int s = (int) c.start;
+        const float half = out.getSample (0, s + (int) (c.fadeIn / 2));
+        const float endIn = out.getSample (0, s + (int) c.fadeIn - 1);
+        const float last = out.getSample (0, s + (int) c.length - 1);
+        line ("| " + juce::String (fadeShapeName (shape)) + " | " + fmt (half, 4) + " | " + fmt (endIn, 4) + " | " + fmt (last, 4) + " |");
+        const double expectHalf = shape == FadeShape::equalPower ? std::sqrt (0.5) : 0.5;
+        check (std::abs (half - expectHalf) < 0.001, "fade halfway " + juce::String (fadeShapeName (shape)));
+        check (endIn > 0.999f, "fade end");
+        check (last == 0.0f, "fade last sample");
+    }
+    line();
+
+    line ("Two overlapping boxes with a 500 ms overlap, the first fading out while the second fades in over the "
+          "overlap. Equal power keeps the summed *power* constant (right for unrelated sounds); linear and S-curve keep "
+          "the summed *level* constant (right for identical sounds). Largest deviation inside the overlap:");
+    line();
+    line ("| Shape | Summed level (min / max) | Summed power (min / max) |");
+    line ("| --- | --- | --- |");
+
+    for (auto shape : { FadeShape::linear, FadeShape::equalPower, FadeShape::sCurve })
+    {
+        auto a = makeClip (dc, 0.0, rate);
+        auto b = makeClip (dc, 0.5, rate);
+        a.fadeOut = b.fadeIn = (int64_t) (0.5 * rate);
+        a.outShape = b.inShape = shape;
+        double minL = 9, maxL = -9, minP = 9, maxP = -9;
+        for (int64_t i = b.start; i < a.end(); ++i)
+        {
+            const double ga = a.gainAt ((double) (i - a.start)), gb = b.gainAt ((double) (i - b.start));
+            minL = juce::jmin (minL, ga + gb); maxL = juce::jmax (maxL, ga + gb);
+            minP = juce::jmin (minP, ga * ga + gb * gb); maxP = juce::jmax (maxP, ga * ga + gb * gb);
+        }
+        line ("| " + juce::String (fadeShapeName (shape)) + " | " + fmt (minL, 4) + " / " + fmt (maxL, 4) + " | "
+              + fmt (minP, 4) + " / " + fmt (maxP, 4) + " |");
+    }
+    line();
+}
+
+void testResampledPlayback()
+{
+    line ("## 5. Device at another rate than the project");
+    line();
+    line ("A 48 kHz project played on a device at 44.1 or 96 kHz goes through the sinc kernel (\"High\"). A click box at "
+          "1.000 s must sound at 1.000 s of device time; a 1 kHz sine must keep its level.");
+    line();
+    line ("| Device rate | Click error (device samples) | Sine level change (dB) |");
+    line ("| --- | --- | --- |");
+
+    const double rate = 48000.0;
+    auto click = impulseSound (rate, 0.1);
+    const int n = (int) (2.0 * rate);
+    juce::AudioBuffer<float> sine (2, n);
+    for (int i = 0; i < n; ++i)
+    {
+        const float v = 0.5f * (float) std::sin (2.0 * juce::MathConstants<double>::pi * 1000.0 * (double) i / rate);
+        sine.setSample (0, i, v); sine.setSample (1, i, v);
+    }
+    auto sineSound = SoundData::fromBuffer (std::move (sine), rate, "sine");
+
+    for (double device : { 44100.0, 96000.0 })
+    {
+        PlaybackEngine engine;
+        engine.setArrangement (arrangementOf ({ makeClip (click, 1.0, rate), makeClip (sineSound, 2.0, rate) }, rate));
+        auto out = render (engine, device, 4.5, 512);
+        const double pos = findPeak (out.getReadPointer (0), out.getNumSamples(), 1.0 * device, 200);
+        const double level = rmsDb (out.getReadPointer (0), (int64_t) (2.5 * device), (int64_t) (3.5 * device));
+        const double expected = 20.0 * std::log10 (0.5 / std::sqrt (2.0));
+        line ("| " + fmt (device / 1000.0, 1) + " kHz | " + fmt (pos - 1.0 * device, 3) + " | " + fmt (level - expected, 3) + " |");
+        check (std::abs (pos - device) < 0.5, "resampled click");
+        check (std::abs (level - expected) < 0.05, "resampled level");
+    }
+    line();
+}
+
+void testCpu()
+{
+    line ("## 6. CPU");
+    line();
+    line ("Time to produce 1 s of stereo output, as a share of one core of this machine.");
+    line();
+    line ("| Case | Load |");
+    line ("| --- | --- |");
+
+    const double rate = 48000.0;
+    auto dc = constantSound (rate, 12.0, 0.01f);
+
+    auto measure = [&] (int clips, double device, bool fades)
+    {
+        std::vector<Clip> cs;
+        for (int i = 0; i < clips; ++i)
+        {
+            auto c = makeClip (dc, 0.0, rate);
+            if (fades) { c.fadeIn = c.fadeOut = (int64_t) (5.0 * rate); }
+            cs.push_back (c);
+        }
+        PlaybackEngine engine;
+        engine.setArrangement (arrangementOf (cs, rate));
+        const double seconds = quick ? 2.0 : 10.0;
+        const double t0 = now();
+        render (engine, device, seconds, 512);
+        return (now() - t0) / seconds;
+    };
+
+    line ("| 8 overlapping boxes, device = project rate | " + fmt (100.0 * measure (8, rate, false), 2) + "% |");
+    line ("| 32 overlapping boxes, device = project rate | " + fmt (100.0 * measure (32, rate, false), 2) + "% |");
+    line ("| 32 overlapping boxes in long fades, device = project rate | " + fmt (100.0 * measure (32, rate, true), 2) + "% |");
+    line ("| 8 overlapping boxes, device 44.1 kHz (resampled) | " + fmt (100.0 * measure (8, 44100.0, false), 2) + "% |");
+    line ("| 32 overlapping boxes, device 44.1 kHz (resampled) | " + fmt (100.0 * measure (32, 44100.0, false), 2) + "% |");
+    line();
+}
+
+void testImportSpeed (const juce::File& work, juce::AudioFormatManager& formats)
+{
+    const double minutes = quick ? 0.5 : 2.0;
+    line ("## 7. Import speed and size");
+    line();
+    line ("A " + fmt (minutes, 1) + "-minute stereo file of coloured noise, imported into a 48 kHz project. Times for one file "
+          "on one thread (resampling uses half the cores); several files import in parallel.");
+    line();
+    line ("| Source | Placeholder | Read | Resample | Encode | Total | x real time | Size per minute |");
+    line ("| --- | --- | --- | --- | --- | --- | --- | --- |");
+
+    for (double rate : { 44100.0, 48000.0, 96000.0 })
+    {
+        const int n = (int) std::llround (minutes * 60.0 * rate);
+        juce::AudioBuffer<float> b (2, n);
+        std::mt19937 rng (99);
+        std::normal_distribution<float> noise (0.0f, 0.1f);
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            float y = 0.0f;
+            auto* x = b.getWritePointer (ch);
+            for (int i = 0; i < n; ++i) { y = 0.97f * y + noise (rng); x[i] = 0.3f * y; }
+        }
+        auto wav = work.getChildFile ("speed " + juce::String ((int) rate) + ".wav");
+        writeWav (b, rate, wav);
+        const double wavMbPerMin = (double) wav.getSize() / 1.0e6 / minutes;
+
+        for (auto format : { juce::String ("ogg"), juce::String ("flac") })
+        {
+            ImportSettings settings;
+            settings.format = format;
+            auto dest = work.getChildFile ("speed " + juce::String ((int) rate) + "." + format);
+            auto r = ImportSteps::run (wav, dest, settings, formats);
+            check (r.ok, "speed import");
+            const double total = r.readSeconds + r.resampleSeconds + r.encodeSeconds;
+            line ("| " + fmt (rate / 1000.0, 1) + " kHz WAV 24-bit (" + fmt (wavMbPerMin, 1) + " MB/min) | "
+                  + (format == "ogg" ? "Ogg Vorbis q0.7" : "FLAC 24-bit") + " | "
+                  + fmt (r.readSeconds, 2) + " s | " + fmt (r.resampleSeconds, 2) + " s | " + fmt (r.encodeSeconds, 2) + " s | "
+                  + fmt (total, 2) + " s | " + juce::String (juce::roundToInt (minutes * 60.0 / juce::jmax (1.0e-6, total))) + "x | "
+                  + fmt ((double) dest.getSize() / 1.0e6 / minutes, 2) + " MB |");
+        }
+    }
+    line();
+}
+
+} // namespace
+
+int main (int argc, char** argv)
+{
+    juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
+
+    juce::File outDir = juce::File::getCurrentWorkingDirectory().getChildFile ("Measurements");
+    for (int i = 1; i < argc; ++i)
+    {
+        const juce::String a (argv[i]);
+        if (a == "--quick") quick = true;
+        else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
+    }
+    outDir.createDirectory();
+
+    auto work = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetTests");
+    work.deleteRecursively();
+    work.createDirectory();
+
+    juce::AudioFormatManager formats;
+    formats.registerBasicFormats();
+    KernelBank::buildAll();
+
+    md << "# Projet engine: measurements\n\n";
+    md << "Machine: " << juce::SystemStats::getCpuModel() << ", " << juce::SystemStats::getOperatingSystemName()
+       << ". Date: " << juce::Time::getCurrentTime().toString (true, true) << ".\n\n";
+
+    std::cout << "Import..." << std::endl;           testImport (work, formats);
+    std::cout << "Timing..." << std::endl;           testTiming();
+    std::cout << "Locate..." << std::endl;           testLocate();
+    std::cout << "Fades..." << std::endl;            testFades();
+    std::cout << "Other device rates..." << std::endl; testResampledPlayback();
+    std::cout << "CPU..." << std::endl;              testCpu();
+    std::cout << "Import speed..." << std::endl;     testImportSpeed (work, formats);
+
+    md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
+    outDir.getChildFile ("report.md").replaceWithText (md);
+    work.deleteRecursively();
+
+    std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl;
+    return failures == 0 ? 0 : 1;
+}
