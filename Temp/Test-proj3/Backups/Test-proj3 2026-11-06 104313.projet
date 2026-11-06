@@ -1,0 +1,30 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj3",
+  "sampleRate": 96000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 20.0,
+  "playhead": 0.0,
+  "children": [
+    {
+      "type": "SOUNDS"
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "e76a179e370b46348ad64b361a5cc3af",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 72,
+          "mute": false,
+          "solo": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Untitled",
+  "sampleRate": 48000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 4.715375580407567,
+  "playhead": 115.861333333333334,
+  "children": [
+    {
+      "type": "SOUNDS",
+      "children": [
+        {
+          "type": "SOUND",
+          "id": "8c0c0fb38064493baaffb8e3432ea611",
+          "name": "Goblet 2026-11-05 153739 render",
+          "file": "Sounds/Goblet 2026-11-05 153739 render.ogg",
+          "originalPath": "/Users/jvkmuz/Music/Goblet Captures/Goblet 2026-11-05 153739 render.wav",
+          "originalHash": "744455cf02eb8f17f5a68451c541afab",
+          "lengthSamples": 3271211,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "9d69ed43b1ef45e8b2096b16b627ee95",
+          "name": "Goblet 2026-11-05 153739 render A",
+          "file": "Sounds/Goblet 2026-11-05 153739 render A.ogg",
+          "originalPath": "/Users/jvkmuz/Music/Goblet Captures/Goblet 2026-11-05 153739 render stems/Goblet 2026-11-05 153739 render A.wav",
+          "originalHash": "46e3464cbd1036845f581c5b0e93f452",
+          "lengthSamples": 3274240,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "3382951bb70841aa9553b5572ba2f1d8",
+          "name": "Goblet 2026-11-05 153739 render C",
+          "file": "Sounds/Goblet 2026-11-05 153739 render C.ogg",
+          "originalPath": "/Users/jvkmuz/Music/Goblet Captures/Goblet 2026-11-05 153739 render stems/Goblet 2026-11-05 153739 render C.wav",
+          "originalHash": "4e117e2ee58d4a0611453842d63901c6",
+          "lengthSamples": 3274240,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        }
+      ]
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "901f99574f514cfe99b256618ee8a3f9",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "cea76b04df3c4ad9b1653f1e87744839",
+              "kind": "sound",
+              "name": "Goblet 2026-11-05 153739 render A",
+              "start": 19.984399152731172,
+              "length": 68.213333333333338,
+              "soundId": "9d69ed43b1ef45e8b2096b16b627ee95",
+              "offset": 0.0,
+              "gainDb": 0.0,
+              "fadeIn": 5.913256327483175,
+              "fadeOut": 9.813039753006777,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "opacity": 1.0
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "062a0392e5924a5297d594dd9bb238c9",
+          "name": "Track 2",
+          "colour": 1,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "f22ff360875a4814ac5f4d9bff505cb8",
+              "kind": "sound",
+              "name": "Goblet 2026-11-05 153739 render C",
+              "start": 66.132272108345859,
+              "length": 68.213333333333338,
+              "soundId": "3382951bb70841aa9553b5572ba2f1d8",
+              "offset": 0.0,
+              "gainDb": 0.0,
+              "fadeIn": 9.180690813539769,
+              "fadeOut": 0.01,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "opacity": 1.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

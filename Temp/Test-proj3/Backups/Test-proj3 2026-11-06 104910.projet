@@ -1,0 +1,129 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj3",
+  "sampleRate": 96000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 7.615166754406557,
+  "playhead": 35.349333333333334,
+  "children": [
+    {
+      "type": "SOUNDS",
+      "children": [
+        {
+          "type": "SOUND",
+          "id": "34f339fce4c44aa695737f77029449a6",
+          "name": "Water, Flow, Creek, Small, Loop SND143118",
+          "file": "Sounds/Water Flow Creek Small Loop SND143118.ogg",
+          "originalPath": "/Users/jvkmuz/Documents/SQJ/Soundly/#inbox/Water, Flow, Creek, Small, Loop SND143118.wav",
+          "originalHash": "ff388dd90c26c6a16ba826007567fb99",
+          "lengthSamples": 4944296,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "a970e78bb33e43dcae4a6bcc9e695d7e",
+          "name": "effet test_renders - v1b",
+          "file": "Sounds/effet test_renders - v1b.ogg",
+          "originalPath": "/Users/jvkmuz/Documents/GitRepos/Effet/Temp/effet test_renders - v1b.wav",
+          "originalHash": "3abb26c2ee94f095a0cc740a3117084a",
+          "lengthSamples": 2932810,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "02610ef993c54ab4813d2fb5bbd1a226",
+          "name": "viool + delay analoge studio",
+          "file": "Sounds/viool + delay analoge studio.ogg",
+          "originalPath": "/Users/jvkmuz/Documents/SQJ/Treatments/viool + delay analoge studio.wav",
+          "originalHash": "f2881bd91f64c74b0f376a91436f7066",
+          "lengthSamples": 34916477,
+          "originalRate": 192000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        }
+      ]
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "e76a179e370b46348ad64b361a5cc3af",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "b0ce2606732f4ba39f83af10bd999e02",
+              "kind": "sound",
+              "name": "Water, Flow, Creek, Small, Loop SND143118",
+              "start": 0.516796874999997,
+              "length": 13.715308759311602,
+              "soundId": "34f339fce4c44aa695737f77029449a6",
+              "offset": 0.0,
+              "gainDb": 0.0,
+              "fadeIn": 5.836,
+              "fadeOut": 2.09,
+              "fadeInShape": 1,
+              "fadeOutShape": 2,
+              "opacity": 1.0
+            },
+            {
+              "type": "BOX",
+              "id": "e22f6fed63584964aa9abc593d545cef",
+              "kind": "sound",
+              "name": "effet test_renders - v1b",
+              "start": 5.571681486533674,
+              "length": 30.550104166666667,
+              "soundId": "a970e78bb33e43dcae4a6bcc9e695d7e",
+              "offset": 0.0,
+              "gainDb": 0.0,
+              "fadeIn": 5.967414468100401,
+              "fadeOut": 0.01,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "opacity": 0.31
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "44ef7844536645a69cf81e0f5e5ad784",
+          "name": "Track 2",
+          "colour": 1,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "5fb458f4ace14815b97a70d39f5e66c5",
+              "kind": "sound",
+              "name": "viool + delay analoge studio",
+              "start": 4.458618713812516,
+              "length": 31.663166939387825,
+              "soundId": "02610ef993c54ab4813d2fb5bbd1a226",
+              "offset": 216.329674448904797,
+              "gainDb": 0.0,
+              "fadeIn": 0.01,
+              "fadeOut": 2.895535242651334,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "opacity": 1.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
