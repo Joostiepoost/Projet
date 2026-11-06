@@ -308,13 +308,13 @@ Importer::~Importer()
 
 std::shared_ptr<ImportProgress> Importer::start (const juce::File& source, const juce::File& destination,
                                                  const ImportSettings& settings,
-                                                 std::function<void (const ImportResult&)> done)
+                                                 std::function<void (const ImportResult&)> onDone)
 {
     auto progress = std::make_shared<ImportProgress>();
     progress->name = source.getFileName();
     ++active;
     auto aliveFlag = alive;
-    pool.addJob ([this, aliveFlag, source, destination, settings, progress, done = std::move (done)]
+    pool.addJob ([this, aliveFlag, source, destination, settings, progress, done = std::move (onDone)]
     {
         auto result = progress->cancel.load() ? ImportResult {} : ImportSteps::run (source, destination, settings, formats, progress.get());
         if (! result.ok && result.error.isEmpty())

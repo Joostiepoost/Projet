@@ -157,10 +157,10 @@ void SoundPool::sync (const std::map<juce::String, juce::File>& wanted)
             }
     }
 
-    for (auto& [id, file] : toLoad)
+    for (auto& entry : toLoad)
     {
         auto aliveFlag = alive;
-        pool.addJob ([this, aliveFlag, id = id, file = file]
+        pool.addJob ([this, aliveFlag, id = entry.first, file = entry.second]
         {
             juce::String error;
             auto data = SoundData::load (file, id, formats, error);

@@ -26,6 +26,8 @@ cmake -B build -DPROJET_JUCE_PATH=../trajet/build/_deps/juce-src
 
 (Adjust the path to where your Trajet folder is. Only needed once; the setting is remembered.)
 
+If the build prints many `ld: warning: linking module flags 'SDK Version'` lines, part of the build folder was compiled with an older Xcode/macOS SDK. They are harmless; a clean build removes them: `rm -rf build && ./build.sh`.
+
 Other options:
 
 - `./build.sh debug` — Debug build (slower, more checks)
@@ -37,7 +39,7 @@ Other options:
 | Stage | Content | State |
 | --- | --- | --- |
 | 1 | Engine and project folder: import as placeholder copies, tracks, sound boxes, playback with gain, fades, crossfades; measurements | done |
-| 1.1 | Start window, import progress panel with Cancel, faster rate conversion, playhead trace fixed | testing |
+| 1.1 | Start window, import progress panel with Cancel, faster rate conversion, playhead trace fixed | done |
 | 2 | Editing: text boxes, rich-text notes editor, type switching, split/copy, undo everywhere | |
 | 3 | Rulers and tracks: proportion ruler, fraction snapping, track folders | |
 | 4 | Framework, layers 1–3: energies and semiotic levels, shapes and fills, colour modes, track template, overview lanes | |
