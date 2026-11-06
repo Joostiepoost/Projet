@@ -7,7 +7,7 @@
   "vorbisQuality": 7,
   "viewStart": 0.0,
   "pixelsPerSecond": 7.615166754406557,
-  "playhead": 0.0,
+  "playhead": 96.121586211275613,
   "children": [
     {
       "type": "SOUNDS",
@@ -45,6 +45,18 @@
           "originalHash": "f2881bd91f64c74b0f376a91436f7066",
           "lengthSamples": 34916477,
           "originalRate": 192000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "f6d7eda540e945ceb297da6914a4aaf0",
+          "name": "FS120700 - regen dakgoot",
+          "file": "Sounds/FS120700 - regen dakgoot.ogg",
+          "originalPath": "/Users/jvkmuz/Documents/SQJ/Field Recording/Regen/FS120700 - regen dakgoot.wav",
+          "originalHash": "5b1c77ac04316559a91645ec4c4cb476",
+          "lengthSamples": 6113408,
+          "originalRate": 96000.0,
           "originalChannels": 2,
           "format": "ogg"
         }
@@ -93,6 +105,16 @@
               "fadeInShape": 2,
               "fadeOutShape": 2,
               "opacity": 0.31
+            },
+            {
+              "type": "BOX",
+              "id": "6dd87dbf471940bab23c9c212d129871",
+              "kind": "text",
+              "name": "Text",
+              "start": 82.878909826208258,
+              "length": 21.010702084417932,
+              "opacity": 1.0,
+              "notes": "This box still needs filling up!\n[besloten hofjes Mechelen](https://www.hofvanbusleyden.be/collectie/niet-te-missen)\n\n\n "
             }
           ]
         },
@@ -119,7 +141,53 @@
               "fadeOut": 2.895535242651334,
               "fadeInShape": 2,
               "fadeOutShape": 2,
-              "opacity": 1.0
+              "opacity": 1.0,
+              "notes": "To be trimmed before implementation\n"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "8a50ebe69bd74b78871bb654cac20e34",
+          "name": "Track 3",
+          "colour": 2,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "349c1ce0d1b147b0961d82b9d76341da",
+              "kind": "text",
+              "name": "start layer 3",
+              "start": 12.526933015969739,
+              "length": 19.788326521254646,
+              "opacity": 0.72,
+              "notes": "Start of first AccCorp\n\n- beginning pppp < mp\n*- very high, but not too dense;*\n\n-  ",
+              "gainDb": 0.0,
+              "offset": 0.0,
+              "fadeIn": 0.01,
+              "fadeOut": 0.01,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "soundId": "34f339fce4c44aa695737f77029449a6"
+            },
+            {
+              "type": "BOX",
+              "id": "ca6e36d4a4ea433ab77bb2d615231aad",
+              "kind": "sound",
+              "name": "FS120700 - regen dakgoot",
+              "start": 58.118495040689361,
+              "length": 28.192094398427976,
+              "opacity": 1.0,
+              "notes": "Rain sounds tba\n\n- notes keep being tracked. ",
+              "gainDb": -9.599999999999998,
+              "offset": 0.0,
+              "fadeIn": 7.643566205075963,
+              "fadeOut": 0.0,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "soundId": "f6d7eda540e945ceb297da6914a4aaf0"
             }
           ]
         }
