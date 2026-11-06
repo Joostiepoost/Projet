@@ -71,6 +71,9 @@ target_sources(Projet PRIVATE
     Source/UI/TransportBar.cpp
     Source/UI/ImportPanel.cpp
     Source/UI/StartPanel.cpp
+    Source/UI/Markdown.cpp
+    Source/UI/NotesEditor.cpp
+    Source/UI/NotesWindow.cpp
     ${PROJET_CORE_SOURCES})
 
 target_compile_definitions(Projet PRIVATE

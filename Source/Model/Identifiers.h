@@ -5,7 +5,8 @@
 //     SOUND        a placeholder copy in the project's Sounds folder
 //   TRACKS
 //     TRACK
-//       BOX        a box on the timeline; stage 1 knows sound boxes only
+//       BOX        a box on the timeline: "sound" or "text" (stage 2); every box
+//                  has notes (Markdown) that survive a change of kind
 //
 // Times are in seconds (doubles); the engine turns them into samples at the
 // project's sample rate.
@@ -55,7 +56,7 @@ namespace IDs
     PROJET_ID (solo)
 
     // Box
-    PROJET_ID (kind)                  // "sound" (stage 1); "text", "container", ... later
+    PROJET_ID (kind)                  // "sound", "text"; "container", "board", ... later
     PROJET_ID (start)                 // seconds on the timeline
     PROJET_ID (length)                // seconds
     PROJET_ID (soundId)
@@ -66,6 +67,7 @@ namespace IDs
     PROJET_ID (fadeInShape)           // 0 linear, 1 equal power, 2 S-curve
     PROJET_ID (fadeOutShape)
     PROJET_ID (opacity)               // 0..1, visual only
+    PROJET_ID (notes)                 // Markdown, kept whatever the kind
 
     #undef PROJET_ID
 }

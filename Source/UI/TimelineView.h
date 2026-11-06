@@ -3,7 +3,10 @@
 //
 // Mouse:
 //   ruler              click or drag to move the playhead
-//   box body           select; drag to move (also to another track)
+//   box body           select (Shift adds, Cmd toggles); drag to move all
+//                      selected boxes (also to other tracks)
+//   empty lane         drag a rectangle to select; double-click: new text box
+//   double-click box   write its notes
 //   box edges          drag to trim (the sound stays in place)
 //   top corners        drag the small squares to set the fade lengths
 //   track header       M / S buttons; double-click the name to rename;
@@ -41,8 +44,12 @@ public:
     void filesDropped (const juce::StringArray&, int x, int y) override;
 
     //== Selection and view ===================================================
+    /** The selected box when exactly one is selected. */
     juce::ValueTree getSelectedBox();
+    juce::Array<juce::ValueTree> getSelectedBoxes();
     void selectBox (const juce::ValueTree& box);
+    void setSelection (const juce::Array<juce::ValueTree>& boxes);
+    void selectAll();
     juce::ValueTree getSelectedTrack();
 
     double getViewStart() const noexcept            { return viewStart; }
@@ -61,13 +68,15 @@ public:
     std::function<void()> onSelectionChanged;
     std::function<void (const juce::StringArray& files, juce::ValueTree track, double seconds)> onFilesDropped;
     std::function<void (juce::ValueTree box)> onRevealOriginal;
+    std::function<void (juce::ValueTree track, double seconds)> onAddTextBox;
+    std::function<void (juce::ValueTree box)> onEditNotes, onSplitAtPlayhead, onOpenNotesWindow;
 
     static constexpr int headerWidth = 172;
     static constexpr int rulerHeight = 30;
     static constexpr int addTrackHeight = 34;
 
 private:
-    enum class DragMode { none, locate, move, trimStart, trimEnd, fadeIn, fadeOut };
+    enum class DragMode { none, locate, move, trimStart, trimEnd, fadeIn, fadeOut, lasso };
     enum class Zone { none, body, startEdge, endEdge, fadeInHandle, fadeOutHandle };
 
     struct TrackRow { juce::ValueTree track; int y = 0, h = 0; };
@@ -103,10 +112,19 @@ private:
     double playhead = 0.0;
     bool dropHighlight = false;
 
-    juce::String selectedBoxId, selectedTrackId;
+    void selectionChanged();
+    bool isSelected (const juce::ValueTree& box) const   { return selectedBoxIds.contains (box[IDs::id].toString()); }
+
+    juce::StringArray selectedBoxIds;
+    juce::String selectedTrackId;
 
     DragMode dragMode = DragMode::none;
     juce::ValueTree dragBox;
     double dragStartTime = 0.0, dragOrigStart = 0.0, dragOrigEnd = 0.0, dragOrigFadeIn = 0.0, dragOrigFadeOut = 0.0;
     float dragGrabOffset = 0.0f;
+    bool clickedSelectedBox = false;                 // re-select only it on mouse-up without a drag
+    struct Moving { juce::ValueTree box; double start; int track; };
+    std::vector<Moving> moving;                      // all selected boxes, as they were when the drag began
+    juce::Rectangle<int> lasso;
+    juce::StringArray lassoBase;                     // selection before the rectangle (Shift / Cmd)
 };

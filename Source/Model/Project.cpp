@@ -116,8 +116,87 @@ juce::ValueTree Project::addSoundBox (juce::ValueTree track, double start, const
     b.setProperty (IDs::fadeInShape, (int) FadeShape::sCurve, nullptr);
     b.setProperty (IDs::fadeOutShape, (int) FadeShape::sCurve, nullptr);
     b.setProperty (IDs::opacity, 1.0, nullptr);
+    b.setProperty (IDs::notes, juce::String(), nullptr);
     track.appendChild (b, &undoManager);
     return b;
+}
+
+juce::ValueTree Project::addTextBox (juce::ValueTree track, double start, double length, const juce::String& name)
+{
+    juce::ValueTree b (IDs::BOX);
+    b.setProperty (IDs::id, newId(), nullptr);
+    b.setProperty (IDs::kind, "text", nullptr);
+    b.setProperty (IDs::name, name, nullptr);
+    b.setProperty (IDs::start, juce::jmax (0.0, start), nullptr);
+    b.setProperty (IDs::length, juce::jmax (minBoxLength, length), nullptr);
+    b.setProperty (IDs::opacity, 1.0, nullptr);
+    b.setProperty (IDs::notes, juce::String(), nullptr);
+    track.appendChild (b, &undoManager);
+    return b;
+}
+
+void Project::setKind (juce::ValueTree box, const juce::String& kind)
+{
+    if (kindOf (box) == kind) return;
+    box.setProperty (IDs::kind, kind, &undoManager);
+
+    if (kind == "sound")
+    {
+        // Defaults for a box that has never been a sound box.
+        if (! box.hasProperty (IDs::gainDb))       box.setProperty (IDs::gainDb, 0.0, &undoManager);
+        if (! box.hasProperty (IDs::offset))       box.setProperty (IDs::offset, 0.0, &undoManager);
+        if (! box.hasProperty (IDs::fadeIn))       box.setProperty (IDs::fadeIn, 0.01, &undoManager);
+        if (! box.hasProperty (IDs::fadeOut))      box.setProperty (IDs::fadeOut, 0.01, &undoManager);
+        if (! box.hasProperty (IDs::fadeInShape))  box.setProperty (IDs::fadeInShape, (int) FadeShape::sCurve, &undoManager);
+        if (! box.hasProperty (IDs::fadeOutShape)) box.setProperty (IDs::fadeOutShape, (int) FadeShape::sCurve, &undoManager);
+    }
+}
+
+void Project::setSound (juce::ValueTree box, const juce::String& soundId)
+{
+    if (! findSound (soundId).isValid()) return;
+    box.setProperty (IDs::soundId, soundId, &undoManager);
+    box.setProperty (IDs::offset, 0.0, &undoManager);
+    box.setProperty (IDs::length, juce::jmax (minBoxLength, soundSeconds (soundId)), &undoManager);
+    if (box[IDs::name].toString().isEmpty() || box[IDs::name].toString() == "Text")
+        box.setProperty (IDs::name, findSound (soundId)[IDs::name].toString(), &undoManager);
+    setFades (box, box.getProperty (IDs::fadeIn, 0.01), box.getProperty (IDs::fadeOut, 0.01));
+}
+
+juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
+{
+    const double start = boxStart (box), end = boxEnd (box);
+    if (t <= start + minBoxLength || t >= end - minBoxLength) return {};
+
+    auto right = box.createCopy();
+    right.setProperty (IDs::id, newId(), nullptr);
+    right.setProperty (IDs::start, t, nullptr);
+    right.setProperty (IDs::length, end - t, nullptr);
+    if (box.hasProperty (IDs::offset))
+        right.setProperty (IDs::offset, (double) box[IDs::offset] + (t - start), nullptr);
+
+    // The cut gets short fades so it does not click; the outer fades stay where they were.
+    constexpr double cutFade = 0.005;
+    const double fadeIn = box.getProperty (IDs::fadeIn, 0.0), fadeOut = box.getProperty (IDs::fadeOut, 0.0);
+    right.setProperty (IDs::fadeIn, cutFade, nullptr);
+    right.setProperty (IDs::fadeOut, juce::jmin (fadeOut, end - t), nullptr);
+
+    box.setProperty (IDs::length, t - start, &undoManager);
+    box.setProperty (IDs::fadeIn, juce::jmin (fadeIn, t - start), &undoManager);
+    box.setProperty (IDs::fadeOut, cutFade, &undoManager);
+
+    auto track = box.getParent();
+    track.addChild (right, track.indexOf (box) + 1, &undoManager);
+    return right;
+}
+
+juce::Array<juce::ValueTree> Project::allBoxes()
+{
+    juce::Array<juce::ValueTree> boxes;
+    for (auto t : getTracks())
+        for (auto b : t)
+            boxes.add (b);
+    return boxes;
 }
 
 void Project::removeBox (juce::ValueTree box)
@@ -163,20 +242,22 @@ juce::ValueTree Project::findBox (const juce::String& boxId)
 void Project::trimStart (juce::ValueTree box, double newStart)
 {
     const double end = boxEnd (box);
-    const double offset = (double) box[IDs::offset];
-    // The sound may not start before its first sample; the box keeps a minimum length.
-    newStart = juce::jlimit (juce::jmax (0.0, boxStart (box) - offset), end - minBoxLength, newStart);
+    const double offset = box.getProperty (IDs::offset, 0.0);
+    // A sound may not start before its first sample; the box keeps a minimum length.
+    const double earliest = isSound (box) ? juce::jmax (0.0, boxStart (box) - offset) : 0.0;
+    newStart = juce::jlimit (earliest, end - minBoxLength, newStart);
     const double delta = newStart - boxStart (box);
 
     box.setProperty (IDs::start, newStart, &undoManager);
-    box.setProperty (IDs::offset, offset + delta, &undoManager);
+    if (isSound (box)) box.setProperty (IDs::offset, offset + delta, &undoManager);
     box.setProperty (IDs::length, end - newStart, &undoManager);
     setFades (box, box[IDs::fadeIn], box[IDs::fadeOut]);
 }
 
 void Project::trimEnd (juce::ValueTree box, double newEnd)
 {
-    const double available = soundSeconds (box[IDs::soundId]) - (double) box[IDs::offset];
+    // Text boxes can be any length; sound boxes end with their sound.
+    const double available = isSound (box) ? soundSeconds (box[IDs::soundId]) - (double) box[IDs::offset] : 1.0e7;
     const double length = juce::jlimit (minBoxLength, juce::jmax (minBoxLength, available), newEnd - boxStart (box));
     box.setProperty (IDs::length, length, &undoManager);
     setFades (box, box[IDs::fadeIn], box[IDs::fadeOut]);

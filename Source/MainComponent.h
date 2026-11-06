@@ -21,6 +21,7 @@
 #include "UI/TransportBar.h"
 #include "UI/ImportPanel.h"
 #include "UI/StartPanel.h"
+#include "UI/NotesWindow.h"
 
 class MainComponent : public juce::Component,
                       public juce::ApplicationCommandTarget,
@@ -40,7 +41,8 @@ public:
         cmdNewProject = 0x3000, cmdOpenProject, cmdSaveProject, cmdRevealFolder, cmdImport,
         cmdUndo, cmdRedo, cmdDelete, cmdDuplicate, cmdDeselect,
         cmdPlayStop, cmdToStart, cmdZoomIn, cmdZoomOut, cmdZoomFit,
-        cmdAddTrack, cmdAudioSettings, cmdShortcuts
+        cmdAddTrack, cmdAudioSettings, cmdShortcuts,
+        cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -93,6 +95,19 @@ private:
     void syncSounds();
     void rebuildArrangement();
 
+    //== Editing ================================================================
+    void addTextBox (juce::ValueTree track, double start);
+    void editNotes (juce::ValueTree box);
+    void openNotesWindow();
+    void splitAtPlayhead (juce::Array<juce::ValueTree> boxes);
+    void copySelection();
+    void deleteSelection (const juce::String& undoName);
+    void paste();
+    void selectionChanged();
+
+    struct ClipItem { juce::ValueTree box; int trackOffset = 0; double timeOffset = 0.0; };
+    std::vector<ClipItem> clipboard;
+
     //== Transport ==============================================================
     void playStop();
     void locate (double seconds);
@@ -117,6 +132,7 @@ private:
     TimelineView timeline { project, pool };
     Inspector inspector { project, pool, folder };
     ImportPanel importPanel;
+    std::unique_ptr<NotesWindow> notesWindow;
     StartPanel startPanel;
 
     // MenuBarModel is already an AsyncUpdater, so model changes are coalesced here.

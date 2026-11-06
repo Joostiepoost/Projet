@@ -54,10 +54,25 @@ public:
     //== Boxes ================================================================
     /** A sound box for the whole sound, at `start` seconds. */
     juce::ValueTree addSoundBox (juce::ValueTree track, double start, const juce::String& soundId);
+    /** A text box (notes only, silent). */
+    juce::ValueTree addTextBox (juce::ValueTree track, double start, double length, const juce::String& name = "Text");
+
+    static juce::String kindOf (const juce::ValueTree& b)          { return b.getProperty (IDs::kind, "sound").toString(); }
+    static bool isSound (const juce::ValueTree& b)                 { return kindOf (b) == "sound"; }
+    /** Changes the kind; everything else (notes, sound, fades) is kept for switching back. */
+    void setKind (juce::ValueTree box, const juce::String& kind);
+    /** Gives a sound box another sound (the whole sound, keeping start and fades). */
+    void setSound (juce::ValueTree box, const juce::String& soundId);
+
+    /** Cuts the box at `t` (seconds on the timeline); returns the right-hand part,
+        or an invalid tree if `t` is not inside the box. */
+    juce::ValueTree splitBox (juce::ValueTree box, double t);
     void removeBox (juce::ValueTree box);
     juce::ValueTree duplicateBox (juce::ValueTree box);
     void moveBox (juce::ValueTree box, juce::ValueTree toTrack, double newStart);
     juce::ValueTree findBox (const juce::String& boxId);
+    /** Every box, track by track. */
+    juce::Array<juce::ValueTree> allBoxes();
     juce::ValueTree trackOf (const juce::ValueTree& box) const     { return box.getParent(); }
 
     static double boxStart (const juce::ValueTree& b)              { return (double) b[IDs::start]; }

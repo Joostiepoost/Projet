@@ -4,6 +4,7 @@
 #include "Theme.h"
 #include "TimeFormat.h"
 #include "../Engine/Arrangement.h"
+#include "Markdown.h"
 
 namespace
 {
@@ -91,7 +92,7 @@ juce::ValueTree TimelineView::boxAt (juce::Point<float> p, Zone& zone)
         const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut]);
         const float top = r.getY();
 
-        if (r.getWidth() > 24.0f && p.y < top + handleSize + 4.0f)
+        if (Project::isSound (box) && r.getWidth() > 24.0f && p.y < top + handleSize + 4.0f)
         {
             if (std::abs (p.x - fiX) <= handleSize) { zone = Zone::fadeInHandle; return box; }
             if (std::abs (p.x - foX) <= handleSize) { zone = Zone::fadeOutHandle; return box; }
@@ -124,17 +125,52 @@ double TimelineView::snap (double t, const juce::ValueTree& exclude, bool enable
 
 juce::ValueTree TimelineView::getSelectedBox()
 {
-    return selectedBoxId.isEmpty() ? juce::ValueTree() : project.findBox (selectedBoxId);
+    return selectedBoxIds.size() == 1 ? project.findBox (selectedBoxIds[0]) : juce::ValueTree();
+}
+
+juce::Array<juce::ValueTree> TimelineView::getSelectedBoxes()
+{
+    juce::Array<juce::ValueTree> boxes;
+    for (auto b : project.allBoxes())
+        if (isSelected (b)) boxes.add (b);
+    return boxes;
+}
+
+void TimelineView::selectionChanged()
+{
+    // Forget boxes that no longer exist.
+    for (int i = selectedBoxIds.size(); --i >= 0;)
+        if (! project.findBox (selectedBoxIds[i]).isValid()) selectedBoxIds.remove (i);
+    repaint();
+    if (onSelectionChanged) onSelectionChanged();
 }
 
 void TimelineView::selectBox (const juce::ValueTree& box)
 {
-    const auto id = box.isValid() ? box[IDs::id].toString() : juce::String();
-    if (box.isValid()) selectedTrackId = box.getParent()[IDs::id].toString();
-    if (id == selectedBoxId) return;
-    selectedBoxId = id;
-    repaint();
-    if (onSelectionChanged) onSelectionChanged();
+    juce::StringArray ids;
+    if (box.isValid())
+    {
+        ids.add (box[IDs::id].toString());
+        selectedTrackId = box.getParent()[IDs::id].toString();
+    }
+    if (ids == selectedBoxIds) return;
+    selectedBoxIds = ids;
+    selectionChanged();
+}
+
+void TimelineView::setSelection (const juce::Array<juce::ValueTree>& boxes)
+{
+    juce::StringArray ids;
+    for (auto& b : boxes) ids.add (b[IDs::id].toString());
+    if (! boxes.isEmpty()) selectedTrackId = boxes.getLast().getParent()[IDs::id].toString();
+    if (ids == selectedBoxIds) return;
+    selectedBoxIds = ids;
+    selectionChanged();
+}
+
+void TimelineView::selectAll()
+{
+    setSelection (project.allBoxes());
 }
 
 juce::ValueTree TimelineView::getSelectedTrack()
@@ -246,6 +282,14 @@ void TimelineView::paint (juce::Graphics& g)
 
     paintRuler (g);
 
+    if (! lasso.isEmpty())
+    {
+        g.setColour (Theme::accent.withAlpha (0.12f));
+        g.fillRect (lasso);
+        g.setColour (Theme::accent.withAlpha (0.7f));
+        g.drawRect (lasso, 1);
+    }
+
     // Playhead
     const float px = timeToX (playhead);
     if (px >= (float) headerWidth)
@@ -347,11 +391,52 @@ void TimelineView::paintTrackHeader (juce::Graphics& g, const TrackRow& r, int i
 void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, const TrackRow& row)
 {
     auto r = boxBounds (box, row);
-    const bool selected = box[IDs::id].toString() == selectedBoxId;
+    const bool selected = isSelected (box);
+    const bool sound = Project::isSound (box);
     float alpha = juce::jlimit (0.15f, 1.0f, (float) (double) box.getProperty (IDs::opacity, 1.0));
     if ((bool) row.track[IDs::mute]) alpha *= 0.45f;     // muted track: dimmed
     const auto base = Theme::trackColour ((int) row.track[IDs::colour]);
-    const bool missing = pool.get (box[IDs::soundId].toString()) == nullptr;
+    const bool missing = sound && pool.get (box[IDs::soundId].toString()) == nullptr;
+
+    if (! sound)
+    {
+        // Text box: warm paper, dashed edge, the name and the first lines of the notes.
+        g.setColour (juce::Colour (0xff2f2b25).withAlpha (alpha));
+        g.fillRoundedRectangle (r, 4.0f);
+        {
+            juce::Graphics::ScopedSaveState s (g);
+            g.reduceClipRegion (r.toNearestInt());
+            auto inner = r.reduced (7.0f, 4.0f);
+            g.setColour (Theme::text.withAlpha (juce::jmax (0.6f, alpha)));
+            g.setFont (Theme::font (12.0f, true));
+            g.drawText (box[IDs::name].toString(), inner.removeFromTop (16.0f), juce::Justification::topLeft, true);
+            const auto md = box[IDs::notes].toString();
+            if (md.trim().isNotEmpty())
+                Markdown::drawPreview (g, md, inner, 11.0f, juce::Colour (0xffd6cbb2).withAlpha (juce::jmax (0.6f, alpha)));
+            else if (inner.getHeight() > 12.0f)
+            {
+                g.setColour (Theme::textMuted.withAlpha (0.8f));
+                g.setFont (Theme::font (11.0f).italicised());
+                g.drawText ("double-click to write", inner, juce::Justification::topLeft, true);
+            }
+        }
+        juce::Path outline;
+        outline.addRoundedRectangle (r.reduced (0.5f), 4.0f);
+        if (selected)
+        {
+            g.setColour (Theme::accent);
+            g.strokePath (outline, juce::PathStrokeType (2.0f));
+        }
+        else
+        {
+            juce::Path dashed;
+            const float dashes[] = { 4.0f, 3.0f };
+            juce::PathStrokeType (1.0f).createDashedStroke (dashed, outline, dashes, 2);
+            g.setColour (juce::Colour (0xff9a8f78).withAlpha (alpha));
+            g.fillPath (dashed);
+        }
+        return;
+    }
 
     g.setColour (base.darker (1.1f).withAlpha (alpha));
     g.fillRoundedRectangle (r, 4.0f);
@@ -507,15 +592,45 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
     auto row = rowAt (e.y);
     if (row.track.isValid()) selectedTrackId = row.track[IDs::id].toString();
 
+    const bool adding = e.mods.isShiftDown() || e.mods.isCommandDown();
+
     if (! box.isValid())
     {
-        selectBox ({});
+        // Empty lane: a selection rectangle (Shift / Cmd keep the current selection).
+        if (! adding) selectBox ({});
+        if (e.mods.isPopupMenu()) return;
+        dragMode = DragMode::lasso;
+        lassoBase = adding ? selectedBoxIds : juce::StringArray();
+        lasso = { e.getPosition(), e.getPosition() };
         repaint();
         return;
     }
 
-    selectBox (box);
+    clickedSelectedBox = false;
+    if (e.mods.isCommandDown() && ! e.mods.isPopupMenu())
+    {
+        // Cmd-click toggles the box in the selection.
+        const auto id = box[IDs::id].toString();
+        if (isSelected (box)) selectedBoxIds.removeString (id); else selectedBoxIds.add (id);
+        selectionChanged();
+        if (! isSelected (box)) return;
+    }
+    else if (e.mods.isShiftDown())
+    {
+        if (! isSelected (box)) { selectedBoxIds.add (box[IDs::id].toString()); selectionChanged(); }
+    }
+    else if (isSelected (box) && selectedBoxIds.size() > 1)
+        clickedSelectedBox = true;               // keep the group for a drag; mouse-up selects only this one
+    else
+        selectBox (box);
+
     if (e.mods.isPopupMenu()) { showBoxMenu (box); return; }
+
+    // Everything selected moves together.
+    moving.clear();
+    auto tracks = project.getTracks();
+    for (auto b : getSelectedBoxes())
+        moving.push_back ({ b, Project::boxStart (b), tracks.indexOf (b.getParent()) });
 
     dragBox = box;
     dragStartTime = xToTime (e.position.x);
@@ -550,6 +665,9 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         case DragMode::move:
         {
             if (e.getDistanceFromDragStart() < 3) break;
+            clickedSelectedBox = false;
+
+            // Snap the grabbed box, then shift every selected box by the same amount.
             double start = xToTime (e.position.x - dragGrabOffset);
             const double len = dragOrigEnd - dragOrigStart;
             const double snappedStart = snap (start, dragBox, snapping);
@@ -557,9 +675,37 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
             if (std::abs (snappedStart - start) <= std::abs (snappedEnd - (start + len))) start = snappedStart;
             else start = snappedEnd - len;
 
+            double delta = start - dragOrigStart;
+            for (auto& m : moving) delta = juce::jmax (delta, -m.start);   // nothing before 0:00
+
+            auto tracks = project.getTracks();
             auto row = rowAt (juce::jlimit (rulerHeight, getHeight() - 1, e.y));
-            project.moveBox (dragBox, row.track.isValid() ? row.track : dragBox.getParent(), juce::jmax (0.0, start));
+            int trackDelta = 0;
+            if (row.track.isValid())
+            {
+                int grabbedTrack = 0;
+                for (auto& m : moving) if (m.box == dragBox) grabbedTrack = m.track;
+                trackDelta = tracks.indexOf (row.track) - grabbedTrack;
+                for (auto& m : moving)
+                    trackDelta = juce::jlimit (-m.track, tracks.getNumChildren() - 1 - m.track, trackDelta);
+            }
+
+            for (auto& m : moving)
+                project.moveBox (m.box, tracks.getChild (m.track + trackDelta), m.start + delta);
             selectedTrackId = dragBox.getParent()[IDs::id].toString();
+            break;
+        }
+
+        case DragMode::lasso:
+        {
+            lasso = juce::Rectangle<int> (e.getMouseDownPosition(), e.getPosition());
+            auto ids = lassoBase;
+            for (auto& r : rows())
+                for (auto b : r.track)
+                    if (boxBounds (b, r).toNearestInt().intersects (lasso))
+                        ids.addIfNotAlreadyThere (b[IDs::id].toString());
+            if (ids != selectedBoxIds) { selectedBoxIds = ids; selectionChanged(); }
+            repaint();
             break;
         }
 
@@ -579,20 +725,40 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
     }
 }
 
-void TimelineView::mouseUp (const juce::MouseEvent&)
+void TimelineView::mouseUp (const juce::MouseEvent& e)
 {
+    if (clickedSelectedBox && ! e.mouseWasDraggedSinceMouseDown() && dragBox.isValid())
+        selectBox (dragBox);
+    clickedSelectedBox = false;
+    if (dragMode == DragMode::lasso) { lasso = {}; repaint(); }
     dragMode = DragMode::none;
     dragBox = {};
+    moving.clear();
 }
 
 void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
 {
-    if (e.x < headerWidth && e.y >= rulerHeight)
+    if (e.y < rulerHeight) return;
+
+    if (e.x < headerWidth)
     {
         auto row = rowAt (e.y);
         if (row.track.isValid() && ! muteButton (row).contains (e.getPosition()) && ! soloButton (row).contains (e.getPosition()))
             renameTrack (row.track);
+        return;
     }
+
+    Zone zone;
+    auto box = boxAt (e.position, zone);
+    if (box.isValid())
+    {
+        if (onEditNotes) onEditNotes (box);
+        return;
+    }
+
+    auto row = rowAt (e.y);
+    if (row.track.isValid() && onAddTextBox)
+        onAddTextBox (row.track, juce::jmax (0.0, snap (xToTime (e.position.x), {}, ! e.mods.isShiftDown())));
 }
 
 void TimelineView::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
@@ -673,20 +839,49 @@ void TimelineView::showTrackMenu (juce::ValueTree track)
 
 void TimelineView::showBoxMenu (juce::ValueTree box)
 {
+    const bool sound = Project::isSound (box);
+    const bool several = selectedBoxIds.size() > 1;
     juce::PopupMenu m;
-    m.addItem (1, "Duplicate");
-    m.addItem (2, "Delete");
+    m.addItem (5, "Write notes");
+    m.addItem (6, "Notes in a large window");
     m.addSeparator();
-    m.addItem (3, "Show original sound in Finder");
+    m.addItem (7, "Split at the playhead", Project::boxStart (box) < playhead && playhead < Project::boxEnd (box));
+    m.addItem (1, several ? "Duplicate boxes" : "Duplicate");
+    m.addItem (2, several ? "Delete boxes" : "Delete");
+    m.addSeparator();
+    m.addItem (4, sound ? "Change to a text box" : "Change to a sound box", ! several);
+    if (sound) m.addItem (3, "Show original sound in Finder");
 
     juce::Component::SafePointer<TimelineView> safe (this);
-    m.showMenuAsync (juce::PopupMenu::Options(), [safe, box] (int r) mutable
+    m.showMenuAsync (juce::PopupMenu::Options(), [safe, box, sound] (int r) mutable
     {
         if (safe == nullptr || r == 0) return;
         auto& p = safe->project;
-        if (r == 1) { p.getUndoManager().beginNewTransaction ("Duplicate box"); safe->selectBox (p.duplicateBox (box)); }
-        else if (r == 2) { p.getUndoManager().beginNewTransaction ("Delete box"); p.removeBox (box); safe->selectBox ({}); }
+        auto selection = safe->getSelectedBoxes();
+        if (selection.isEmpty()) selection.add (box);
+
+        if (r == 1)
+        {
+            p.getUndoManager().beginNewTransaction ("Duplicate");
+            juce::Array<juce::ValueTree> copies;
+            for (auto b : selection) copies.add (p.duplicateBox (b));
+            safe->setSelection (copies);
+        }
+        else if (r == 2)
+        {
+            p.getUndoManager().beginNewTransaction ("Delete");
+            for (auto b : selection) p.removeBox (b);
+            safe->selectBox ({});
+        }
         else if (r == 3 && safe->onRevealOriginal) safe->onRevealOriginal (box);
+        else if (r == 4)
+        {
+            p.getUndoManager().beginNewTransaction ("Change kind");
+            p.setKind (box, sound ? "text" : "sound");
+        }
+        else if (r == 5 && safe->onEditNotes) safe->onEditNotes (box);
+        else if (r == 6 && safe->onOpenNotesWindow) safe->onOpenNotesWindow (box);
+        else if (r == 7 && safe->onSplitAtPlayhead) safe->onSplitAtPlayhead (box);
     });
 }
 
