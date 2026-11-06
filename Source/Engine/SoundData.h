@@ -34,9 +34,11 @@ struct SoundData
     void buildPeaks();
 };
 
-/** Reads a whole file into a 2-channel float buffer (mono is copied to both). */
+/** Reads a whole file into a 2-channel float buffer (mono is copied to both).
+    `progress` (optional) gets 0..1 and returns false to stop reading. */
 bool readWholeFile (const juce::File&, juce::AudioFormatManager&, juce::AudioBuffer<float>& out,
-                    double& sampleRate, int& channels, juce::String& error);
+                    double& sampleRate, int& channels, juce::String& error,
+                    std::function<bool (float)> progress = {});
 
 class SoundPool
 {

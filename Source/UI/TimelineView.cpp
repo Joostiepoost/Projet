@@ -181,7 +181,8 @@ void TimelineView::setPlayhead (double seconds)
     if (std::abs (seconds - playhead) * pps < 0.25) return;
     const float oldX = timeToX (playhead), newX = timeToX (seconds);
     playhead = seconds;
-    repaint ((int) juce::jmin (oldX, newX) - 2, 0, (int) std::abs (newX - oldX) + 5, getHeight());
+    // Wide enough for the triangle on top of the playhead (10 px) on any display scale.
+    repaint ((int) std::floor (juce::jmin (oldX, newX)) - 8, 0, (int) std::ceil (std::abs (newX - oldX)) + 17, getHeight());
 }
 
 //== Painting ==================================================================

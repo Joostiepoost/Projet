@@ -6,7 +6,7 @@ namespace projet
 {
 
 bool readWholeFile (const juce::File& file, juce::AudioFormatManager& formats, juce::AudioBuffer<float>& out,
-                    double& sampleRate, int& channels, juce::String& error)
+                    double& sampleRate, int& channels, juce::String& error, std::function<bool (float)> progress)
 {
     std::unique_ptr<juce::AudioFormatReader> reader (formats.createReaderFor (file));
 
@@ -25,7 +25,19 @@ bool readWholeFile (const juce::File& file, juce::AudioFormatManager& formats, j
     sampleRate = reader->sampleRate;
     channels = (int) reader->numChannels;
     out.setSize (2, (int) length, false, false, true);
-    reader->read (&out, 0, (int) length, 0, true, true);
+
+    // In chunks, so progress can be shown and the import cancelled.
+    constexpr int chunk = 1 << 18;
+    for (int pos = 0; pos < (int) length; pos += chunk)
+    {
+        const int n = juce::jmin (chunk, (int) length - pos);
+        reader->read (&out, pos, n, pos, true, true);
+        if (progress && ! progress ((float) (pos + n) / (float) length))
+        {
+            error = "Cancelled";
+            return false;
+        }
+    }
 
     if (reader->numChannels == 1)
         out.copyFrom (1, 0, out, 0, 0, (int) length);

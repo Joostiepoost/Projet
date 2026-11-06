@@ -1,6 +1,6 @@
 # Projet engine: measurements
 
-Machine: Intel(R) Xeon(R) Processor @ 2.80GHz, Linux. Date: 5 Nov 2026 10:12:06am.
+Machine: Intel(R) Xeon(R) Processor @ 2.10GHz, Linux. Date: 6 Nov 2026 11:18:05am.
 
 ## 1. Import: placement, length and level
 
@@ -71,24 +71,35 @@ Time to produce 1 s of stereo output, as a share of one core of this machine.
 
 | Case | Load |
 | --- | --- |
-| 8 overlapping boxes, device = project rate | 0.03% |
-| 32 overlapping boxes, device = project rate | 0.07% |
-| 32 overlapping boxes in long fades, device = project rate | 3.15% |
-| 8 overlapping boxes, device 44.1 kHz (resampled) | 6.34% |
-| 32 overlapping boxes, device 44.1 kHz (resampled) | 5.90% |
+| 8 overlapping boxes, device = project rate | 0.02% |
+| 32 overlapping boxes, device = project rate | 0.05% |
+| 32 overlapping boxes in long fades, device = project rate | 2.38% |
+| 8 overlapping boxes, device 44.1 kHz (resampled) | 4.47% |
+| 32 overlapping boxes, device 44.1 kHz (resampled) | 4.17% |
 
 ## 7. Import speed and size
 
-A 2.0-minute stereo file of coloured noise, imported into a 48 kHz project. Times for one file on one thread (resampling uses half the cores); several files import in parallel.
+A 2.0-minute stereo file of coloured noise, imported into a 48 kHz project. Times for one file (rate conversion uses all cores); two files import at a time.
 
 | Source | Placeholder | Read | Resample | Encode | Total | x real time | Size per minute |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 44.1 kHz WAV 24-bit (15.9 MB/min) | Ogg Vorbis q0.7 | 0.14 s | 3.41 s | 2.09 s | 5.65 s | 21x | 1.60 MB |
-| 44.1 kHz WAV 24-bit (15.9 MB/min) | FLAC 24-bit | 0.11 s | 3.23 s | 0.54 s | 3.88 s | 31x | 14.31 MB |
-| 48.0 kHz WAV 24-bit (17.3 MB/min) | Ogg Vorbis q0.7 | 0.13 s | 0.00 s | 2.00 s | 2.13 s | 56x | 1.66 MB |
-| 48.0 kHz WAV 24-bit (17.3 MB/min) | FLAC 24-bit | 0.11 s | 0.00 s | 0.38 s | 0.48 s | 249x | 14.46 MB |
-| 96.0 kHz WAV 24-bit (34.6 MB/min) | Ogg Vorbis q0.7 | 0.27 s | 13.56 s | 1.68 s | 15.51 s | 8x | 1.64 MB |
-| 96.0 kHz WAV 24-bit (34.6 MB/min) | FLAC 24-bit | 0.28 s | 13.20 s | 0.38 s | 13.86 s | 9x | 14.71 MB |
+| 44.1 kHz WAV 24-bit (15.9 MB/min) | Ogg Vorbis q0.7 | 0.12 s | 0.22 s | 1.47 s | 1.81 s | 66x | 1.60 MB |
+| 44.1 kHz WAV 24-bit (15.9 MB/min) | FLAC 24-bit | 0.10 s | 0.20 s | 0.35 s | 0.65 s | 184x | 14.31 MB |
+| 48.0 kHz WAV 24-bit (17.3 MB/min) | Ogg Vorbis q0.7 | 0.11 s | 0.00 s | 1.47 s | 1.58 s | 76x | 1.66 MB |
+| 48.0 kHz WAV 24-bit (17.3 MB/min) | FLAC 24-bit | 0.11 s | 0.00 s | 0.33 s | 0.44 s | 275x | 14.46 MB |
+| 96.0 kHz WAV 24-bit (34.6 MB/min) | Ogg Vorbis q0.7 | 0.28 s | 0.38 s | 1.44 s | 2.10 s | 57x | 1.64 MB |
+| 96.0 kHz WAV 24-bit (34.6 MB/min) | FLAC 24-bit | 0.26 s | 0.38 s | 0.34 s | 0.98 s | 123x | 14.71 MB |
+
+## 8. Fast sample-rate conversion
+
+Imports convert the rate with a precomputed polyphase table built from the same sinc kernel as SincReader, spread over all cores. Checked against SincReader evaluated at every position: largest difference on 10 s of noise (away from the edges), and the time each takes.
+
+| Conversion | Largest difference (dB below full scale) | Polyphase | Reference |
+| --- | --- | --- | --- |
+| 44.1 to 48.0 kHz | 130.5 dB | 0.02 s | 0.12 s |
+| 96.0 to 48.0 kHz | 131.4 dB | 0.03 s | 0.44 s |
+| 88.2 to 48.0 kHz | 130.5 dB | 0.03 s | 0.38 s |
+| 48.0 to 96.0 kHz | 130.5 dB | 0.03 s | 0.14 s |
 
 
 All checks passed.
