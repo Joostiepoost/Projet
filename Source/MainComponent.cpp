@@ -26,6 +26,12 @@ MainComponent::MainComponent()
     addAndMakeVisible (transport);
     addAndMakeVisible (timeline);
     addAndMakeVisible (inspector);
+    addChildComponent (importPanel);
+    addChildComponent (startPanel);
+
+    startPanel.onNew = [this] { newProjectDialog(); };
+    startPanel.onOpen = [this] { openProjectDialog(); };
+    startPanel.onOpenRecent = [this] (const juce::File& f) { openProject (f); };
 
     transport.onPlayStop = [this] { playStop(); };
     transport.onToStart = [this] { locate (0.0); };
@@ -79,7 +85,7 @@ MainComponent::MainComponent()
     juce::MenuBarModel::setMacMainMenu (this);
    #endif
 
-    openLastOrDefault();
+    openLastOrShowStart();
 
     setWantsKeyboardFocus (true);
     setSize (1400, 860);
@@ -109,25 +115,36 @@ void MainComponent::resized()
     transport.setBounds (r.removeFromTop (48));
     inspector.setBounds (r.removeFromRight (320));
     timeline.setBounds (r);
+    startPanel.setBounds (getLocalBounds());
+    layoutImportPanel();
+}
+
+void MainComponent::layoutImportPanel()
+{
+    const auto t = timeline.getBounds();
+    const int h = juce::jmin (t.getHeight() - 20, importPanel.preferredHeight());
+    importPanel.setBounds (t.getRight() - 420 - 16, t.getBottom() - h - 16, 420, h);
 }
 
 //== Project ===================================================================
 
-void MainComponent::openLastOrDefault()
+void MainComponent::openLastOrShowStart()
 {
     const juce::File last (properties.getUserSettings()->getValue ("lastProject"));
     if (last.existsAsFile() && openProject (last))
         return;
+    showStart();
+}
 
-    // No project yet: a fresh one in ~/Music/Projet.
-    auto parent = ProjectFolder::defaultParent();
-    parent.createDirectory();
-    auto f = ProjectFolder::unusedFolder (parent, "Untitled");
-    const auto result = folder.create (f, project, Project::defaultSampleRate);
-    if (result.failed())
-        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Projet",
-                                                "Could not create a project folder: " + result.getErrorMessage());
-    afterProjectLoaded();
+void MainComponent::showStart()
+{
+    juce::Array<juce::File> files;
+    for (int i = 0; i < recentProjects.getNumFiles(); ++i)
+        files.add (recentProjects.getFile (i));
+    startPanel.setRecent (files);
+    startPanel.setVisible (true);
+    startPanel.toFront (false);
+    updateTitle();
 }
 
 bool MainComponent::openProject (const juce::File& file)
@@ -152,6 +169,7 @@ bool MainComponent::openProject (const juce::File& file)
 
 void MainComponent::afterProjectLoaded()
 {
+    startPanel.setVisible (false);
     pool.clear();
     timeline.selectBox ({});
     auto& s = project.getState();
@@ -181,9 +199,10 @@ void MainComponent::rememberProject()
 
 void MainComponent::updateTitle()
 {
-    transport.setProjectName (project.getName(), dirty);
+    const auto name = hasProject() ? project.getName() : juce::String ("no project");
+    transport.setProjectName (hasProject() ? name : juce::String(), dirty && hasProject());
     if (auto* w = findParentComponentOfClass<juce::DocumentWindow>())
-        w->setName ("Projet - " + project.getName() + (dirty ? " *" : ""));
+        w->setName (hasProject() ? "Projet - " + name + (dirty ? " *" : "") : juce::String ("Projet"));
 }
 
 void MainComponent::markClean()
@@ -215,7 +234,7 @@ void MainComponent::saveProject()
 
 void MainComponent::askToSaveThen (std::function<void()> next)
 {
-    if (! dirty) { next(); return; }
+    if (! dirty || ! hasProject()) { next(); return; }
 
     juce::Component::SafePointer<MainComponent> safeThis (this);
     juce::AlertWindow::showYesNoCancelBox (juce::MessageBoxIconType::QuestionIcon, "Save changes?",
@@ -231,8 +250,10 @@ void MainComponent::askToSaveThen (std::function<void()> next)
 
 void MainComponent::newProjectDialog()
 {
+    juce::File parent (properties.getUserSettings()->getValue ("lastParent"));
+    if (! parent.isDirectory()) parent = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
     chooser = std::make_unique<juce::FileChooser> ("Name the new project (a folder of that name is made)",
-                                                   ProjectFolder::unusedFolder (ProjectFolder::defaultParent(), "Untitled"), "", true);
+                                                   ProjectFolder::unusedFolder (parent, "Untitled"), "", true);
     juce::Component::SafePointer<MainComponent> safeThis (this);
     chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
                           [safeThis] (const juce::FileChooser& fc)
@@ -264,6 +285,7 @@ void MainComponent::newProjectDialog()
                 juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Could not create the project", result.getErrorMessage());
                 return;
             }
+            self.properties.getUserSettings()->setValue ("lastParent", target.getParentDirectory().getFullPathName());
             self.openProject (created.getProjectFile());
         }), true);
     });
@@ -271,7 +293,9 @@ void MainComponent::newProjectDialog()
 
 void MainComponent::openProjectDialog()
 {
-    chooser = std::make_unique<juce::FileChooser> ("Open a project", ProjectFolder::defaultParent(), juce::String ("*") + ProjectFolder::extension, true);
+    juce::File parent (properties.getUserSettings()->getValue ("lastParent"));
+    if (! parent.isDirectory()) parent = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
+    chooser = std::make_unique<juce::FileChooser> ("Open a project", parent, juce::String ("*") + ProjectFolder::extension, true);
     juce::Component::SafePointer<MainComponent> safeThis (this);
     chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                           [safeThis] (const juce::FileChooser& fc)
@@ -303,6 +327,24 @@ void MainComponent::modelChanged()
     inspector.refresh();
     timeline.repaint();
     updateTitle();
+}
+
+void MainComponent::openFiles (const juce::StringArray& paths)
+{
+    juce::StringArray sounds;
+    for (auto& p : paths)
+    {
+        const juce::File f (p);
+        if (f.hasFileExtension (ProjectFolder::extension))
+        {
+            juce::Component::SafePointer<MainComponent> safeThis (this);
+            askToSaveThen ([safeThis, f] { if (safeThis != nullptr) safeThis->openProject (f); });
+            return;
+        }
+        sounds.add (p);
+    }
+    if (hasProject() && ! sounds.isEmpty())
+        importFiles (sounds, timeline.getSelectedTrack(), engine.getPositionSeconds());
 }
 
 void MainComponent::importDialog()
@@ -343,14 +385,18 @@ void MainComponent::importFiles (const juce::StringArray& files, juce::ValueTree
         auto dest = folder.newSoundFile (source.getFileNameWithoutExtension(), ext);
         dest.create();   // reserve the name while the copy is being made
         juce::Component::SafePointer<MainComponent> safeThis (this);
-        importer.start (source, dest, settings, [safeThis, batch, i] (const projet::ImportResult& r)
+        auto progress = importer.start (source, dest, settings, [safeThis, batch, i] (const projet::ImportResult& r)
         {
             if (safeThis == nullptr) return;
             batch->results[(size_t) i] = r;
             safeThis->placeReady (batch);
         });
+        importPanel.add (progress);
     }
 
+    importPanel.update();
+    importPanel.setVisible (true);
+    layoutImportPanel();
     transport.setStatus ("Importing " + juce::String (files.size()) + (files.size() == 1 ? " sound..." : " sounds..."));
 }
 
@@ -365,7 +411,8 @@ void MainComponent::placeReady (std::shared_ptr<ImportBatch> batch)
         if (! r.ok)
         {
             r.placeholder.deleteFile();
-            batch->errors.add (r.original.getFileName() + ": " + r.error);
+            if (r.cancelled) ++batch->cancelled;
+            else batch->errors.add (r.original.getFileName() + ": " + r.error);
             continue;
         }
 
@@ -406,8 +453,12 @@ void MainComponent::placeReady (std::shared_ptr<ImportBatch> batch)
     if (batch->next >= (int) batch->results.size())
     {
         batches.erase (std::remove (batches.begin(), batches.end(), batch), batches.end());
-        if (batch->errors.isEmpty())
-            transport.setStatus ("Imported " + juce::String (batch->results.size()) + (batch->results.size() == 1 ? " sound." : " sounds."));
+        const int imported = (int) batch->results.size() - batch->errors.size() - batch->cancelled;
+        if (batch->errors.isEmpty() && imported == 0)
+            transport.setStatus ("Import cancelled.");
+        else if (batch->errors.isEmpty())
+            transport.setStatus ("Imported " + juce::String (imported) + (imported == 1 ? " sound" : " sounds")
+                                 + (batch->cancelled > 0 ? ", " + juce::String (batch->cancelled) + " cancelled." : "."));
         else
         {
             transport.setStatus (juce::String (batch->errors.size()) + " sounds could not be imported.", true);
@@ -436,6 +487,12 @@ void MainComponent::locate (double seconds)
 void MainComponent::timerCallback()
 {
     engine.purgeRetired();
+    if (importPanel.isVisible())
+    {
+        const bool show = importPanel.update();
+        importPanel.setVisible (show);
+        if (show) layoutImportPanel();
+    }
     const double t = engine.getPositionSeconds();
     timeline.setPlayhead (t);
     transport.setTime (t);
@@ -498,15 +555,16 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
     using KP = juce::KeyPress;
     const auto cmd = juce::ModifierKeys::commandModifier;
     const auto shift = juce::ModifierKeys::shiftModifier;
-    const bool hasBox = timeline.getSelectedBox().isValid();
+    const bool hasBox = hasProject() && timeline.getSelectedBox().isValid();
+    const bool open = hasProject();
 
     switch (id)
     {
         case cmdNewProject:    info.setInfo ("New project...", "Make a new project folder", "File", 0); info.addDefaultKeypress ('n', cmd); break;
         case cmdOpenProject:   info.setInfo ("Open project...", "Open a project", "File", 0); info.addDefaultKeypress ('o', cmd); break;
-        case cmdSaveProject:   info.setInfo ("Save", "Save the project", "File", 0); info.addDefaultKeypress ('s', cmd); break;
-        case cmdRevealFolder:  info.setInfo ("Show project folder in Finder", "Reveal the project folder", "File", 0); break;
-        case cmdImport:        info.setInfo ("Import sounds...", "Import sound files as placeholder copies", "File", 0); info.addDefaultKeypress ('i', cmd); break;
+        case cmdSaveProject:   info.setInfo ("Save", "Save the project", "File", 0); info.addDefaultKeypress ('s', cmd); info.setActive (open); break;
+        case cmdRevealFolder:  info.setInfo ("Show project folder in Finder", "Reveal the project folder", "File", 0); info.setActive (open); break;
+        case cmdImport:        info.setInfo ("Import sounds...", "Import sound files as placeholder copies", "File", 0); info.addDefaultKeypress ('i', cmd); info.setActive (open); break;
 
         case cmdUndo:
             info.setInfo ("Undo " + project.getUndoManager().getUndoDescription(), "Undo", "Edit", 0);
@@ -531,14 +589,14 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             break;
         case cmdDeselect:      info.setInfo ("Select nothing", "Clear the selection", "Edit", 0); info.addDefaultKeypress (KP::escapeKey, 0); break;
 
-        case cmdPlayStop:      info.setInfo ("Play / stop", "Start or stop playback", "Transport", 0); info.addDefaultKeypress (KP::spaceKey, 0); break;
+        case cmdPlayStop:      info.setInfo ("Play / stop", "Start or stop playback", "Transport", 0); info.addDefaultKeypress (KP::spaceKey, 0); info.setActive (open); break;
         case cmdToStart:       info.setInfo ("Back to the start", "Move the playhead to 0:00", "Transport", 0); info.addDefaultKeypress (KP::returnKey, 0); info.addDefaultKeypress (KP::homeKey, 0); break;
 
         case cmdZoomIn:        info.setInfo ("Zoom in", "Zoom in", "View", 0); info.addDefaultKeypress ('=', cmd); break;
         case cmdZoomOut:       info.setInfo ("Zoom out", "Zoom out", "View", 0); info.addDefaultKeypress ('-', cmd); break;
         case cmdZoomFit:       info.setInfo ("Show the whole piece", "Zoom to fit", "View", 0); info.addDefaultKeypress ('0', cmd); break;
 
-        case cmdAddTrack:      info.setInfo ("Add track", "Add a track below the selected one", "Track", 0); info.addDefaultKeypress ('n', cmd | shift); break;
+        case cmdAddTrack:      info.setInfo ("Add track", "Add a track below the selected one", "Track", 0); info.addDefaultKeypress ('n', cmd | shift); info.setActive (open); break;
         case cmdAudioSettings: info.setInfo ("Audio settings...", "Output device and sample rate", "Audio", 0); info.addDefaultKeypress (',', cmd); break;
         case cmdShortcuts:     info.setInfo ("Keyboard shortcuts", "List the shortcuts", "Help", 0); info.addDefaultKeypress ('/', cmd); break;
         default: break;
@@ -548,6 +606,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
 bool MainComponent::perform (const InvocationInfo& info)
 {
     auto box = timeline.getSelectedBox();
+    if (! hasProject() && info.commandID != cmdNewProject && info.commandID != cmdOpenProject
+        && info.commandID != cmdAudioSettings && info.commandID != cmdShortcuts)
+        return true;
 
     switch (info.commandID)
     {

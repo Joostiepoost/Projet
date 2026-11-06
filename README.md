@@ -36,7 +36,8 @@ Other options:
 
 | Stage | Content | State |
 | --- | --- | --- |
-| 1 | Engine and project folder: import as placeholder copies, tracks, sound boxes, playback with gain, fades, crossfades; measurements | testing |
+| 1 | Engine and project folder: import as placeholder copies, tracks, sound boxes, playback with gain, fades, crossfades; measurements | done |
+| 1.1 | Start window, import progress panel with Cancel, faster rate conversion, playhead trace fixed | testing |
 | 2 | Editing: text boxes, rich-text notes editor, type switching, split/copy, undo everywhere | |
 | 3 | Rulers and tracks: proportion ruler, fraction snapping, track folders | |
 | 4 | Framework, layers 1–3: energies and semiotic levels, shapes and fills, colour modes, track template, overview lanes | |
@@ -49,7 +50,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using stage 1
+## Using stage 1 (and 1.1)
 
 ### The project folder
 
@@ -66,7 +67,7 @@ Every piece is a folder:
 
 - **File > New project (Cmd-N)**: name the project; a folder of that name is made where you choose. Then pick the **sample rate** (44.1, 48, 88.2 or 96 kHz; default 48). Every imported sound is converted to it, so it cannot be changed later.
 - **Open project (Cmd-O)**, **Open recent**, **Save (Cmd-S)**. Sounds are stored with paths relative to the folder, so the folder can be moved or renamed as a whole.
-- The first time Projet starts it makes `~/Music/Projet/Untitled`; after that it reopens the last project.
+- Projet reopens the last project. When there is none (first start, or the folder has moved), a **start window** offers *New project*, *Open project* and the recent projects; Projet never makes a folder you did not choose. (Stage 1 made `~/Music/Projet/Untitled` automatically; you can delete that folder.)
 - The window and the bar at the top show `*` when there are unsaved changes; New, Open and Quit ask first.
 - **Show project folder in Finder** (File menu).
 
@@ -78,7 +79,9 @@ Every piece is a folder:
 - Each sound becomes a **placeholder copy** in `Sounds/`: stereo (mono is doubled), at the project rate (converted with Effet's sinc kernel when needed), encoded as **Ogg Vorbis q0.7** (default, about 1.6 MB per minute) or **FLAC 24-bit** (lossless, about 14 MB per minute). Choose in the panel on the right with nothing selected; it applies to new imports.
 - The original is never changed; its path is kept (box panel: *Show original in Finder*), so it can be swapped for the production file later.
 - Importing the same file again reuses the copy that is already there.
-- Imports run in the background, several at a time; the status line shows progress.
+- Imports run in the background, two files at a time, and a **progress panel** appears at the bottom right of the timeline: one row per file with its step (reading, converting the sample rate, encoding) and a bar. **Cancel** stops the files still running and removes their unfinished copies. The panel closes by itself shortly after the last file.
+- Rate conversion uses a precomputed filter and all cores (the same quality as before, about 35 times faster for 96 kHz sources).
+- From Terminal, `open -a Projet file.wav ...` imports sound files at the playhead, and a `.projet` file opens that project.
 
 ### Tracks and boxes
 
@@ -125,5 +128,6 @@ Every piece is a folder:
 5. **Device at another rate** than the project.
 6. **CPU**.
 7. **Import speed and size**, Ogg versus FLAC.
+8. **Fast rate conversion** checked against the reference (SincReader at every position).
 
 `Measurements/report-cloud-test-machine.md` is a run on the (slower) cloud machine where the code was written; your M4 should be roughly two to three times faster.

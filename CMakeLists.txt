@@ -69,6 +69,8 @@ target_sources(Projet PRIVATE
     Source/UI/TimelineView.cpp
     Source/UI/Inspector.cpp
     Source/UI/TransportBar.cpp
+    Source/UI/ImportPanel.cpp
+    Source/UI/StartPanel.cpp
     ${PROJET_CORE_SOURCES})
 
 target_compile_definitions(Projet PRIVATE

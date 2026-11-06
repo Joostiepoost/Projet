@@ -1,8 +1,9 @@
 // MainComponent.h — everything inside Projet's main window.
 //
-// Stage 1: the project folder (new, open, save, backups), importing sounds
+// Stage 1 / 1.1: the project folder (new, open, save, backups), importing sounds
 // as compact placeholder copies, a flat timeline with tracks and sound boxes,
-// and sample-accurate playback with gain, fades and crossfades.
+// and sample-accurate playback with gain, fades and crossfades. With no
+// project open (first start) the start panel covers everything.
 
 #pragma once
 
@@ -18,6 +19,8 @@
 #include "UI/TimelineView.h"
 #include "UI/Inspector.h"
 #include "UI/TransportBar.h"
+#include "UI/ImportPanel.h"
+#include "UI/StartPanel.h"
 
 class MainComponent : public juce::Component,
                       public juce::ApplicationCommandTarget,
@@ -40,6 +43,9 @@ public:
         cmdAddTrack, cmdAudioSettings, cmdShortcuts
     };
 
+    /** A .projet file opens; sound files are imported on the selected track at the playhead. */
+    void openFiles (const juce::StringArray& paths);
+
     /** Asks to save unsaved changes (Save / Don't save / Cancel), then runs `next` unless cancelled. */
     void askToSaveThen (std::function<void()> next);
 
@@ -58,7 +64,10 @@ private:
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     //== Project ================================================================
-    void openLastOrDefault();
+    void openLastOrShowStart();
+    void showStart();
+    void layoutImportPanel();
+    bool hasProject() const      { return folder.isValid(); }
     bool openProject (const juce::File&);
     void newProjectDialog();
     void openProjectDialog();
@@ -78,6 +87,7 @@ private:
         int next = 0;
         std::vector<std::optional<projet::ImportResult>> results;
         juce::StringArray errors;
+        int cancelled = 0;
     };
     void placeReady (std::shared_ptr<ImportBatch>);
     void syncSounds();
@@ -106,6 +116,8 @@ private:
     TransportBar transport;
     TimelineView timeline { project, pool };
     Inspector inspector { project, pool, folder };
+    ImportPanel importPanel;
+    StartPanel startPanel;
 
     // MenuBarModel is already an AsyncUpdater, so model changes are coalesced here.
     struct Updater : juce::AsyncUpdater

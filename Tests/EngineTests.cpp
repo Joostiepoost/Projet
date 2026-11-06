@@ -9,6 +9,7 @@
 //   5. Playback with the device at another rate than the project.
 //   6. CPU.
 //   7. Import speed and placeholder size (Ogg vs FLAC).
+//   8. The fast (polyphase) rate conversion against the reference.
 
 #include <JuceHeader.h>
 #include "../Source/Engine/Importer.h"
@@ -18,6 +19,7 @@
 #include "../Source/Model/Project.h"
 
 #include <random>
+#include <thread>
 
 using namespace projet;
 
@@ -420,7 +422,7 @@ void testImportSpeed (const juce::File& work, juce::AudioFormatManager& formats)
     line ("## 7. Import speed and size");
     line();
     line ("A " + fmt (minutes, 1) + "-minute stereo file of coloured noise, imported into a 48 kHz project. Times for one file "
-          "on one thread (resampling uses half the cores); several files import in parallel.");
+          "(rate conversion uses all cores); two files import at a time.");
     line();
     line ("| Source | Placeholder | Read | Resample | Encode | Total | x real time | Size per minute |");
     line ("| --- | --- | --- | --- | --- | --- | --- | --- |");
@@ -459,6 +461,45 @@ void testImportSpeed (const juce::File& work, juce::AudioFormatManager& formats)
     line();
 }
 
+void testPolyphase()
+{
+    line ("## 8. Fast sample-rate conversion");
+    line();
+    line ("Imports convert the rate with a precomputed polyphase table built from the same sinc kernel as SincReader, "
+          "spread over all cores. Checked against SincReader evaluated at every position: largest difference on 10 s of "
+          "noise (away from the edges), and the time each takes.");
+    line();
+    line ("| Conversion | Largest difference (dB below full scale) | Polyphase | Reference |");
+    line ("| --- | --- | --- | --- |");
+
+    std::mt19937 rng (7);
+    std::uniform_real_distribution<float> uni (-0.5f, 0.5f);
+    for (auto pr : { std::pair<double, double> { 44100.0, 48000.0 }, { 96000.0, 48000.0 }, { 88200.0, 48000.0 }, { 48000.0, 96000.0 } })
+    {
+        const int n = (int) (10.0 * pr.first);
+        juce::AudioBuffer<float> in (2, n);
+        for (int ch = 0; ch < 2; ++ch) for (int i = 0; i < n; ++i) in.setSample (ch, i, uni (rng));
+
+        double t0 = now();
+        auto fast = ImportSteps::resample (in, pr.first, pr.second, (int) std::thread::hardware_concurrency());
+        double t1 = now();
+        auto ref = ImportSteps::resampleReference (in, pr.first, pr.second);
+        double t2 = now();
+
+        double worst = 0.0;
+        const int m = juce::jmin (fast.getNumSamples(), ref.getNumSamples());
+        for (int ch = 0; ch < 2; ++ch)
+            for (int i = 2000; i < m - 2000; ++i)
+                worst = juce::jmax (worst, (double) std::abs (fast.getSample (ch, i) - ref.getSample (ch, i)));
+        const double db = 20.0 * std::log10 (worst + 1.0e-12);
+        line ("| " + fmt (pr.first / 1000.0, 1) + " to " + fmt (pr.second / 1000.0, 1) + " kHz | " + fmt (-db, 1) + " dB | "
+              + fmt (t1 - t0, 2) + " s | " + fmt (t2 - t1, 2) + " s |");
+        check (fast.getNumSamples() == ref.getNumSamples(), "polyphase length");
+        check (db < -100.0, "polyphase accuracy");
+    }
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -493,6 +534,7 @@ int main (int argc, char** argv)
     std::cout << "Other device rates..." << std::endl; testResampledPlayback();
     std::cout << "CPU..." << std::endl;              testCpu();
     std::cout << "Import speed..." << std::endl;     testImportSpeed (work, formats);
+    std::cout << "Polyphase..." << std::endl;        testPolyphase();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);
