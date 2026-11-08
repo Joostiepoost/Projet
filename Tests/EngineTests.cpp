@@ -12,7 +12,9 @@
 //   8. The fast (polyphase) rate conversion against the reference.
 //   9. Proportions (stage 3a): typed expressions, bound boxes following their
 //      frames, undo, and track folders.
-// --model runs only 9.
+//  10. Ruler layers and marks (stage 3b): marks following frames, names in
+//      expressions, pins, ratio splits, series, ratios, presets, migration.
+// --model runs only 9 and 10.
 
 #include <JuceHeader.h>
 #include "../Source/Engine/Importer.h"
@@ -625,6 +627,106 @@ void testProportions()
     line();
 }
 
+void testMarks()
+{
+    line ("## 10. Ruler layers and marks");
+    line();
+    juce::String error;
+
+    // Names in expressions
+    auto r = Proportion::parse ("m2 - m1", [] (const juce::String& n) -> std::optional<double>
+    {
+        if (n == "m1") return 0.25;
+        if (n == "m2") return 0.75;
+        return std::nullopt;
+    });
+    check (r.ok && std::abs (r.value - 0.5) < 1.0e-12, "m2 - m1 = 0.5");
+    check (! Proportion::parse ("zz").ok, "unknown name refused");
+    check (Proportion::isValidName ("a1") && ! Proportion::isValidName ("1a") && ! Proportion::isValidName ("phi"), "mark names");
+    check (Proportion::replaceName ("a1 - a10 + a1", "a1", "b") == "b - a10 + b", "rename whole words only: " + Proportion::replaceName ("a1 - a10 + a1", "a1", "b"));
+
+    // Ratios and series
+    check (Proportion::ratioText ({ 3.0, 8.0, 5.0 }) == "3 : 8 : 5", "ratio 3:8:5");
+    check (Proportion::ratioText ({ 6.0, 16.0 }) == "3 : 8", "ratio 3:8 from 6 and 16");
+    check (Proportion::ratioText ({ 1.0, 1.6180339887 }) == juce::String::fromUTF8 ("\xe2\x89\x88 8 : 13"), "1 : phi is about 8 : 13, got " + Proportion::ratioText ({ 1.0, 1.6180339887 }));
+    check (Proportion::ratioText ({ 1.0, 3.14159265 }) == juce::String::fromUTF8 ("\xe2\x89\x88 7 : 22"), "1 : pi is about 7 : 22");
+    check (Proportion::ratioText ({ 1.0, 10.123 }).contains ("10.123"), "no near ratio: decimals, got " + Proportion::ratioText ({ 1.0, 10.123 }));
+    check (Proportion::partBoundaries (Proportion::parseParts ("2:3:5:8")).joinIntoString (" ") == "1/9 5/18 5/9", "2:3:5:8 boundaries: "
+           + Proportion::partBoundaries (Proportion::parseParts ("2:3:5:8")).joinIntoString (" "));
+    auto golden = Proportion::seriesPoints ("golden:1");
+    check (golden.size() == 2 && std::abs (golden[0].position - 0.381966) < 1.0e-5 && std::abs (golden[1].position - 0.618034) < 1.0e-5, "golden 1 level");
+    check (Proportion::seriesPoints ("golden:2").size() == 8, "golden 2 levels: 8 points, got " + juce::String ((int) Proportion::seriesPoints ("golden:2").size()));
+    auto fib = Proportion::seriesPoints ("fibonacci:13");
+    check (fib.size() == 5 && fib.back().label == "8/13", "fibonacci of 13: 1 2 3 5 8 /13");
+    check (Proportion::seriesPoints ("harmonic:4").size() == 3, "harmonic to 1/4");
+    check (Proportion::seriesPoints ("custom:1/7, golden").size() == 2, "own series");
+    check (Proportion::withSeriesPart ("golden:2;harmonic:8", "golden", "") == "harmonic:8", "remove a series");
+
+    // Marks follow their frame; boxes name them
+    Project p;
+    p.resetToDefault ("Marks");
+    check (p.getRulers().getNumChildren() == 2 && Project::isTimeLayer (p.getRulers().getChild (0)), "default layers: time + proportion");
+    auto track = p.getTrack (0);
+    auto a = p.addTextBox (track, 0.0, 220.0, "a");
+    auto m1 = p.addMark (a[IDs::id].toString(), "3/11", "a1");
+    check (std::abs (p.markTime (m1) - 60.0) < 1.0e-6, "mark at 3/11 of a = 60 s");
+    p.trimEnd (a, 330.0);
+    check (std::abs (p.markTime (m1) - 90.0) < 1.0e-6, "mark follows a stretched");
+
+    auto x = p.addTextBox (track, 0.0, 10.0, "x");
+    p.bindBox (x, "piece");
+    check (p.setProportion (x, true, "a1", error), "start a1: " + error);
+    check (std::abs (Project::boxStart (x) - 90.0) < 1.0e-6, "box starts at the mark (90 s), got " + juce::String (Project::boxStart (x)));
+    p.setMarkExpression (m1, "1/2", error);
+    check (std::abs (Project::boxStart (x) - 165.0) < 1.0e-6, "box follows the mark moved to 1/2 of a");
+
+    auto m2 = p.addMark (a[IDs::id].toString(), "9/11", "a2");
+    p.pinEdge (x, false, "a2");
+    check (x[IDs::propLength].toString() == "a2 - a1", "end pinned: length a2 - a1, got " + x[IDs::propLength].toString());
+    check (std::abs (Project::boxEnd (x) - p.markTime (m2)) < 1.0e-6, "end at a2");
+
+    p.renameMark (m1, "start", error);
+    check (x[IDs::propStart].toString() == "start" && x[IDs::propLength].toString() == "a2 - start", "rename reaches box proportions");
+    check (! p.renameMark (m2, "start", error), "names stay unique");
+
+    const double before = Project::boxStart (x);
+    p.removeMark (m1);
+    check (std::abs (Project::boxStart (x) - before) < 1.0e-6 && ! x[IDs::propStart].toString().contains ("start"), "deleted mark: box keeps its place");
+
+    // Ratio split
+    auto marks = p.splitFrameByRatio ("piece", { 1, 1, 2 }, "r");
+    check (marks.size() == 2 && marks[0][IDs::expr].toString() == "1/4" && marks[1][IDs::expr].toString() == "1/2", "split 1:1:2 into marks");
+    auto c = p.addTextBox (track, 0.0, 12.0, "c");
+    auto pieces = p.cutBoxByRatio (c, { 1, 1, 2 });
+    check (pieces.size() == 3 && std::abs (Project::boxLength (pieces[2]) - 6.0) < 1.0e-6, "cut 1:1:2 into 3, 3 and 6 s");
+
+    // Presets round trip
+    auto layers = p.layersToVar();
+    p.addLayer ("proportion");
+    p.layersFromVar (layers);
+    check (p.getRulers().getNumChildren() == 2, "layers back from a preset");
+
+    // Migration from stage 3a
+    Project q;
+    q.resetToDefault ("Old");
+    auto st = q.getState();
+    st.removeChild (st.getChildWithName (IDs::RULERS), nullptr);
+    st.setProperty (IDs::rulerFrame, "span", nullptr);
+    st.setProperty (IDs::denominators, "2,3,7.5", nullptr);
+    st.setProperty (IDs::spanStart, 1.0, nullptr);
+    st.setProperty (IDs::spanEnd, 5.0, nullptr);
+    Project q2;
+    q2.fromJson (q.toJson(), error);
+    auto active = q2.getActiveLayer();
+    check (active.isValid() && q2.layerFrame (active) == "span" && Proportion::indexOf (q2.layerDenominators (active), 7.5) >= 0,
+           "a stage 3a project keeps its ruler settings");
+
+    line ("- Marks follow their frames; boxes can name them (start \"a1\", length \"a2 - a1\"), follow them when they move, "
+          "keep their place when a mark is deleted; renaming reaches every proportion.");
+    line ("- Ratio splits into marks (2:3:5:8 gives 1/9, 5/18, 5/9) and into box parts; ratios (3 : 8 : 5); golden, Fibonacci, harmonic and own series; presets; stage 3a projects keep their ruler.");
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -636,7 +738,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -662,6 +764,7 @@ int main (int argc, char** argv)
     std::cout << "Import speed..." << std::endl;     testImportSpeed (work, formats);
     std::cout << "Polyphase..." << std::endl;        testPolyphase();
     std::cout << "Proportions..." << std::endl;      testProportions();
+    std::cout << "Marks..." << std::endl;            testMarks();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

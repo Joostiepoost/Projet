@@ -14,7 +14,7 @@ namespace
     class Parser
     {
     public:
-        explicit Parser (const juce::String& text)
+        Parser (const juce::String& text, const Resolver& r) : resolver (r)
         {
             for (auto p = text.getCharPointer(); ! p.isEmpty();)
                 s.push_back (p.getAndAdvance());
@@ -48,6 +48,7 @@ namespace
         }
 
     private:
+        const Resolver& resolver;
         std::vector<juce::juce_wchar> s;
         size_t pos = 0;
         bool ok = true;
@@ -153,6 +154,18 @@ namespace
             if (word ("pi"))     return juce::MathConstants<double>::pi;
             if (word ("sqrt"))   { const double v = atom(); return root (v); }
 
+            // A mark's name
+            if (juce::CharacterFunctions::isLetter (c) || c == U'_')
+            {
+                juce::String name;
+                while (pos < s.size() && (juce::CharacterFunctions::isLetterOrDigit (s[pos]) || s[pos] == U'_'))
+                    name += juce::String::charToString (s[pos++]);
+                if (resolver)
+                    if (auto v = resolver (name)) return *v;
+                fail ("There is no mark called \"" + name + "\".");
+                return 0.0;
+            }
+
             if (pos >= s.size()) fail ("Something is missing at the end.");
             else fail ("Did not understand \"" + rest() + "\".");
             return 0.0;
@@ -165,12 +178,215 @@ namespace
         }
     };
 
-    bool isWhole (double d)  { return std::abs (d - std::round (d)) < 1.0e-9; }
 }
 
-Result parse (const juce::String& text)
+static bool isWhole (double d)  { return std::abs (d - std::round (d)) < 1.0e-9; }
+
+Result parse (const juce::String& text, const Resolver& marks)
 {
-    return Parser (text).run();
+    return Parser (text, marks).run();
+}
+
+bool isValidName (const juce::String& name)
+{
+    if (name.isEmpty() || name.length() > 40) return false;
+    if (! (juce::CharacterFunctions::isLetter (name[0]) || name[0] == '_')) return false;
+    for (auto c : name) if (! (juce::CharacterFunctions::isLetterOrDigit (c) || c == '_')) return false;
+    for (auto w : { "phi", "golden", "pi", "sqrt", "of" }) if (name.equalsIgnoreCase (w)) return false;
+    return true;
+}
+
+static void forEachWord (const juce::String& text, std::function<void (int start, int end)> fn)
+{
+    const int n = text.length();
+    int i = 0;
+    while (i < n)
+    {
+        const auto c = text[i];
+        if (juce::CharacterFunctions::isLetter (c) || c == '_')
+        {
+            int j = i;
+            while (j < n && (juce::CharacterFunctions::isLetterOrDigit (text[j]) || text[j] == '_')) ++j;
+            fn (i, j);
+            i = j;
+        }
+        else if (juce::CharacterFunctions::isDigit (c))
+        {
+            // Skip numbers (so "2e" style junk is not taken as a name).
+            while (i < n && (juce::CharacterFunctions::isDigit (text[i]) || text[i] == '.' || text[i] == ',')) ++i;
+        }
+        else ++i;
+    }
+}
+
+juce::String replaceName (const juce::String& expression, const juce::String& oldName, const juce::String& newName)
+{
+    juce::String out;
+    int last = 0;
+    forEachWord (expression, [&] (int a, int b)
+    {
+        if (expression.substring (a, b) == oldName)
+        {
+            out << expression.substring (last, a) << newName;
+            last = b;
+        }
+    });
+    out << expression.substring (last);
+    return out;
+}
+
+bool refersTo (const juce::String& expression, const juce::String& name)
+{
+    bool found = false;
+    forEachWord (expression, [&] (int a, int b) { if (expression.substring (a, b) == name) found = true; });
+    return found;
+}
+
+juce::Array<double> parseParts (const juce::String& text)
+{
+    juce::Array<double> parts;
+    for (auto& t : juce::StringArray::fromTokens (text, ":", ""))
+    {
+        const auto r = parse (t);
+        if (! r.ok || r.value <= 0.0) return {};
+        parts.add (r.value);
+    }
+    return parts.size() >= 2 ? parts : juce::Array<double>();
+}
+
+juce::StringArray partBoundaries (const juce::Array<double>& parts)
+{
+    juce::StringArray out;
+    double total = 0.0;
+    for (auto p : parts) total += p;
+    double cumulative = 0.0;
+    for (int i = 0; i + 1 < parts.size(); ++i)
+    {
+        cumulative += parts[i];
+        if (isWhole (cumulative) && isWhole (total))
+        {
+            auto n = std::llround (cumulative), d = std::llround (total);
+            const auto g = std::gcd (n, d);
+            out.add (g > 1 ? juce::String (n / g) + "/" + juce::String (d / g) : juce::String (n) + "/" + juce::String (d));
+        }
+        else
+            out.add (formatNumber (cumulative) + "/" + formatNumber (total));
+    }
+    return out;
+}
+
+juce::String ratioText (const juce::Array<double>& values)
+{
+    if (values.isEmpty()) return {};
+    double smallest = values[0];
+    for (auto v : values) smallest = juce::jmin (smallest, v);
+    if (smallest <= 0.0) return {};
+
+    for (int m = 1; m <= 24; ++m)
+    {
+        juce::Array<juce::int64> ints;
+        bool ok = true;
+        double worst = 0.0;
+        for (auto v : values)
+        {
+            const double scaled = v / smallest * m;
+            const double r = std::round (scaled);
+            if (r < 1.0 || std::abs (scaled - r) > 0.005 * scaled) { ok = false; break; }
+            worst = juce::jmax (worst, std::abs (scaled - r) / scaled);
+            ints.add ((juce::int64) r);
+        }
+        if (! ok) continue;
+        juce::int64 g = 0, biggest = 0;
+        for (auto i : ints) { g = std::gcd (g, i); biggest = juce::jmax (biggest, i); }
+        // A near ratio only helps with small numbers (8 : 13 yes, 6 : 61 no).
+        if (worst > 1.0e-5 && biggest / juce::jmax ((juce::int64) 1, g) > 24) continue;
+        juce::StringArray parts;
+        for (auto i : ints) parts.add (juce::String (i / juce::jmax ((juce::int64) 1, g)));
+        // Exact (as from snapped edges), or only close: say so.
+        return (worst > 1.0e-5 ? juce::String::fromUTF8 ("\xe2\x89\x88 ") : juce::String()) + parts.joinIntoString (" : ");
+    }
+
+    juce::StringArray parts;
+    for (auto v : values) parts.add (formatNumber (v / values[0]));
+    return parts.joinIntoString (" : ");
+}
+
+juce::String seriesPart (const juce::String& spec, const juce::String& key)
+{
+    for (auto& part : juce::StringArray::fromTokens (spec, ";", ""))
+        if (part.upToFirstOccurrenceOf (":", false, false).trim() == key)
+            return part.fromFirstOccurrenceOf (":", false, false).trim();
+    return {};
+}
+
+juce::String withSeriesPart (const juce::String& spec, const juce::String& key, const juce::String& value)
+{
+    juce::StringArray out;
+    for (auto& part : juce::StringArray::fromTokens (spec, ";", ""))
+        if (part.trim().isNotEmpty() && part.upToFirstOccurrenceOf (":", false, false).trim() != key)
+            out.add (part.trim());
+    if (value.trim().isNotEmpty()) out.add (key + ":" + value.trim());
+    return out.joinIntoString (";");
+}
+
+std::vector<SeriesPoint> seriesPoints (const juce::String& spec)
+{
+    std::vector<SeriesPoint> out;
+    auto add = [&] (double p, const juce::String& label)
+    {
+        if (p <= 1.0e-9 || p >= 1.0 - 1.0e-9) return;
+        for (auto& o : out) if (std::abs (o.position - p) < 1.0e-9) return;
+        out.push_back ({ p, label });
+    };
+
+    // Golden section: level 1 cuts the frame at 0.382 and 0.618; each further
+    // level cuts every part again the same way.
+    const int levels = juce::jlimit (0, 4, seriesPart (spec, "golden").getIntValue());
+    if (levels > 0)
+    {
+        const double g = 1.0 / phiValue;
+        std::vector<std::pair<double, double>> parts { { 0.0, 1.0 } };
+        for (int level = 0; level < levels; ++level)
+        {
+            std::vector<std::pair<double, double>> next;
+            for (auto [a, b] : parts)
+            {
+                const double p1 = a + (b - a) * (1.0 - g), p2 = a + (b - a) * g;
+                const bool top = level == 0;
+                add (p1, top ? juce::String::fromUTF8 ("1-1/\xcf\x86") : formatNumber (std::round (p1 * 1000.0) / 1000.0));
+                add (p2, top ? juce::String::fromUTF8 ("1/\xcf\x86") : formatNumber (std::round (p2 * 1000.0) / 1000.0));
+                next.push_back ({ a, p1 });
+                next.push_back ({ p1, p2 });
+                next.push_back ({ p2, b });
+            }
+            parts = next;
+        }
+    }
+
+    // Fibonacci: F(j)/F(n) for the chosen F(n) (5, 8, 13, 21, 34, 55...)
+    const int fib = seriesPart (spec, "fibonacci").getIntValue();
+    if (fib >= 3)
+    {
+        juce::Array<int> f { 1, 2 };
+        while (f.getLast() < fib && f.size() < 20) f.add (f[f.size() - 1] + f[f.size() - 2]);
+        const int n = f.getLast();
+        for (auto v : f) if (v < n) add ((double) v / n, juce::String (v) + "/" + juce::String (n));
+    }
+
+    // Harmonic: 1/2, 1/3 ... 1/N
+    const int harmonic = seriesPart (spec, "harmonic").getIntValue();
+    for (int k = 2; k <= juce::jmin (harmonic, 64); ++k)
+        add (1.0 / k, "1/" + juce::String (k));
+
+    // Your own list of expressions
+    for (auto& t : juce::StringArray::fromTokens (seriesPart (spec, "custom"), ",", ""))
+    {
+        const auto r = parse (t);
+        if (r.ok) add (r.value, t.trim());
+    }
+
+    std::sort (out.begin(), out.end(), [] (auto& a, auto& b) { return a.position < b.position; });
+    return out;
 }
 
 juce::String formatNumber (double v)

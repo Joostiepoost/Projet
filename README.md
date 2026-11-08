@@ -41,8 +41,8 @@ Other options:
 | 1 | Engine and project folder: import as placeholder copies, tracks, sound boxes, playback with gain, fades, crossfades; measurements | done |
 | 1.1 | Start window, import progress panel with Cancel, faster rate conversion, playhead trace fixed | done |
 | 2 | Editing: text boxes, rich-text notes editor, type switching, multi-selection, split/copy/paste, undo everywhere | done |
-| 3a | Proportions and folders: proportion frames, typed proportions, divisions that follow the zoom, snapping with a readout, track folders | built, to test |
-| 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci), ratio checking | |
+| 3a | Proportions and folders: proportion frames, typed proportions, divisions that follow the zoom, snapping with a readout, track folders | done |
+| 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci, harmonic, your own), ratio checking | built, to test |
 | 4 | Framework, layers 1–3: energies and semiotic levels, shapes and fills, colour modes, track template, overview lanes | |
 | 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
 | 6 | Magnified inline expansion | |
@@ -53,7 +53,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using Projet (stages 1–3a)
+## Using Projet (stages 1–3b)
 
 ### The project folder
 
@@ -143,6 +143,30 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 - The panel also shows the end, and, for a box measured against another box, where it sits in the piece.
 - Copies keep their proportions at their new place; a box copied together with its frame box follows the copy.
 
+### Ruler layers, marks, series and ratios (stage 3b)
+
+**Layers.** The ruler is a stack of layers: one **time** layer and any number of **proportion** layers, each with its own frame, divisions and series. Click a layer's name for its menu. **Drag a layer's lower edge** (in the name column) to make it taller or thinner.
+- The **ruler panel** (layer menu > *Ruler layers panel...*) lists the layers top to bottom: drag the dots to reorder, the eye shows or hides, **S M L** sizes, **x** deletes. Click a layer to see its details below: name, frame, snapping, divisions (1/2 to 1/20 and your own), series, and its marks. *Done* goes back.
+- The proportion layer you last clicked is the **active** one (a small square before its name): its grid shows through the tracks, and *Use as the ruler's frame* and new box proportions refer to it.
+- **Presets**: *Time and the piece (A)*, *Time only*, *Form work (B)* (golden section of the piece above the time, a span below). *Save...* keeps the present layers as your own preset, for all projects.
+
+**Series** (layer menu > *Series*, or the panel): drawn in their own colour (green-blue), labelled, snapped to.
+- **Golden section**: 1 level (0.382 and 0.618), 2 or 3 levels (each part cut again).
+- **Fibonacci**: the parts of 5, 8, 13, 21, 34 or 55 (for 13: 1/13, 2/13, 3/13, 5/13, 8/13).
+- **Harmonic**: 1/2, 1/3 ... up to 1/16.
+- **Your own**: proportions separated by commas (1/7, 3/7, golden of 1/2).
+
+**Marks** are named proportions of a frame. They follow their frame and are drawn on every layer with that frame, and as dashed lines through the tracks.
+- **Double-click** a proportion layer for a new mark (it asks for a name, such as *a1*); **drag** a mark to move it (it snaps). Right-click a mark: rename, type its proportion, move it to the playhead, pin the selected boxes to it, delete.
+- Layer menu: *New mark at the playhead*; *Split the frame by a ratio into marks...* (**2:3:5:8** gives marks at 1/9, 5/18 and 5/9; names start with what you choose).
+- **Box proportions can name marks**: start `a1`, length `a2 - a1`, or `a1 + 1/12`. Move the mark and the box follows. A mark's own proportion can name other marks too.
+- **Pinning**: drop a box edge on a mark (it snaps more strongly to marks) and a box with proportions is pinned there (the readout says *pinned to a1*); or right-click > *Pin the start/end to a mark*.
+- Renaming a mark renames it in every proportion; deleting it leaves the boxes where they are.
+
+**Ratio splits of boxes**: right-click a box > *Split by a ratio...*: cut it into parts (3:8, 1:1:1, 2:3:5:8 ...) or put marks in it.
+
+**Ratio checking**: select two or more boxes; the panel shows them in time order with their **lengths as a ratio** (*3 : 8 : 5*, or *≈ 8 : 13* when only close), what fraction one is of the other, the gaps or overlaps between them, and where they sit in the active layer's frame.
+
 ### Folders (stage 3a)
 
 - Right-click a track > **Put in a new folder**. Folders can hold folders.
@@ -165,6 +189,13 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 - Overlapping boxes simply add up; their fades make the crossfade. For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+
+**Worth testing in stage 3b**:
+- Add, reorder, hide and size layers (in the panel and by dragging a layer's edge); try the presets; save your own.
+- Give layers different frames (the piece, a span, a box) and series; zoom in and out.
+- Make marks (double-click, ratio split), drag them, rename them; type `a1` and `a2 - a1` into box proportions; drop box edges on marks; delete a mark.
+- Cut a box by a ratio; select several boxes and read the ratios.
+- Undo marks and pins; save, quit and reopen.
 
 **Worth testing in stage 3a**:
 - Put tracks in folders, nest them, drag them in and out, fold them, mute and solo a folder, colour a folder.

@@ -68,7 +68,9 @@ target_sources(Projet PRIVATE
     Source/MainComponent.cpp
     Source/UI/Theme.cpp
     Source/UI/TimelineView.cpp
+    Source/UI/TimelineRuler.cpp
     Source/UI/Inspector.cpp
+    Source/UI/RulerPanel.cpp
     Source/UI/TransportBar.cpp
     Source/UI/ImportPanel.cpp
     Source/UI/StartPanel.cpp

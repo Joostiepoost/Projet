@@ -26,6 +26,10 @@ namespace IDs
     PROJET_ID (PROJET)
     PROJET_ID (SOUNDS)
     PROJET_ID (SOUND)
+    PROJET_ID (RULERS)                // the ruler layers, top to bottom (stage 3b)
+    PROJET_ID (LAYER)
+    PROJET_ID (MARKS)                 // named marks: proportions of a frame (stage 3b)
+    PROJET_ID (MARK)
     PROJET_ID (TRACKS)
     PROJET_ID (TRACK)
     PROJET_ID (BOX)
@@ -44,6 +48,12 @@ namespace IDs
     PROJET_ID (rulerFrame)            // what the proportion ruler divides: "piece", "span" or a box id
     PROJET_ID (denominators)          // the ruler's divisions, e.g. "2,3,4,5,6,8" (decimals allowed)
     PROJET_ID (autoDivisions)         // finer divisions appear as you zoom in
+    PROJET_ID (activeLayer)           // the proportion layer menus and "the ruler's frame" refer to
+    PROJET_ID (frame)                 // a layer's or a mark's frame: "piece", "span" or a box id
+    PROJET_ID (visible)
+    PROJET_ID (snap)
+    PROJET_ID (series)                // "golden:2;fibonacci:13;harmonic:8;custom:1/7,3/7"
+    PROJET_ID (expr)                  // a mark's proportion, as typed
 
     // Common
     PROJET_ID (id)

@@ -47,6 +47,7 @@ void Project::resetToDefault (const juce::String& name, double sampleRate)
         const juce::ScopedValueSetter<bool> svs (loading, true);
         state.copyPropertiesAndChildrenFrom (createState (name, sampleRate), nullptr);
         addTrack ("Track 1");
+        ensureRulers();
     }
     undoManager.clearUndoHistory();
 }
@@ -519,32 +520,322 @@ juce::String Project::frameName (const juce::String& ref)
     return b.isValid() ? b[IDs::name].toString() : juce::String ("(removed box)");
 }
 
+//== Ruler layers ==============================================================
+
+juce::Array<double> Project::defaultDenominators()
+{
+    // Every denominator up to 20; which ones show depends on the zoom.
+    juce::Array<double> all;
+    for (int d = 2; d <= 20; ++d) all.add (d);
+    return all;
+}
+
+void Project::ensureRulers()
+{
+    // Projects from before stage 3b: a time layer and one proportion layer
+    // carrying the old ruler settings.
+    auto rulers = state.getOrCreateChildWithName (IDs::RULERS, nullptr);
+    state.getOrCreateChildWithName (IDs::MARKS, nullptr);
+    if (rulers.getNumChildren() > 0) return;
+
+    juce::ValueTree time (IDs::LAYER);
+    time.setProperty (IDs::id, newId(), nullptr);
+    time.setProperty (IDs::kind, "time", nullptr);
+    time.setProperty (IDs::name, "Time", nullptr);
+    time.setProperty (IDs::height, 30, nullptr);
+    time.setProperty (IDs::visible, true, nullptr);
+    rulers.appendChild (time, nullptr);
+
+    juce::ValueTree prop (IDs::LAYER);
+    prop.setProperty (IDs::id, newId(), nullptr);
+    prop.setProperty (IDs::kind, "proportion", nullptr);
+    prop.setProperty (IDs::name, "Proportion", nullptr);
+    prop.setProperty (IDs::height, 20, nullptr);
+    prop.setProperty (IDs::visible, true, nullptr);
+    prop.setProperty (IDs::snap, true, nullptr);
+    prop.setProperty (IDs::frame, state.getProperty (IDs::rulerFrame, "piece"), nullptr);
+    prop.setProperty (IDs::denominators, state.getProperty (IDs::denominators, Proportion::formatList (defaultDenominators())), nullptr);
+    prop.setProperty (IDs::autoDivisions, state.getProperty (IDs::autoDivisions, true), nullptr);
+    rulers.appendChild (prop, nullptr);
+    state.setProperty (IDs::activeLayer, prop[IDs::id].toString(), nullptr);
+    for (auto id : { IDs::rulerFrame, IDs::denominators, IDs::autoDivisions }) state.removeProperty (id, nullptr);
+}
+
+juce::ValueTree Project::getRulers()
+{
+    return state.getOrCreateChildWithName (IDs::RULERS, nullptr);
+}
+
+juce::ValueTree Project::findLayer (const juce::String& layerId)
+{
+    if (layerId.isEmpty()) return {};
+    return getRulers().getChildWithProperty (IDs::id, layerId);
+}
+
+juce::ValueTree Project::addLayer (const juce::String& kind, int index)
+{
+    juce::ValueTree l (IDs::LAYER);
+    l.setProperty (IDs::id, newId(), nullptr);
+    l.setProperty (IDs::kind, kind, nullptr);
+    l.setProperty (IDs::name, kind == "time" ? "Time" : "Proportion", nullptr);
+    l.setProperty (IDs::height, kind == "time" ? 30 : 22, nullptr);
+    l.setProperty (IDs::visible, true, nullptr);
+    if (kind != "time")
+    {
+        l.setProperty (IDs::snap, true, nullptr);
+        l.setProperty (IDs::frame, "piece", nullptr);
+        l.setProperty (IDs::denominators, Proportion::formatList (defaultDenominators()), nullptr);
+        l.setProperty (IDs::autoDivisions, true, nullptr);
+    }
+    getRulers().addChild (l, index, nullptr);
+    return l;
+}
+
+void Project::removeLayer (juce::ValueTree layer)
+{
+    getRulers().removeChild (layer, nullptr);
+}
+
+juce::ValueTree Project::getActiveLayer()
+{
+    auto l = findLayer (state[IDs::activeLayer].toString());
+    if (l.isValid() && ! isTimeLayer (l)) return l;
+    for (auto c : getRulers()) if (! isTimeLayer (c) && (bool) c.getProperty (IDs::visible, true)) return c;
+    for (auto c : getRulers()) if (! isTimeLayer (c)) return c;
+    return {};
+}
+
+juce::String Project::layerFrame (const juce::ValueTree& layer)
+{
+    const auto ref = layer.getProperty (IDs::frame, "piece").toString();
+    return frameFor (ref).isValid() ? ref : juce::String ("piece");
+}
+
+juce::Array<double> Project::layerDenominators (const juce::ValueTree& layer) const
+{
+    if (! layer.hasProperty (IDs::denominators)) return defaultDenominators();
+    return Proportion::parseList (layer[IDs::denominators].toString());
+}
+
+void Project::setLayerDenominators (juce::ValueTree layer, const juce::Array<double>& list)
+{
+    layer.setProperty (IDs::denominators, Proportion::formatList (list), nullptr);
+}
+
+juce::var Project::layersToVar()
+{
+    juce::Array<juce::var> list;
+    for (auto l : getRulers())
+    {
+        auto copy = l.createCopy();
+        copy.removeProperty (IDs::id, nullptr);
+        list.add (toVar (copy));
+    }
+    return list;
+}
+
+void Project::layersFromVar (const juce::var& v)
+{
+    if (! v.isArray()) return;
+    auto rulers = getRulers();
+    rulers.removeAllChildren (nullptr);
+    for (auto& item : *v.getArray())
+    {
+        auto l = fromVar (item);
+        if (! l.isValid() || l.getType() != IDs::LAYER) continue;
+        l.setProperty (IDs::id, newId(), nullptr);
+        // A preset from another project may name a box that is not here.
+        if (! isTimeLayer (l) && ! frameFor (l[IDs::frame].toString()).isValid()) l.setProperty (IDs::frame, "piece", nullptr);
+        rulers.appendChild (l, nullptr);
+    }
+    if (rulers.getNumChildren() == 0) ensureRulers();
+}
+
 juce::String Project::getRulerFrame()
 {
-    const auto ref = state.getProperty (IDs::rulerFrame, "piece").toString();
-    return frameFor (ref).isValid() ? ref : juce::String ("piece");
+    auto l = getActiveLayer();
+    return l.isValid() ? layerFrame (l) : juce::String ("piece");
 }
 
 void Project::setRulerFrame (const juce::String& ref)
 {
-    state.setProperty (IDs::rulerFrame, ref, nullptr);
+    auto l = getActiveLayer();
+    if (! l.isValid()) { l = addLayer ("proportion"); setActiveLayer (l); }
+    setLayerFrame (l, ref);
 }
 
-juce::Array<double> Project::getDenominators() const
+juce::Array<double> Project::getDenominators()
 {
-    if (! state.hasProperty (IDs::denominators))
-    {
-        // Every denominator up to 20; which ones show depends on the zoom.
-        juce::Array<double> all;
-        for (int d = 2; d <= 20; ++d) all.add (d);
-        return all;
-    }
-    return Proportion::parseList (state[IDs::denominators].toString());
+    auto l = getActiveLayer();
+    return l.isValid() ? layerDenominators (l) : defaultDenominators();
 }
 
 void Project::setDenominators (const juce::Array<double>& list)
 {
-    state.setProperty (IDs::denominators, Proportion::formatList (list), nullptr);
+    auto l = getActiveLayer();
+    if (l.isValid()) setLayerDenominators (l, list);
+}
+
+bool Project::getAutoDivisions()
+{
+    auto l = getActiveLayer();
+    return ! l.isValid() || (bool) l.getProperty (IDs::autoDivisions, true);
+}
+
+void Project::setAutoDivisions (bool on)
+{
+    auto l = getActiveLayer();
+    if (l.isValid()) l.setProperty (IDs::autoDivisions, on, nullptr);
+}
+
+//== Named marks ===============================================================
+
+juce::ValueTree Project::getMarks()
+{
+    return state.getOrCreateChildWithName (IDs::MARKS, nullptr);
+}
+
+juce::ValueTree Project::findMark (const juce::String& markId)
+{
+    if (markId.isEmpty()) return {};
+    return getMarks().getChildWithProperty (IDs::id, markId);
+}
+
+juce::ValueTree Project::findMarkByName (const juce::String& name)
+{
+    if (name.isEmpty()) return {};
+    return getMarks().getChildWithProperty (IDs::name, name);
+}
+
+juce::String Project::uniqueMarkName (const juce::String& prefix)
+{
+    const auto base = Proportion::isValidName (prefix) ? prefix : juce::String ("m");
+    for (int i = 1; i < 10000; ++i)
+        if (! findMarkByName (base + juce::String (i)).isValid()) return base + juce::String (i);
+    return base + newId();
+}
+
+juce::ValueTree Project::addMark (const juce::String& frameRef, const juce::String& expression, const juce::String& name)
+{
+    juce::ValueTree m (IDs::MARK);
+    m.setProperty (IDs::id, newId(), nullptr);
+    const bool free = Proportion::isValidName (name) && ! findMarkByName (name).isValid();
+    m.setProperty (IDs::name, free ? name : uniqueMarkName ("m"), nullptr);
+    m.setProperty (IDs::frame, frameRef, nullptr);
+    m.setProperty (IDs::expr, expression, nullptr);
+    getMarks().appendChild (m, &undoManager);
+    return m;
+}
+
+bool Project::renameMark (juce::ValueTree mark, const juce::String& newName, juce::String& error)
+{
+    const auto oldName = mark[IDs::name].toString();
+    if (newName == oldName) return true;
+    if (! Proportion::isValidName (newName)) { error = "A mark name starts with a letter and has only letters, digits and _ (not phi, golden, pi, sqrt or of)."; return false; }
+    if (findMarkByName (newName).isValid()) { error = "There is already a mark called " + newName + "."; return false; }
+
+    auto rename = [&] (juce::ValueTree t, const juce::Identifier& id)
+    {
+        const auto e = t[id].toString();
+        if (Proportion::refersTo (e, oldName)) t.setProperty (id, Proportion::replaceName (e, oldName, newName), &undoManager);
+    };
+    for (auto b : allBoxes()) { rename (b, IDs::propStart); rename (b, IDs::propLength); }
+    for (auto m : getMarks()) rename (m, IDs::expr);
+    mark.setProperty (IDs::name, newName, &undoManager);
+    return true;
+}
+
+void Project::removeMark (juce::ValueTree mark)
+{
+    const auto name = mark[IDs::name].toString();
+    const auto extra = getDenominators();
+    // Whatever names it keeps its present value.
+    auto freeze = [&] (juce::ValueTree t, const juce::Identifier& id, const juce::String& frameRef)
+    {
+        const auto e = t[id].toString();
+        if (! Proportion::refersTo (e, name)) return;
+        const auto r = evaluate (e, frameRef);
+        if (r.ok) t.setProperty (id, Proportion::expressionFor (r.value, extra), &undoManager);
+    };
+    for (auto b : allBoxes()) { freeze (b, IDs::propStart, boundFrame (b)); freeze (b, IDs::propLength, boundFrame (b)); }
+    for (auto m : getMarks()) if (m != mark) freeze (m, IDs::expr, m[IDs::frame].toString());
+    getMarks().removeChild (mark, &undoManager);
+}
+
+bool Project::setMarkExpression (juce::ValueTree mark, const juce::String& text, juce::String& error)
+{
+    const auto r = evaluate (text, mark[IDs::frame].toString());
+    if (! r.ok) { error = r.error; return false; }
+    if (Proportion::refersTo (text, mark[IDs::name].toString())) { error = "A mark cannot be measured from itself."; return false; }
+    mark.setProperty (IDs::expr, text.trim(), &undoManager);
+    return true;
+}
+
+double Project::markTime (const juce::ValueTree& mark)
+{
+    const auto ref = mark[IDs::frame].toString();
+    const auto f = frameFor (ref);
+    if (! f.isValid() || markDepth > 16) return -1.0;
+    ++markDepth;
+    const auto r = evaluate (mark[IDs::expr].toString(), ref);
+    --markDepth;
+    return r.ok ? f.at (r.value) : -1.0;
+}
+
+Proportion::Result Project::evaluate (const juce::String& expression, const juce::String& frameRef)
+{
+    const auto f = frameFor (frameRef);
+    return Proportion::parse (expression, [this, f] (const juce::String& name) -> std::optional<double>
+    {
+        auto m = findMarkByName (name);
+        if (! m.isValid() || ! f.isValid()) return std::nullopt;
+        const double t = markTime (m);
+        if (t < 0.0) return std::nullopt;
+        return f.proportionOf (t);
+    });
+}
+
+void Project::pinEdge (juce::ValueTree box, bool start, const juce::String& markName)
+{
+    if (! isBound (box) || ! findMarkByName (markName).isValid()) return;
+    if (start)
+    {
+        box.setProperty (IDs::propStart, markName, &undoManager);
+        return;
+    }
+    // The end at the mark: the length is the mark minus the start.
+    auto s = box[IDs::propStart].toString().trim();
+    const bool simple = s.containsOnly ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./");
+    box.setProperty (IDs::propLength, markName + " - " + (simple ? s : "(" + s + ")"), &undoManager);
+}
+
+juce::Array<juce::ValueTree> Project::splitFrameByRatio (const juce::String& frameRef, const juce::Array<double>& parts, const juce::String& prefix)
+{
+    juce::Array<juce::ValueTree> marks;
+    if (! frameFor (frameRef).isValid()) return marks;
+    for (auto& b : Proportion::partBoundaries (parts))
+        marks.add (addMark (frameRef, b, uniqueMarkName (prefix)));
+    return marks;
+}
+
+juce::Array<juce::ValueTree> Project::cutBoxByRatio (juce::ValueTree box, const juce::Array<double>& parts)
+{
+    juce::Array<juce::ValueTree> pieces { box };
+    double total = 0.0;
+    for (auto p : parts) total += p;
+    if (total <= 0.0) return pieces;
+    const double start = boxStart (box), length = boxLength (box);
+    double cumulative = 0.0;
+    auto current = box;
+    for (int i = 0; i + 1 < parts.size(); ++i)
+    {
+        cumulative += parts[i];
+        auto right = splitBox (current, start + length * cumulative / total);
+        if (! right.isValid()) break;
+        pieces.add (right);
+        current = right;
+    }
+    return pieces;
 }
 
 //== Proportional boxes ========================================================
@@ -603,7 +894,7 @@ bool Project::setProportion (juce::ValueTree box, bool start, const juce::String
     const auto f = frameFor (ref);
     if (! f.isValid()) { error = "Choose a frame first."; return false; }
 
-    const auto r = Proportion::parse (text);
+    const auto r = evaluate (text, ref);
     if (! r.ok) { error = r.error; return false; }
     if (! start && r.value * f.length < minBoxLength) { error = "That length is too short."; return false; }
     if (start && f.at (r.value) < 0.0) { error = "That start lies before 0:00."; return false; }
@@ -651,7 +942,7 @@ void Project::rewriteProportions (juce::ValueTree box, double newStart, double n
     auto write = [&] (const juce::Identifier& id, double value)
     {
         // Keep what was typed when it still says the same.
-        const auto old = Proportion::parse (box[id].toString());
+        const auto old = evaluate (box[id].toString(), boundFrame (box));
         if (old.ok && std::abs (old.value - value) < 1.0e-9) return;
         box.setProperty (id, Proportion::expressionFor (value, extra), undo);
     };
@@ -674,8 +965,8 @@ void Project::applyProportions()
                 if (ref.isEmpty() || ! isLocked (b)) continue;
                 const auto f = frameFor (ref);
                 if (! f.isValid()) continue;
-                const auto ps = Proportion::parse (b[IDs::propStart].toString());
-                const auto pl = Proportion::parse (b[IDs::propLength].toString());
+                const auto ps = evaluate (b[IDs::propStart].toString(), ref);
+                const auto pl = evaluate (b[IDs::propLength].toString(), ref);
                 if (! ps.ok || ! pl.ok) continue;
 
                 const double start = juce::jmax (0.0, f.at (ps.value));
@@ -771,6 +1062,7 @@ bool Project::fromJson (const juce::String& text, juce::String& error)
     {
         const juce::ScopedValueSetter<bool> svs (loading, true);
         state.copyPropertiesAndChildrenFrom (tree, nullptr);
+        ensureRulers();
     }
     applyProportions();
     undoManager.clearUndoHistory();

@@ -8,6 +8,7 @@
 
 #include <JuceHeader.h>
 #include "Identifiers.h"
+#include "Proportion.h"
 
 enum class FadeShape { linear = 0, equalPower, sCurve };
 constexpr int numFadeShapes = 3;
@@ -144,13 +145,60 @@ public:
     Frame frameFor (const juce::String& ref);
     juce::String frameName (const juce::String& ref);
 
-    /** What the proportion ruler divides (a removed box falls back to the piece). */
+    //== Ruler layers (stage 3b) ==============================================
+    // The ruler is a stack of layers: one time layer and any number of
+    // proportion layers, each with its own frame, divisions and series.
+    // Their layout is view state (not undoable); marks are content (undoable).
+    juce::ValueTree getRulers();
+    juce::ValueTree findLayer (const juce::String& layerId);
+    static bool isTimeLayer (const juce::ValueTree& l)              { return l[IDs::kind].toString() == "time"; }
+    juce::ValueTree addLayer (const juce::String& kind, int index = -1);
+    void removeLayer (juce::ValueTree layer);
+    /** The proportion layer the menus and "the ruler's frame" refer to. */
+    juce::ValueTree getActiveLayer();
+    void setActiveLayer (const juce::ValueTree& layer)              { state.setProperty (IDs::activeLayer, layer[IDs::id].toString(), nullptr); }
+    /** A layer's frame (a removed box falls back to the piece). */
+    juce::String layerFrame (const juce::ValueTree& layer);
+    void setLayerFrame (juce::ValueTree layer, const juce::String& ref) { layer.setProperty (IDs::frame, ref, nullptr); }
+    juce::Array<double> layerDenominators (const juce::ValueTree& layer) const;
+    void setLayerDenominators (juce::ValueTree layer, const juce::Array<double>&);
+    static juce::Array<double> defaultDenominators();
+    /** The layers as plain data (for presets), and back. */
+    juce::var layersToVar();
+    void layersFromVar (const juce::var&);
+
+    /** The active layer's frame, divisions, and zoom setting (stage 3a names). */
     juce::String getRulerFrame();
     void setRulerFrame (const juce::String& ref);
-    juce::Array<double> getDenominators() const;
+    juce::Array<double> getDenominators();
     void setDenominators (const juce::Array<double>&);
-    bool getAutoDivisions() const                   { return (bool) state.getProperty (IDs::autoDivisions, true); }
-    void setAutoDivisions (bool on)                 { state.setProperty (IDs::autoDivisions, on, nullptr); }
+    bool getAutoDivisions();
+    void setAutoDivisions (bool on);
+
+    //== Named marks (stage 3b) ===============================================
+    // A mark is a named proportion of a frame (it follows the frame). Box
+    // proportions can name marks: start "m1", length "m2 - m1".
+    juce::ValueTree getMarks();
+    juce::ValueTree findMark (const juce::String& markId);
+    juce::ValueTree findMarkByName (const juce::String& name);
+    juce::String uniqueMarkName (const juce::String& prefix);
+    juce::ValueTree addMark (const juce::String& frameRef, const juce::String& expression, const juce::String& name = {});
+    /** Renames it everywhere (also in box proportions); false if the name is
+        not valid or taken. Undoable. */
+    bool renameMark (juce::ValueTree mark, const juce::String& newName, juce::String& error);
+    /** Removes it; proportions naming it keep their present value. Undoable. */
+    void removeMark (juce::ValueTree mark);
+    bool setMarkExpression (juce::ValueTree mark, const juce::String& text, juce::String& error);
+    /** Where the mark is in seconds; negative if its frame is gone. */
+    double markTime (const juce::ValueTree& mark);
+    /** An expression's value as a proportion of `frameRef`, mark names included. */
+    Proportion::Result evaluate (const juce::String& expression, const juce::String& frameRef);
+    /** Pins a box's start (or end) to a mark. Undoable. */
+    void pinEdge (juce::ValueTree box, bool start, const juce::String& markName);
+    /** Marks at the boundaries of a ratio split of a frame ("2:3:5:8"). */
+    juce::Array<juce::ValueTree> splitFrameByRatio (const juce::String& frameRef, const juce::Array<double>& parts, const juce::String& prefix);
+    /** Cuts a box into parts with these ratios. */
+    juce::Array<juce::ValueTree> cutBoxByRatio (juce::ValueTree box, const juce::Array<double>& parts);
 
     //== Proportional boxes ===================================================
     // A bound box has a frame and a start and length typed as proportions of
@@ -196,6 +244,8 @@ public:
 private:
     static juce::ValueTree createState (const juce::String& name, double rate);
     void changed();
+    void ensureRulers();
+    int markDepth = 0;
     /** For a locked, bound box: its proportions become these times. */
     void rewriteProportions (juce::ValueTree box, double newStart, double newLength, juce::UndoManager* undo);
     void freezePieceLengthFor (const juce::String& ref);

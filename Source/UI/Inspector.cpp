@@ -202,6 +202,12 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f)
     addAndMakeVisible (pieceLength);
 
     notes.onExpand = [this] { if (onExpandNotes) onExpandNotes(); };
+    addChildComponent (rulerPanel);
+    rulerPanel.onDone = [this]
+    {
+        mode = Mode::project;     // leave the ruler panel
+        refresh();
+    };
     addAndMakeVisible (notes);
 
     formatBox.addItem ("Ogg Vorbis (small)", 1);
@@ -231,9 +237,74 @@ void Inspector::setSelection (const juce::Array<juce::ValueTree>& boxes)
 {
     if (nameEditor.hasKeyboardFocus (true)) commitName();
     selectionSize = boxes.size();
+    selection = boxes;
     box = boxes.size() == 1 ? boxes.getFirst() : juce::ValueTree();
+    // Selecting boxes leaves the ruler panel; deselecting keeps it.
+    if (mode == Mode::ruler && boxes.isEmpty()) { rulerPanel.refresh(); return; }
     notes.setBox (box);
     refresh();
+}
+
+void Inspector::showRuler (const juce::String& layerId)
+{
+    if (nameEditor.hasKeyboardFocus (true)) commitName();
+    setMode (Mode::ruler);
+    title.setText ({}, juce::dontSendNotification);
+    resized();
+    rulerPanel.showLayer (layerId);
+}
+
+juce::String Inspector::ratioReport()
+{
+    // The selected boxes in time order: their lengths as a ratio, and where
+    // they sit in the active ruler frame.
+    auto boxes = selection;
+    std::sort (boxes.begin(), boxes.end(), [] (const juce::ValueTree& a, const juce::ValueTree& b) { return Project::boxStart (a) < Project::boxStart (b); });
+    if (boxes.size() < 2) return {};
+
+    juce::StringArray names;
+    juce::Array<double> lengths;
+    double first = 1.0e12, last = 0.0;
+    for (auto b : boxes)
+    {
+        names.add (b[IDs::name].toString());
+        lengths.add (Project::boxLength (b));
+        first = juce::jmin (first, Project::boxStart (b));
+        last = juce::jmax (last, Project::boxEnd (b));
+    }
+
+    const auto extra = project.getDenominators();
+    const auto ref = project.getRulerFrame();
+    const auto f = project.frameFor (ref);
+
+    juce::String s;
+    s << "In time order: " << names.joinIntoString (", ") << "\n\n"
+      << "Lengths  " << Proportion::ratioText (lengths) << "\n";
+    if (boxes.size() == 2)
+        s << "(the second is " << Proportion::describe (lengths[1] / lengths[0], extra) << " of the first; "
+          << "the first is " << Proportion::describe (lengths[0] / (lengths[0] + lengths[1]), extra) << " of both)\n";
+
+    // Gaps and overlaps between neighbours
+    juce::StringArray gaps;
+    for (int i = 1; i < boxes.size(); ++i)
+    {
+        const double g = Project::boxStart (boxes[i]) - Project::boxEnd (boxes[i - 1]);
+        gaps.add (std::abs (g) < 0.0005 ? juce::String ("touching") : (g > 0 ? "gap " + TimeFormat::format (g, 2) : "overlap " + TimeFormat::format (-g, 2)));
+    }
+    s << "Between them: " << gaps.joinIntoString (", ") << "\n\n";
+
+    s << "Together " << TimeFormat::format (first, 1) << " - " << TimeFormat::format (last, 1)
+      << " (" << TimeFormat::format (last - first, 1) << ")";
+    if (f.isValid())
+    {
+        s << "\nIn " << project.frameName (ref) << ": " << Proportion::describe (f.proportionOf (first), extra)
+          << " to " << Proportion::describe (f.proportionOf (last), extra)
+          << ", " << Proportion::describe ((last - first) / f.length, extra) << " of it";
+        juce::StringArray starts;
+        for (auto b : boxes) starts.add (Proportion::name (f.proportionOf (Project::boxStart (b)), extra));
+        s << "\nStarts: " << starts.joinIntoString (", ");
+    }
+    return s;
 }
 
 void Inspector::commitName()
@@ -362,6 +433,8 @@ void Inspector::setMode (Mode m)
     qualityLabel.setVisible (quality.isVisible());
     pieceLength.setVisible (proj);
     pieceLengthLabel.setVisible (proj);
+    title.setVisible (m != Mode::ruler);
+    rulerPanel.setVisible (m == Mode::ruler);
 }
 
 juce::String Inspector::projectSummary()
@@ -403,6 +476,7 @@ void Inspector::fillSoundList()
 
 void Inspector::refresh()
 {
+    if (mode == Mode::ruler) { rulerPanel.refresh(); return; }
     const juce::ScopedValueSetter<bool> svs (updating, true);
 
     if (box.isValid() && ! box.getParent().isValid()) { box = {}; selectionSize = 0; notes.setBox ({}); }   // deleted
@@ -412,7 +486,7 @@ void Inspector::refresh()
     {
         setMode (Mode::several);
         title.setText (juce::String (selectionSize) + " BOXES SELECTED", juce::dontSendNotification);
-        projectInfo.setText ("Move them together by dragging one of them. Cmd-C / Cmd-X copy or cut them, "
+        projectInfo.setText (ratioReport() + "\n\nMove them together by dragging one of them. Cmd-C / Cmd-X copy or cut them, "
                              "Cmd-T splits them at the playhead, Delete removes them.", juce::dontSendNotification);
         resized();
         repaint();
@@ -574,7 +648,11 @@ void Inspector::resized()
     }
     else if (mode == Mode::several)
     {
-        projectInfo.setBounds (r.removeFromTop (120));
+        projectInfo.setBounds (r.removeFromTop (300));
+    }
+    else if (mode == Mode::ruler)
+    {
+        rulerPanel.setBounds (getLocalBounds().reduced (14, 12));
     }
     else
     {

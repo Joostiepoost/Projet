@@ -32,7 +32,7 @@ void TimelineView::resized() {}
 std::vector<TimelineView::TrackRow> TimelineView::rows() const
 {
     std::vector<TrackRow> r;
-    int y = rulerHeight - scrollY;
+    int y = rulerHeight() - scrollY;
     for (auto t : project.getTracks())
     {
         if (! project.isVisible (t)) continue;    // inside a folded folder
@@ -71,7 +71,7 @@ juce::Rectangle<int> TimelineView::soloButton (const TrackRow& r) const   { retu
 juce::Rectangle<int> TimelineView::addTrackButton() const
 {
     auto rs = rows();
-    const int y = rs.empty() ? rulerHeight - scrollY : rs.back().y + rs.back().h;
+    const int y = rs.empty() ? rulerHeight() - scrollY : rs.back().y + rs.back().h;
     return { 10, y + 6, 90, 22 };
 }
 
@@ -112,74 +112,39 @@ double TimelineView::snap (double t, const juce::ValueTree& exclude, bool enable
     const double range = snapPixels / pps;
     double best = t, bestD = range;
 
-    auto consider = [&] (double c) { const double d = std::abs (c - t); if (d < bestD) { bestD = d; best = c; } };
+    snappedMark.clear();
+    auto consider = [&] (double c) { const double d = std::abs (c - t); if (d < bestD) { bestD = d; best = c; snappedMark.clear(); } };
     consider (playhead);
     consider (0.0);
     for (auto tr : project.getState().getChildWithName (IDs::TRACKS))
         for (auto b : tr)
             if (b != exclude) { consider (Project::boxStart (b)); consider (Project::boxEnd (b)); }
 
-    // The proportion ruler: its frame's edges and the divisions shown at this zoom.
-    const auto f = project.frameFor (project.getRulerFrame());
-    if (f.isValid())
+    // Every visible proportion layer that snaps: its frame's edges, the
+    // divisions shown at this zoom, and its series.
+    for (auto& row : rulerRows())
     {
+        if (row.time || ! (bool) row.layer.getProperty (IDs::snap, true)) continue;
+        const auto f = project.frameFor (project.layerFrame (row.layer));
+        if (! f.isValid()) continue;
         consider (f.start);
         consider (f.end());
-        for (auto& k : visibleTicks()) consider (k.time);
+        for (auto& k : visibleTicks (row.layer)) consider (k.time);
+    }
+
+    // Marks pull harder than anything else (they count as half as far away).
+    for (auto m : project.getMarks())
+    {
+        if (m == dragMark) continue;
+        const double mt = project.markTime (m);
+        if (mt < 0.0) continue;
+        const double d = std::abs (mt - t) * 0.5;
+        if (d <= bestD && d < range) { bestD = d; best = mt; snappedMark = m[IDs::name].toString(); }
     }
     return best;
 }
 
 //== Proportions ===============================================================
-
-std::vector<TimelineView::Tick> TimelineView::visibleTicks() const
-{
-    std::vector<Tick> out;
-    const auto f = project.frameFor (project.getRulerFrame());
-    if (! f.isValid()) return out;
-
-    const double widthPx = f.length * pps;
-    auto dens = project.getDenominators();
-    std::sort (dens.begin(), dens.end());
-
-    // The closest two ticks would be (in pixels) with this set of denominators.
-    auto closestGap = [widthPx] (const juce::Array<double>& set)
-    {
-        double prev = 0.0, gap = 1.0;
-        for (auto& d : Proportion::divisions (set)) { gap = juce::jmin (gap, d.position - prev); prev = d.position; }
-        return juce::jmin (gap, 1.0 - prev) * widthPx;
-    };
-
-    // Simplest denominators first, each only while the ticks stay apart:
-    // zoom in and the finer ones join.
-    auto pick = [&] (double minGap)
-    {
-        juce::Array<double> chosen;
-        for (auto d : dens)
-        {
-            auto trial = chosen;
-            trial.add (d);
-            if (closestGap (trial) >= minGap) chosen = trial;
-        }
-        return chosen;
-    };
-    const auto shown = project.getAutoDivisions() ? pick (7.0) : dens;
-    const auto labelled = pick (34.0);
-
-    double maxRank = 2.0;
-    for (auto d : shown) maxRank = juce::jmax (maxRank, std::ceil (d));
-    for (auto& d : Proportion::divisions (shown))
-    {
-        Tick k;
-        k.time = f.at (d.position);
-        k.division = d;
-        // The simplest fraction full height, the finest shown a third.
-        k.height = maxRank <= 2.0 ? 1.0f : (float) juce::jlimit (0.33, 1.0, 1.0 - 0.67 * (d.rank - 2.0) / (maxRank - 2.0));
-        k.labelled = Proportion::indexOf (labelled, d.denominator) >= 0;
-        out.push_back (k);
-    }
-    return out;
-}
 
 juce::String TimelineView::readoutFor (const juce::ValueTree& box, double time, const juce::String& what) const
 {
@@ -388,17 +353,19 @@ void TimelineView::paint (juce::Graphics& g)
 
     {
         juce::Graphics::ScopedSaveState s (g);
-        g.reduceClipRegion (headerWidth, rulerHeight, getWidth() - headerWidth, getHeight() - rulerHeight);
+        g.reduceClipRegion (headerWidth, rulerHeight(), getWidth() - headerWidth, getHeight() - rulerHeight());
 
-        // The proportion grid: the frame's edges and the labelled divisions.
-        const auto frame = project.frameFor (project.getRulerFrame());
+        // The proportion grid of the active layer: its frame's edges and the labelled divisions.
+        const auto activeLayer = project.getActiveLayer();
+        const auto frame = activeLayer.isValid() && (bool) activeLayer.getProperty (IDs::visible, true)
+                               ? project.frameFor (project.layerFrame (activeLayer)) : Project::Frame();
         if (frame.isValid())
         {
-            const float top = (float) rulerHeight, bottom = (float) getHeight();
+            const float top = (float) rulerHeight(), bottom = (float) getHeight();
             const float dashes[] = { 3.0f, 4.0f };
             g.setColour (Theme::accent.withAlpha (0.10f));
-            for (auto& k : visibleTicks())
-                if (k.labelled)
+            for (auto& k : visibleTicks (activeLayer))
+                if (k.labelled || k.series)
                 {
                     const float x = timeToX (k.time);
                     g.drawDashedLine ({ x, top, x, bottom }, dashes, 2, 1.0f);
@@ -410,6 +377,8 @@ void TimelineView::paint (juce::Graphics& g)
                 g.drawDashedLine ({ x, top, x, bottom }, dashes, 2, 1.0f);
             }
         }
+
+        paintMarksInLanes (g);
 
         // Folder lanes: a thin summary of every box inside.
         for (auto& r : rs)
@@ -439,7 +408,9 @@ void TimelineView::paint (juce::Graphics& g)
 
                 // The ruler's frame: a dashed outline. A box with proportions: a corner mark
                 // (filled while it follows its frame).
-                if (box[IDs::id].toString() == project.getRulerFrame())
+                bool isFrame = false;
+                for (auto& lr : rulerRows()) if (! lr.time && project.layerFrame (lr.layer) == box[IDs::id].toString()) isFrame = true;
+                if (isFrame)
                 {
                     juce::Path outline, dashed;
                     outline.addRoundedRectangle (b.expanded (2.5f), 5.0f);
@@ -463,7 +434,7 @@ void TimelineView::paint (juce::Graphics& g)
             g.setColour (Theme::textMuted);
             g.setFont (Theme::font (15.0f));
             g.drawText ("Drop sound files here, or choose File > Import sounds (Cmd-I)",
-                        juce::Rectangle<int> (headerWidth, rulerHeight, getWidth() - headerWidth, juce::jmin (200, getHeight() - rulerHeight)),
+                        juce::Rectangle<int> (headerWidth, rulerHeight(), getWidth() - headerWidth, juce::jmin (200, getHeight() - rulerHeight())),
                         juce::Justification::centred);
         }
     }
@@ -471,9 +442,9 @@ void TimelineView::paint (juce::Graphics& g)
     // Headers
     {
         juce::Graphics::ScopedSaveState s (g);
-        g.reduceClipRegion (0, rulerHeight, headerWidth, getHeight() - rulerHeight);
+        g.reduceClipRegion (0, rulerHeight(), headerWidth, getHeight() - rulerHeight());
         g.setColour (Theme::header);
-        g.fillRect (0, rulerHeight, headerWidth, getHeight() - rulerHeight);
+        g.fillRect (0, rulerHeight(), headerWidth, getHeight() - rulerHeight());
         for (size_t i = 0; i < rs.size(); ++i)
             paintTrackHeader (g, rs[i], (int) i);
 
@@ -486,10 +457,9 @@ void TimelineView::paint (juce::Graphics& g)
     }
 
     g.setColour (Theme::line);
-    g.fillRect (headerWidth - 1, rulerHeight, 1, getHeight() - rulerHeight);
+    g.fillRect (headerWidth - 1, rulerHeight(), 1, getHeight() - rulerHeight());
 
     paintRuler (g);
-    paintStrip (g);
 
     // Where a dragged track would land
     if (dragMode == DragMode::track && trackDrop.valid)
@@ -511,7 +481,7 @@ void TimelineView::paint (juce::Graphics& g)
         g.setFont (Theme::mono (11.5f));
         const int w = juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), readout) + 14;
         auto box = juce::Rectangle<int> (readoutPos.x + 14, readoutPos.y - 30, w, 20)
-                       .constrainedWithin (getLocalBounds().withTrimmedTop (rulerHeight).reduced (4));
+                       .constrainedWithin (getLocalBounds().withTrimmedTop (rulerHeight()).reduced (4));
         g.setColour (juce::Colour (0xf0101114));
         g.fillRoundedRectangle (box.toFloat(), 4.0f);
         g.setColour (Theme::accent);
@@ -534,9 +504,14 @@ void TimelineView::paint (juce::Graphics& g)
     {
         g.setColour (Theme::accent);
         g.fillRect (px - 0.5f, 0.0f, 1.5f, (float) getHeight());
-        juce::Path tri;
-        tri.addTriangle (px - 5.0f, (float) timeRulerHeight - 9.0f, px + 5.0f, (float) timeRulerHeight - 9.0f, px, (float) timeRulerHeight - 1.0f);
-        g.fillPath (tri);
+        for (auto& lr : rulerRows())
+            if (lr.time)
+            {
+                const float bottom = (float) (lr.y + lr.h);
+                juce::Path tri;
+                tri.addTriangle (px - 5.0f, bottom - 9.0f, px + 5.0f, bottom - 9.0f, px, bottom - 1.0f);
+                g.fillPath (tri);
+            }
     }
 
     if (dropHighlight)
@@ -544,116 +519,6 @@ void TimelineView::paint (juce::Graphics& g)
         g.setColour (Theme::accent.withAlpha (0.6f));
         g.drawRect (getLocalBounds(), 2);
     }
-}
-
-void TimelineView::paintRuler (juce::Graphics& g)
-{
-    g.setColour (juce::Colour (0xff18191c));
-    g.fillRect (0, 0, getWidth(), timeRulerHeight);
-    g.setColour (Theme::line);
-    g.fillRect (0, timeRulerHeight - 1, getWidth(), 1);
-
-    g.setColour (Theme::textMuted);
-    g.setFont (Theme::font (11.0f));
-    g.drawText ("Seconds", 12, 0, headerWidth - 16, timeRulerHeight, juce::Justification::centredLeft);
-
-    // A step that leaves at least 70 px between labels.
-    static const double steps[] = { 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200 };
-    double step = steps[std::size (steps) - 1];
-    for (double s : steps) if (s * pps >= 70.0) { step = s; break; }
-    const int decimals = step < 0.1 ? 2 : (step < 1.0 ? 1 : 0);
-
-    juce::Graphics::ScopedSaveState ss (g);
-    g.reduceClipRegion (headerWidth, 0, getWidth() - headerWidth, timeRulerHeight);
-
-    const double end = xToTime ((float) getWidth());
-    const double first = std::floor (viewStart / step) * step;
-    for (double t = first; t <= end; t += step)
-    {
-        const float x = timeToX (t);
-        g.setColour (Theme::lineStrong);
-        g.fillRect (x, 12.0f, 1.0f, (float) timeRulerHeight - 13.0f);
-        g.setColour (Theme::text);
-        g.setFont (Theme::mono (11.0f));
-        g.drawText (TimeFormat::format (t, decimals), (int) x + 4, 2, 80, 16, juce::Justification::centredLeft);
-
-        // Minor ticks
-        g.setColour (Theme::line);
-        for (int k = 1; k < 5; ++k)
-        {
-            const float mx = timeToX (t + step * k / 5.0);
-            g.fillRect (mx, (float) timeRulerHeight - 6.0f, 1.0f, 5.0f);
-        }
-    }
-}
-
-void TimelineView::paintStrip (juce::Graphics& g)
-{
-    const int y0 = timeRulerHeight, h = stripHeight;
-    g.setColour (juce::Colour (0xff1b1a17));
-    g.fillRect (0, y0, getWidth(), h);
-    g.setColour (Theme::line);
-    g.fillRect (0, y0 + h - 1, getWidth(), 1);
-
-    const auto ref = project.getRulerFrame();
-    const auto frame = project.frameFor (ref);
-    juce::String label = "Proportion: " + project.frameName (ref);
-    if (ref == "piece") label << " " << TimeFormat::format (frame.length, 0) << (project.hasSetPieceLength() ? "" : " (auto)");
-    g.setColour (Theme::accent);
-    g.setFont (Theme::font (10.5f));
-    g.drawText (label + juce::String::fromUTF8 (" \xe2\x96\xbe"), 12, y0, headerWidth - 16, h, juce::Justification::centredLeft, true);
-
-    juce::Graphics::ScopedSaveState ss (g);
-    g.reduceClipRegion (headerWidth, y0, getWidth() - headerWidth, h);
-
-    // A span that is not the frame: a faint bar.
-    if (project.hasSpan() && ref != "span")
-    {
-        const auto sp = project.frameFor ("span");
-        g.setColour (Theme::accent.withAlpha (0.3f));
-        g.fillRect (timeToX (sp.start), (float) (y0 + h - 4), timeToX (sp.end()) - timeToX (sp.start), 3.0f);
-    }
-
-    if (! frame.isValid()) return;
-    const float fx0 = timeToX (frame.start), fx1 = timeToX (frame.end());
-    g.setColour (Theme::accent.withAlpha (0.08f));
-    g.fillRect (fx0, (float) y0, fx1 - fx0, (float) h - 1.0f);
-
-    // Ticks: simpler fractions taller and brighter.
-    auto ticks = visibleTicks();
-    for (auto& k : ticks)
-    {
-        const float x = timeToX (k.time);
-        const float th = ((float) h - 3.0f) * k.height;
-        g.setColour (Theme::accent.withAlpha (k.division.rank <= 3.0 ? 0.95f : 0.55f));
-        g.fillRect (x, (float) (y0 + h - 1) - th, 1.0f, th);
-    }
-
-    // Labels, simplest first, never overlapping.
-    std::vector<size_t> order (ticks.size());
-    for (size_t i = 0; i < order.size(); ++i) order[i] = i;
-    std::stable_sort (order.begin(), order.end(), [&] (size_t a, size_t b) { return ticks[a].division.rank < ticks[b].division.rank; });
-    std::vector<juce::Range<int>> taken;
-    g.setFont (Theme::mono (9.5f));
-    for (auto i : order)
-    {
-        if (! ticks[i].labelled) continue;
-        const auto text = ticks[i].division.label();
-        const int x = (int) timeToX (ticks[i].time) + 3;
-        const int w = juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), text) + 2;
-        const juce::Range<int> range (x - 4, x + w + 4);
-        bool free = true;
-        for (auto& t : taken) if (t.intersects (range)) { free = false; break; }
-        if (! free) continue;
-        taken.push_back (range);
-        g.setColour (ticks[i].division.rank <= 3.0 ? Theme::accent : Theme::accent.withAlpha (0.7f));
-        g.drawText (text, x, y0 + 1, w, 10, juce::Justification::centredLeft, false);
-    }
-
-    // The frame's edges (draggable).
-    g.setColour (Theme::accent);
-    g.fillRect (fx0 - 1.0f, (float) y0, 2.0f, (float) h - 1.0f);
-    g.fillRect (fx1 - 1.0f, (float) y0, 2.0f, (float) h - 1.0f);
 }
 
 void TimelineView::paintTrackHeader (juce::Graphics& g, const TrackRow& r, int index)
@@ -857,14 +722,10 @@ void TimelineView::paintWaveform (juce::Graphics& g, const juce::ValueTree& box,
 
 void TimelineView::mouseMove (const juce::MouseEvent& e)
 {
+    if (rulerMouseMove (e)) return;
     Zone zone;
     auto box = boxAt (e.position, zone);
-    const auto frame = project.frameFor (project.getRulerFrame());
-    const bool onFrameEdge = e.y >= timeRulerHeight && e.y < rulerHeight && frame.isValid() && e.x >= headerWidth
-                             && (std::abs (e.position.x - timeToX (frame.start)) <= 5.0f || std::abs (e.position.x - timeToX (frame.end())) <= 5.0f);
-    if (onFrameEdge)                                    setMouseCursor (juce::MouseCursor::LeftRightResizeCursor);
-    else if (e.y < rulerHeight && e.x >= headerWidth)   setMouseCursor (juce::MouseCursor::IBeamCursor);
-    else if (zone == Zone::startEdge || zone == Zone::endEdge) setMouseCursor (juce::MouseCursor::LeftRightResizeCursor);
+    if (zone == Zone::startEdge || zone == Zone::endEdge) setMouseCursor (juce::MouseCursor::LeftRightResizeCursor);
     else if (zone == Zone::fadeInHandle || zone == Zone::fadeOutHandle) setMouseCursor (juce::MouseCursor::LeftRightResizeCursor);
     else setMouseCursor (juce::MouseCursor::NormalCursor);
     juce::ignoreUnused (box);
@@ -875,50 +736,8 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
     dragMode = DragMode::none;
     if (auto* parent = getParentComponent()) parent->grabKeyboardFocus();   // so Space etc. reach the commands
 
-    // Time ruler: locate
-    if (e.y < timeRulerHeight)
-    {
-        if (e.x >= headerWidth)
-        {
-            dragMode = DragMode::locate;
-            const double t = juce::jmax (0.0, xToTime (e.position.x));
-            if (onLocate) onLocate (t);
-        }
-        return;
-    }
-
-    // Proportion strip: its name opens the menu; drag the frame's edges or a new span.
-    if (e.y < rulerHeight)
-    {
-        if (e.x < headerWidth) { showStripMenu(); return; }
-
-        const auto ref = project.getRulerFrame();
-        const auto frame = project.frameFor (ref);
-        const bool nearStart = frame.isValid() && std::abs (e.position.x - timeToX (frame.start)) <= 5.0f;
-        const bool nearEnd = frame.isValid() && std::abs (e.position.x - timeToX (frame.end())) <= 5.0f;
-
-        if (nearEnd && (ref == "span" || ref == "piece"))
-        {
-            dragMode = DragMode::frameEnd;
-            project.getUndoManager().beginNewTransaction (ref == "piece" ? "Piece length" : "Span");
-        }
-        else if (nearStart && ref == "span")
-        {
-            dragMode = DragMode::frameStart;
-            project.getUndoManager().beginNewTransaction ("Span");
-        }
-        else if ((nearStart || nearEnd) && ref != "piece")
-        {
-            if (onStatus) onStatus ("This frame is the box \"" + project.frameName (ref) + "\": move or trim the box to change it.", false);
-        }
-        else
-        {
-            dragMode = DragMode::span;
-            spanAnchor = snap (juce::jmax (0.0, xToTime (e.position.x)), {}, ! e.mods.isShiftDown());
-            project.getUndoManager().beginNewTransaction ("Span");
-        }
-        return;
-    }
+    // The ruler layers
+    if (rulerMouseDown (e)) return;
 
     // Header
     if (e.x < headerWidth)
@@ -1041,6 +860,7 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
 
 void TimelineView::mouseDrag (const juce::MouseEvent& e)
 {
+    if (rulerMouseDrag (e)) return;
     const bool snapping = ! e.mods.isShiftDown();
     const double t = xToTime (e.position.x);
 
@@ -1059,16 +879,20 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
             double start = xToTime (e.position.x - dragGrabOffset);
             const double len = dragOrigEnd - dragOrigStart;
             const double snappedStart = snap (start, dragBox, snapping);
+            const auto markAtStart = snappedMark;
             const double snappedEnd = snap (start + len, dragBox, snapping);
-            if (std::abs (snappedStart - start) <= std::abs (snappedEnd - (start + len))) start = snappedStart;
+            const auto markAtEnd = snappedMark;
+            const bool byStart = std::abs (snappedStart - start) <= std::abs (snappedEnd - (start + len));
+            if (byStart) start = snappedStart;
             else start = snappedEnd - len;
+            const auto pinTo = byStart ? markAtStart : markAtEnd;
 
             double delta = start - dragOrigStart;
             for (auto& m : moving) delta = juce::jmax (delta, -m.start);   // nothing before 0:00
 
             std::vector<juce::ValueTree> lanes;
             for (auto& r : rows()) if (! r.folder) lanes.push_back (r.track);
-            auto row = rowAt (juce::jlimit (rulerHeight, getHeight() - 1, e.y));
+            auto row = rowAt (juce::jlimit (rulerHeight(), getHeight() - 1, e.y));
             if (row.track.isValid() && ! row.folder)
             {
                 int grabbedTrack = -1;
@@ -1090,6 +914,13 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
             }
             selectedTrackId = dragBox.getParent()[IDs::id].toString();
             readout = readoutFor (dragBox, Project::boxStart (dragBox), "start");
+
+            // Dropped on a mark: a box with proportions is pinned to it.
+            if (pinTo.isNotEmpty() && project.isBound (dragBox) && Project::isLocked (dragBox))
+            {
+                project.pinEdge (dragBox, byStart, pinTo);
+                readout << (byStart ? "   start pinned to " : "   end pinned to ") << pinTo;
+            }
             readoutPos = e.getPosition();
             repaint();
             break;
@@ -1109,45 +940,35 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         }
 
         case DragMode::trimStart:
-            project.trimStart (dragBox, snap (t, dragBox, snapping));
+        {
+            const double v = snap (t, dragBox, snapping);
+            const auto pinTo = snappedMark;
+            project.trimStart (dragBox, v);
             readout = readoutFor (dragBox, Project::boxStart (dragBox), "start");
+            if (pinTo.isNotEmpty() && project.isBound (dragBox) && Project::isLocked (dragBox))
+            {
+                project.pinEdge (dragBox, true, pinTo);
+                readout << "   pinned to " << pinTo;
+            }
             readoutPos = e.getPosition();
             repaint();
             break;
+        }
 
         case DragMode::trimEnd:
         {
-            project.trimEnd (dragBox, snap (t, dragBox, snapping));
+            const double v = snap (t, dragBox, snapping);
+            const auto pinTo = snappedMark;
+            project.trimEnd (dragBox, v);
             readout = readoutFor (dragBox, Project::boxEnd (dragBox), "end");
             if (project.isBound (dragBox))
                 readout << "   length " << Proportion::describe (project.actualProportion (dragBox, false), project.getDenominators());
-            readoutPos = e.getPosition();
-            repaint();
-            break;
-        }
-
-        case DragMode::span:
-        {
-            if (e.getDistanceFromDragStart() < 3) break;
-            const double b = snap (juce::jmax (0.0, t), {}, snapping);
-            project.setSpan (spanAnchor, b);
-            if (project.hasSpan()) project.setRulerFrame ("span");
-            repaint();
-            break;
-        }
-
-        case DragMode::frameStart:
-        case DragMode::frameEnd:
-        {
-            const auto ref = project.getRulerFrame();
-            const double v = snap (juce::jmax (0.0, t), {}, snapping);
-            if (ref == "piece") project.setPieceLength (juce::jmax (1.0, v));
-            else if (ref == "span")
+            if (pinTo.isNotEmpty() && project.isBound (dragBox) && Project::isLocked (dragBox))
             {
-                const auto f = project.frameFor ("span");
-                if (dragMode == DragMode::frameStart) project.setSpan (juce::jmin (v, f.end() - 0.01), f.end());
-                else project.setSpan (f.start, juce::jmax (v, f.start + 0.01));
+                project.pinEdge (dragBox, false, pinTo);
+                readout << "   pinned to " << pinTo;
             }
+            readoutPos = e.getPosition();
             repaint();
             break;
         }
@@ -1166,6 +987,11 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
             project.setFades (dragBox, dragBox[IDs::fadeIn], juce::jmax (0.0, Project::boxEnd (dragBox) - t));
             break;
 
+        case DragMode::span:
+        case DragMode::frameStart:
+        case DragMode::frameEnd:
+        case DragMode::layerHeight:
+        case DragMode::mark:        // handled by the ruler (TimelineRuler.cpp)
         case DragMode::none:
             break;
     }
@@ -1191,6 +1017,8 @@ void TimelineView::mouseUp (const juce::MouseEvent& e)
     }
     draggedTrack = {};
     trackDrop = {};
+    dragLayer = {};
+    dragMark = {};
     readout.clear();
     lastTrackDelta = 0;
 
@@ -1202,7 +1030,8 @@ void TimelineView::mouseUp (const juce::MouseEvent& e)
 
 void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
 {
-    if (e.y < rulerHeight) return;
+    if (rulerDoubleClick (e)) return;
+    if (e.y < rulerHeight()) return;
 
     if (e.x < headerWidth)
     {
@@ -1242,7 +1071,7 @@ void TimelineView::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseW
 
     if (std::abs (dy) > 1.0e-6f)
     {
-        const int maxScroll = juce::jmax (0, contentHeight() - (getHeight() - rulerHeight));
+        const int maxScroll = juce::jmax (0, contentHeight() - (getHeight() - rulerHeight()));
         scrollY = juce::jlimit (0, maxScroll, scrollY - juce::roundToInt (dy * 200.0f));
     }
     repaint();
@@ -1344,140 +1173,6 @@ void TimelineView::showTrackMenu (juce::ValueTree track)
     });
 }
 
-void TimelineView::showStripMenu()
-{
-    const auto ref = project.getRulerFrame();
-    const auto dens = project.getDenominators();
-    auto selected = getSelectedBox();
-
-    juce::PopupMenu frame;
-    frame.addItem (1, "The piece (" + TimeFormat::format (project.getPieceLength(), 0) + (project.hasSetPieceLength() ? ")" : ", its current length)"), true, ref == "piece");
-    frame.addItem (2, "The span dragged on this strip", project.hasSpan(), ref == "span");
-    if (selected.isValid())
-        frame.addItem (3, "The selected box: " + selected[IDs::name].toString(), true, ref == selected[IDs::id].toString());
-    else if (ref != "piece" && ref != "span")
-        frame.addItem (3, "Box: " + project.frameName (ref), true, true);
-    else
-        frame.addItem (3, "A box (select one first)", false);
-
-    juce::PopupMenu divisions;
-    for (int d = 2; d <= 20; ++d)
-        divisions.addItem (200 + d, "1/" + juce::String (d), true, Proportion::indexOf (dens, (double) d) >= 0);
-    divisions.addSeparator();
-    bool anyCustom = false;
-    for (auto d : dens)
-        if (std::abs (d - std::round (d)) > 1.0e-9 || d > 20.0)
-        {
-            if (! anyCustom) divisions.addSectionHeader ("Your own (click to remove)");
-            anyCustom = true;
-            divisions.addItem (400 + Proportion::indexOf (dens, d), "1/" + Proportion::formatNumber (d), true, true);
-        }
-    divisions.addItem (20, "Add your own denominator (for example 7.5)...");
-    divisions.addSeparator();
-    divisions.addItem (21, "Halves to sixths, and eighths");
-    divisions.addItem (22, "Up to twelfths");
-    divisions.addItem (23, "Every denominator up to 20");
-    divisions.addItem (24, "Prime denominators up to 19");
-    divisions.addItem (25, "None");
-
-    juce::PopupMenu m;
-    m.addSectionHeader ("The proportion ruler divides");
-    m.addSubMenu ("Frame: " + project.frameName (ref), frame);
-    m.addItem (5, "Set the piece length...");
-    m.addItem (6, "Follow the piece's current length", project.hasSetPieceLength());
-    m.addItem (7, "Remove the span", project.hasSpan());
-    m.addSeparator();
-    m.addSubMenu ("Divisions", divisions);
-    m.addItem (8, "Finer divisions appear as you zoom in", true, project.getAutoDivisions());
-
-    juce::Component::SafePointer<TimelineView> safe (this);
-    m.showMenuAsync (juce::PopupMenu::Options(), [safe, selected, dens] (int r)
-    {
-        if (safe == nullptr || r == 0) return;
-        auto& p = safe->project;
-        auto list = dens;
-        auto setList = [&] (juce::Array<double> l) { std::sort (l.begin(), l.end()); p.setDenominators (l); };
-
-        if (r == 1) p.setRulerFrame ("piece");
-        else if (r == 2) p.setRulerFrame ("span");
-        else if (r == 3 && selected.isValid()) p.setRulerFrame (selected[IDs::id].toString());
-        else if (r == 5) safe->askPieceLength();
-        else if (r == 6) { p.getUndoManager().beginNewTransaction ("Piece length"); p.setPieceLength (0.0); }
-        else if (r == 7)
-        {
-            p.getUndoManager().beginNewTransaction ("Remove span");
-            p.setSpan (0.0, 0.0);
-            if (p.getRulerFrame() == "span") p.setRulerFrame ("piece");
-        }
-        else if (r == 8) p.setAutoDivisions (! p.getAutoDivisions());
-        else if (r == 20) safe->askCustomDenominator();
-        else if (r == 21) setList ({ 2, 3, 4, 5, 6, 8 });
-        else if (r == 22) setList ({ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 });
-        else if (r == 23) { juce::Array<double> l; for (int d = 2; d <= 20; ++d) l.add (d); setList (l); }
-        else if (r == 24) setList ({ 2, 3, 5, 7, 11, 13, 17, 19 });
-        else if (r == 25) setList ({});
-        else if (r >= 200 && r <= 220)
-        {
-            const double d = r - 200;
-            const int i = Proportion::indexOf (list, d);
-            if (i >= 0) list.remove (i); else list.add (d);
-            setList (list);
-        }
-        else if (r >= 400) { list.remove (r - 400); setList (list); }
-        safe->repaint();
-    });
-}
-
-void TimelineView::askPieceLength()
-{
-    auto* w = new juce::AlertWindow ("Piece length",
-                                     "The piece as a proportion frame: how long it is meant to be (m:ss, or seconds).",
-                                     juce::MessageBoxIconType::NoIcon, this);
-    w->addTextEditor ("length", TimeFormat::format (project.getPieceLength(), 1));
-    w->addButton ("Set", 1, juce::KeyPress (juce::KeyPress::returnKey));
-    w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
-    juce::Component::SafePointer<TimelineView> safe (this);
-    w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w] (int result)
-    {
-        if (safe == nullptr || result != 1) return;
-        const double v = TimeFormat::parse (w->getTextEditorContents ("length"));
-        if (v < 1.0)
-        {
-            if (safe->onStatus) safe->onStatus ("Not a length: write it as 12:00, 1:05.5 or 90.", true);
-            return;
-        }
-        safe->project.getUndoManager().beginNewTransaction ("Piece length");
-        safe->project.setPieceLength (v);
-        safe->repaint();
-    }), true);
-}
-
-void TimelineView::askCustomDenominator()
-{
-    auto* w = new juce::AlertWindow ("Your own denominator",
-                                     "Divides the frame into this many parts. A decimal such as 7.5 gives 7 full parts and a half part at the end.",
-                                     juce::MessageBoxIconType::NoIcon, this);
-    w->addTextEditor ("d", "7.5");
-    w->addButton ("Add", 1, juce::KeyPress (juce::KeyPress::returnKey));
-    w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
-    juce::Component::SafePointer<TimelineView> safe (this);
-    w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w] (int result)
-    {
-        if (safe == nullptr || result != 1) return;
-        const auto r = Proportion::parse (w->getTextEditorContents ("d"));
-        if (! r.ok || r.value <= 1.0 || r.value > 1000.0)
-        {
-            if (safe->onStatus) safe->onStatus ("A denominator is a number above 1, for example 7.5.", true);
-            return;
-        }
-        auto list = safe->project.getDenominators();
-        if (Proportion::indexOf (list, r.value) < 0) list.add (r.value);
-        std::sort (list.begin(), list.end());
-        safe->project.setDenominators (list);
-        safe->repaint();
-    }), true);
-}
-
 void TimelineView::showBoxMenu (juce::ValueTree box)
 {
     const bool sound = Project::isSound (box);
@@ -1499,6 +1194,20 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
     if (! isFrame && project.canUseAsFrame (box, rulerFrame))
         m.addItem (9, (several ? "Give the boxes proportions of " : "Give it proportions of ") + project.frameName (rulerFrame));
     if (project.isBound (box)) m.addItem (10, several ? "Remove the proportions" : "Remove its proportions");
+    if (project.isBound (box) && project.getMarks().getNumChildren() > 0)
+    {
+        juce::PopupMenu pinStart, pinEnd;
+        int i = 0;
+        for (auto mk : project.getMarks())
+        {
+            pinStart.addItem (1000 + i, mk[IDs::name].toString());
+            pinEnd.addItem (2000 + i, mk[IDs::name].toString());
+            ++i;
+        }
+        m.addSubMenu ("Pin the start to a mark", pinStart);
+        m.addSubMenu ("Pin the end to a mark", pinEnd);
+    }
+    m.addItem (11, "Split by a ratio (cut, or marks in it)...", ! several);
 
     juce::Component::SafePointer<TimelineView> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, box, sound] (int r) mutable
@@ -1542,6 +1251,19 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
         {
             p.getUndoManager().beginNewTransaction ("Remove proportions");
             for (auto b : selection) p.bindBox (b, {});
+        }
+        else if (r == 11) safe->askRatioSplit ({}, box);
+        else if (r >= 1000 && r < 3000)
+        {
+            const bool start = r < 2000;
+            auto mk = p.getMarks().getChild ((r - (start ? 1000 : 2000)));
+            p.getUndoManager().beginNewTransaction ("Pin to mark");
+            for (auto b : selection)
+                if (p.isBound (b))
+                {
+                    if (! Project::isLocked (b)) p.setLock (b, true);
+                    p.pinEdge (b, start, mk[IDs::name].toString());
+                }
         }
         safe->repaint();
     });

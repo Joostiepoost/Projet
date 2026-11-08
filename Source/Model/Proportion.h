@@ -10,12 +10,15 @@
 //   golden        0.618... (the golden section of the frame)
 //   pi  π, sqrt(2)  √2   constants and square roots
 //   3:8           a ratio: the first part of 3 + 8 (= 3/11)
+//   m1            a named mark (stage 3b): where the mark is, as a proportion
+//                 of this frame. "m2 - m1" is the distance between two marks.
 //   + - * × / ( ) as usual
 // Times (m:ss) are typed in the time fields, never here: a colon is a ratio.
 
 #pragma once
 
 #include <JuceHeader.h>
+#include <optional>
 
 namespace Proportion
 {
@@ -26,7 +29,36 @@ namespace Proportion
         juce::String error;
     };
 
-    Result parse (const juce::String& text);
+    /** Gives the value of a mark's name (as a proportion of the frame being
+        measured), or nothing if there is no such mark. */
+    using Resolver = std::function<std::optional<double> (const juce::String& name)>;
+
+    Result parse (const juce::String& text, const Resolver& marks = {});
+
+    /** A mark name: a letter, then letters, digits or _ ; not a word the
+        expressions already use (phi, golden, pi, sqrt, of). */
+    bool isValidName (const juce::String& name);
+    /** The expression with every whole-word `oldName` replaced. */
+    juce::String replaceName (const juce::String& expression, const juce::String& oldName, const juce::String& newName);
+    bool refersTo (const juce::String& expression, const juce::String& name);
+
+    /** Parts of a ratio split: "2:3:5:8" -> {2,3,5,8}; empty if not valid. */
+    juce::Array<double> parseParts (const juce::String& text);
+    /** The boundaries between the parts, as fractions written exactly
+        ("2/18" reduced to "1/9"). */
+    juce::StringArray partBoundaries (const juce::Array<double>& parts);
+
+    /** Values as a small whole-number ratio ("3 : 8 : 5") when there is one
+        within half a percent (marked "≈" when not exact), else relative to the
+        first ("1 : 2.667"). */
+    juce::String ratioText (const juce::Array<double>& values);
+
+    /** A point of a series (golden section, Fibonacci, harmonic, your own). */
+    struct SeriesPoint { double position = 0.0; juce::String label; };
+    /** Series written as "golden:2;fibonacci:13;harmonic:8;custom:1/7,3/7". */
+    std::vector<SeriesPoint> seriesPoints (const juce::String& spec);
+    juce::String seriesPart (const juce::String& spec, const juce::String& key);
+    juce::String withSeriesPart (const juce::String& spec, const juce::String& key, const juce::String& value);
 
     /** The closest n/d with d from 1 to maxDenominator (and the extra
         denominators, which may be decimal). */

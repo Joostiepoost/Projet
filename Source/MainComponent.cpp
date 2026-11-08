@@ -53,6 +53,10 @@ MainComponent::MainComponent()
     };
     inspector.onExpandNotes = [this] { openNotesWindow(); };
     timeline.onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
+    timeline.onShowRulerPanel = [this] (const juce::String& layerId) { inspector.showRuler (layerId); };
+    inspector.getRulerPanel().getPlayhead = [this] { return engine.getPositionSeconds(); };
+    inspector.getRulerPanel().setProperties (properties.getUserSettings());
+    inspector.getRulerPanel().onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
     timeline.onFilesDropped = [this] (const juce::StringArray& files, juce::ValueTree track, double t) { importFiles (files, track, t); };
     timeline.onRevealOriginal = [this] (juce::ValueTree box)
     {

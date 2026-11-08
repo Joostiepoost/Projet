@@ -12,6 +12,7 @@
 #include "../Model/ProjectFolder.h"
 #include "../Engine/SoundData.h"
 #include "NotesEditor.h"
+#include "RulerPanel.h"
 
 class Inspector : public juce::Component
 {
@@ -19,6 +20,10 @@ public:
     Inspector (Project&, projet::SoundPool&, const ProjectFolder&);
 
     void setSelection (const juce::Array<juce::ValueTree>& boxes);
+    /** Shows the ruler layers (stage 3b), with this layer's details ("" = the active one). */
+    void showRuler (const juce::String& layerId);
+    bool isShowingRuler() const                     { return mode == Mode::ruler; }
+    RulerPanel& getRulerPanel()                     { return rulerPanel; }
     /** Re-reads the model (after any change). */
     void refresh();
     /** Saves notes being typed. */
@@ -32,7 +37,9 @@ public:
     std::function<void()> onExpandNotes;
 
 private:
-    enum class Mode { project, sound, text, several };
+    enum class Mode { project, sound, text, several, ruler };
+    juce::String ratioReport();
+    juce::Array<juce::ValueTree> selection;
     void setMode (Mode);
     void commitName();
     void commitProportion (bool start);
@@ -47,6 +54,7 @@ private:
     juce::ValueTree box;
     int selectionSize = 0;
     Mode mode = Mode::project;
+    RulerPanel rulerPanel { project };
     bool updating = false;
 
     juce::Label title;
