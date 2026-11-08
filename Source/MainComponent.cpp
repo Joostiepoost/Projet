@@ -52,6 +52,7 @@ MainComponent::MainComponent()
         splitAtPlayhead (boxes);
     };
     inspector.onExpandNotes = [this] { openNotesWindow(); };
+    timeline.onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
     timeline.onFilesDropped = [this] (const juce::StringArray& files, juce::ValueTree track, double t) { importFiles (files, track, t); };
     timeline.onRevealOriginal = [this] (juce::ValueTree box)
     {
@@ -358,7 +359,7 @@ void MainComponent::openFiles (const juce::StringArray& paths)
         sounds.add (p);
     }
     if (hasProject() && ! sounds.isEmpty())
-        importFiles (sounds, timeline.getSelectedTrack(), engine.getPositionSeconds());
+        importFiles (sounds, timeline.getSelectedLaneTrack(), engine.getPositionSeconds());
 }
 
 void MainComponent::importDialog()
@@ -373,7 +374,7 @@ void MainComponent::importDialog()
         juce::StringArray paths;
         for (auto& f : fc.getResults()) paths.add (f.getFullPathName());
         if (paths.isEmpty()) return;
-        safeThis->importFiles (paths, safeThis->timeline.getSelectedTrack(), safeThis->engine.getPositionSeconds());
+        safeThis->importFiles (paths, safeThis->timeline.getSelectedLaneTrack(), safeThis->engine.getPositionSeconds());
     });
 }
 
@@ -454,8 +455,9 @@ void MainComponent::placeReady (std::shared_ptr<ImportBatch> batch)
             project.addSound (s);
         }
 
-        auto track = project.getTracks().getChildWithProperty (IDs::id, batch->trackId);
-        if (! track.isValid()) track = project.getTrack (0);
+        auto track = project.findTrack (batch->trackId);
+        if (track.isValid() && Project::isFolder (track)) track = {};
+        if (! track.isValid()) track = project.laneTracks().getFirst();
         if (! track.isValid()) track = project.addTrack();
 
         project.getUndoManager().beginNewTransaction ("Import " + r.original.getFileName());
@@ -493,7 +495,7 @@ void MainComponent::selectionChanged()
 
 void MainComponent::addTextBox (juce::ValueTree track, double start)
 {
-    if (! track.isValid()) track = timeline.getSelectedTrack();
+    if (! track.isValid() || Project::isFolder (track)) track = timeline.getSelectedLaneTrack();
     if (! track.isValid()) return;
     project.getUndoManager().beginNewTransaction ("New text box");
     // About 160 pixels long at the current zoom, at least 2 s.
@@ -541,18 +543,19 @@ void MainComponent::copySelection()
     auto boxes = timeline.getSelectedBoxes();
     if (boxes.isEmpty()) return;
 
-    auto tracks = project.getTracks();
+    // Track offsets count only tracks that hold boxes (folders are skipped).
+    auto lanes = project.laneTracks();
     double firstTime = 1.0e12;
     int firstTrack = 1 << 30;
     for (auto b : boxes)
     {
         firstTime = juce::jmin (firstTime, Project::boxStart (b));
-        firstTrack = juce::jmin (firstTrack, tracks.indexOf (b.getParent()));
+        firstTrack = juce::jmin (firstTrack, lanes.indexOf (b.getParent()));
     }
 
     clipboard.clear();
     for (auto b : boxes)
-        clipboard.push_back ({ b.createCopy(), tracks.indexOf (b.getParent()) - firstTrack, Project::boxStart (b) - firstTime });
+        clipboard.push_back ({ b.createCopy(), lanes.indexOf (b.getParent()) - firstTrack, Project::boxStart (b) - firstTime });
     transport.setStatus ("Copied " + juce::String (boxes.size()) + (boxes.size() == 1 ? " box." : " boxes."));
 }
 
@@ -571,18 +574,34 @@ void MainComponent::paste()
 
     // At the playhead, starting on the selected track; more tracks are added if needed.
     const double t = engine.getPositionSeconds();
-    auto tracks = project.getTracks();
-    const int base = juce::jmax (0, tracks.indexOf (timeline.getSelectedTrack()));
+    auto lanes = project.laneTracks();
+    const int base = juce::jmax (0, lanes.indexOf (timeline.getSelectedLaneTrack()));
 
     project.getUndoManager().beginNewTransaction ("Paste");
-    juce::Array<juce::ValueTree> pasted;
+
+    // New ids; a box copied together with its frame box follows the copy of that frame.
+    std::map<juce::String, juce::String> newIds;
+    std::vector<juce::ValueTree> copies;
     for (auto& item : clipboard)
     {
-        while (tracks.getNumChildren() <= base + item.trackOffset) project.addTrack();
         auto copy = item.box.createCopy();
-        copy.setProperty (IDs::id, Project::newId(), nullptr);
+        const auto id = Project::newId();
+        newIds[copy[IDs::id].toString()] = id;
+        copy.setProperty (IDs::id, id, nullptr);
         copy.setProperty (IDs::start, t + item.timeOffset, nullptr);
-        tracks.getChild (base + item.trackOffset).appendChild (copy, project.um());
+        copies.push_back (copy);
+    }
+
+    juce::Array<juce::ValueTree> pasted;
+    for (size_t i = 0; i < copies.size(); ++i)
+    {
+        auto copy = copies[i];
+        auto it = newIds.find (Project::boundFrame (copy));
+        if (it != newIds.end()) copy.setProperty (IDs::propFrame, it->second, nullptr);
+        else project.refitProportions (copy);
+
+        while (lanes.size() <= base + clipboard[i].trackOffset) lanes.add (project.addTrack());
+        lanes[base + clipboard[i].trackOffset].appendChild (copy, project.um());
         pasted.add (copy);
     }
     timeline.setSelection (pasted);
@@ -758,7 +777,7 @@ bool MainComponent::perform (const InvocationInfo& info)
             timeline.setSelection (copies);
             break;
         }
-        case cmdNewTextBox:   addTextBox (timeline.getSelectedTrack(), engine.getPositionSeconds()); break;
+        case cmdNewTextBox:   addTextBox (timeline.getSelectedLaneTrack(), engine.getPositionSeconds()); break;
         case cmdSplit:        splitAtPlayhead (timeline.getSelectedBoxes()); break;
         case cmdCopy:         copySelection(); break;
         case cmdCut:          copySelection(); deleteSelection ("Cut"); break;
@@ -775,9 +794,11 @@ bool MainComponent::perform (const InvocationInfo& info)
 
         case cmdAddTrack:
         {
+            // After the selected track (and everything inside it), in the same folder.
             project.getUndoManager().beginNewTransaction ("Add track");
-            const int index = project.getTracks().indexOf (timeline.getSelectedTrack());
-            project.addTrack ({}, index < 0 ? -1 : index + 1);
+            auto sel = timeline.getSelectedTrack();
+            if (sel.isValid()) project.addTrack ({}, project.blockEnd (sel), sel[IDs::folderId].toString());
+            else project.addTrack();
             break;
         }
         case cmdAudioSettings: showAudioSettings(); break;
@@ -862,6 +883,8 @@ void MainComponent::showShortcuts()
          << "   Box: click to select (Shift adds, Cmd toggles), drag to move all selected boxes\n"
          << "   Empty lane: drag a rectangle to select; double-click for a new text box\n"
          << "   Double-click a box: write its notes\n"
+         << "   Proportion strip: drag a span; click its name for the frame and divisions\n"
+         << "   Track header: drag to reorder or into a folder\n"
          << "   Box edges: drag to trim; small squares at the top: drag to set the fades\n"
          << "   Shift while dragging: no snapping\n"
          << "   Wheel: scroll; Shift-wheel: sideways; Cmd-wheel or pinch: zoom\n"

@@ -11,13 +11,12 @@ std::shared_ptr<const Arrangement> Arrangement::build (Project& project, const S
     a->sampleRate = project.getSampleRate();
     const double rate = a->sampleRate;
 
-    bool anySolo = false;
-    for (auto t : project.getTracks())
-        anySolo = anySolo || (bool) t[IDs::solo];
+    // Folders pass their mute and solo on to the tracks inside them.
+    const bool anySolo = project.anySolo();
 
     for (auto track : project.getTracks())
     {
-        if ((bool) track[IDs::mute] || (anySolo && ! (bool) track[IDs::solo]))
+        if (Project::isFolder (track) || project.effectiveMute (track) || (anySolo && ! project.effectiveSolo (track)))
             continue;
 
         for (auto box : track)

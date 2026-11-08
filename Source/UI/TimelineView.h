@@ -1,8 +1,13 @@
-// TimelineView.h — the flat timeline of stage 1: a ruler, track headers and
-// lanes with sound boxes.
+// TimelineView.h — the timeline: a time ruler with a proportion strip below
+// it, track headers (with folders) and lanes with boxes.
 //
 // Mouse:
-//   ruler              click or drag to move the playhead
+//   time ruler         click or drag to move the playhead
+//   proportion strip   drag to make a span (it becomes the frame); drag the
+//                      frame's edges; click the strip's name for the frame,
+//                      the piece length and the divisions
+//   track header       drag to reorder or into a folder; click a folder's
+//                      triangle to fold it
 //   box body           select (Shift adds, Cmd toggles); drag to move all
 //                      selected boxes (also to other tracks)
 //   empty lane         drag a rectangle to select; double-click: new text box
@@ -20,6 +25,7 @@
 #include <JuceHeader.h>
 #include "../Model/Project.h"
 #include "../Engine/SoundData.h"
+#include "../Model/Proportion.h"
 
 class TimelineView : public juce::Component,
                      public juce::FileDragAndDropTarget
@@ -51,6 +57,8 @@ public:
     void setSelection (const juce::Array<juce::ValueTree>& boxes);
     void selectAll();
     juce::ValueTree getSelectedTrack();
+    /** The selected track if it can hold boxes, else the nearest one that can. */
+    juce::ValueTree getSelectedLaneTrack();
 
     double getViewStart() const noexcept            { return viewStart; }
     double getPixelsPerSecond() const noexcept      { return pps; }
@@ -70,16 +78,21 @@ public:
     std::function<void (juce::ValueTree box)> onRevealOriginal;
     std::function<void (juce::ValueTree track, double seconds)> onAddTextBox;
     std::function<void (juce::ValueTree box)> onEditNotes, onSplitAtPlayhead, onOpenNotesWindow;
+    std::function<void (const juce::String& message, bool warning)> onStatus;
 
     static constexpr int headerWidth = 172;
-    static constexpr int rulerHeight = 30;
+    static constexpr int timeRulerHeight = 30;
+    static constexpr int stripHeight = 20;
+    static constexpr int rulerHeight = timeRulerHeight + stripHeight;   // where the tracks begin
+    static constexpr int folderHeight = 30;
     static constexpr int addTrackHeight = 34;
 
 private:
-    enum class DragMode { none, locate, move, trimStart, trimEnd, fadeIn, fadeOut, lasso };
+    enum class DragMode { none, locate, move, trimStart, trimEnd, fadeIn, fadeOut, lasso,
+                          span, frameStart, frameEnd, track };
     enum class Zone { none, body, startEdge, endEdge, fadeInHandle, fadeOutHandle };
 
-    struct TrackRow { juce::ValueTree track; int y = 0, h = 0; };
+    struct TrackRow { juce::ValueTree track; int y = 0, h = 0, depth = 0; bool folder = false; };
     std::vector<TrackRow> rows() const;
     int contentHeight() const;
     TrackRow rowAt (int y) const;
@@ -91,7 +104,22 @@ private:
     juce::ValueTree boxAt (juce::Point<float>, Zone& zone);
     double snap (double t, const juce::ValueTree& exclude, bool enabled) const;
 
+    //== Proportions ==========================================================
+    struct Tick { double time = 0.0; Proportion::Division division; float height = 0.0f; bool labelled = false; };
+    /** The ruler frame's divisions that are far enough apart at this zoom. */
+    std::vector<Tick> visibleTicks() const;
+    juce::String readoutFor (const juce::ValueTree& box, double time, const juce::String& what) const;
+    void showStripMenu();
+    void askPieceLength();
+    void askCustomDenominator();
+
+    //== Folders ==============================================================
+    juce::Rectangle<int> foldButton (const TrackRow& r) const;
+    struct TrackDrop { int index = -1; juce::String folderId; int lineY = -1, indent = 0; juce::ValueTree into; bool valid = false; };
+    TrackDrop trackDropAt (int y) const;
+
     void paintRuler (juce::Graphics&);
+    void paintStrip (juce::Graphics&);
     void paintTrackHeader (juce::Graphics&, const TrackRow&, int index);
     void paintBox (juce::Graphics&, const juce::ValueTree& box, const TrackRow&);
     void paintWaveform (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r);
@@ -127,4 +155,11 @@ private:
     std::vector<Moving> moving;                      // all selected boxes, as they were when the drag began
     juce::Rectangle<int> lasso;
     juce::StringArray lassoBase;                     // selection before the rectangle (Shift / Cmd)
+
+    double spanAnchor = 0.0;
+    int lastTrackDelta = 0;
+    juce::ValueTree draggedTrack;
+    TrackDrop trackDrop;
+    juce::String readout;                            // shown near the mouse while moving or trimming
+    juce::Point<int> readoutPos;
 };

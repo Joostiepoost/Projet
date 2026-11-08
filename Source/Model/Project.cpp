@@ -1,6 +1,7 @@
 // Project.cpp
 
 #include "Project.h"
+#include "Proportion.h"
 
 const char* fadeShapeName (FadeShape s)
 {
@@ -42,9 +43,19 @@ juce::ValueTree Project::createState (const juce::String& name, double rate)
 
 void Project::resetToDefault (const juce::String& name, double sampleRate)
 {
-    state.copyPropertiesAndChildrenFrom (createState (name, sampleRate), nullptr);
-    addTrack ("Track 1");
+    {
+        const juce::ScopedValueSetter<bool> svs (loading, true);
+        state.copyPropertiesAndChildrenFrom (createState (name, sampleRate), nullptr);
+        addTrack ("Track 1");
+    }
     undoManager.clearUndoHistory();
+}
+
+void Project::changed()
+{
+    if (! applying && ! loading)
+        applyProportions();
+    if (onChanged) onChanged();
 }
 
 //== Sounds ====================================================================
@@ -78,23 +89,188 @@ double Project::soundSeconds (const juce::String& soundId) const
 
 //== Tracks ====================================================================
 
-juce::ValueTree Project::addTrack (const juce::String& name, int index)
+juce::ValueTree Project::addTrack (const juce::String& name, int index, const juce::String& folderId)
 {
     auto tracks = getTracks();
+    int lanes = 0;
+    for (auto t : tracks) if (! isFolder (t)) ++lanes;
     juce::ValueTree t (IDs::TRACK);
     t.setProperty (IDs::id, newId(), nullptr);
-    t.setProperty (IDs::name, name.isNotEmpty() ? name : "Track " + juce::String (tracks.getNumChildren() + 1), nullptr);
+    t.setProperty (IDs::name, name.isNotEmpty() ? name : "Track " + juce::String (lanes + 1), nullptr);
     t.setProperty (IDs::colour, tracks.getNumChildren() % 8, nullptr);
     t.setProperty (IDs::height, 72, nullptr);
     t.setProperty (IDs::mute, false, nullptr);
     t.setProperty (IDs::solo, false, nullptr);
+    if (folderId.isNotEmpty()) t.setProperty (IDs::folderId, folderId, nullptr);
     tracks.addChild (t, index, &undoManager);
     return t;
 }
 
 void Project::removeTrack (juce::ValueTree track)
 {
-    getTracks().removeChild (track, &undoManager);
+    auto tracks = getTracks();
+    const int first = tracks.indexOf (track);
+    if (first < 0) return;
+    for (int i = blockEnd (track); --i >= first;)
+        tracks.removeChild (i, &undoManager);
+}
+
+juce::ValueTree Project::findTrack (const juce::String& trackId)
+{
+    if (trackId.isEmpty()) return {};
+    return getTracks().getChildWithProperty (IDs::id, trackId);
+}
+
+//== Folders ===================================================================
+
+juce::ValueTree Project::folderOf (const juce::ValueTree& track)
+{
+    return findTrack (track[IDs::folderId].toString());
+}
+
+int Project::depthOf (const juce::ValueTree& track)
+{
+    int depth = 0;
+    for (auto f = folderOf (track); f.isValid() && depth < 64; f = folderOf (f)) ++depth;
+    return depth;
+}
+
+bool Project::isInside (const juce::ValueTree& track, const juce::ValueTree& folder)
+{
+    int guard = 0;
+    for (auto f = folderOf (track); f.isValid() && guard < 64; f = folderOf (f), ++guard)
+        if (f == folder) return true;
+    return false;
+}
+
+bool Project::isVisible (const juce::ValueTree& track)
+{
+    int guard = 0;
+    for (auto f = folderOf (track); f.isValid() && guard < 64; f = folderOf (f), ++guard)
+        if ((bool) f[IDs::folded]) return false;
+    return true;
+}
+
+int Project::effectiveColour (const juce::ValueTree& track)
+{
+    auto outer = track;
+    int guard = 0;
+    for (auto f = folderOf (track); f.isValid() && guard < 64; f = folderOf (f), ++guard)
+        outer = f;
+    return (int) outer[IDs::colour];
+}
+
+bool Project::effectiveMute (const juce::ValueTree& track)
+{
+    if ((bool) track[IDs::mute]) return true;
+    int guard = 0;
+    for (auto f = folderOf (track); f.isValid() && guard < 64; f = folderOf (f), ++guard)
+        if ((bool) f[IDs::mute]) return true;
+    return false;
+}
+
+bool Project::effectiveSolo (const juce::ValueTree& track)
+{
+    if ((bool) track[IDs::solo]) return true;
+    int guard = 0;
+    for (auto f = folderOf (track); f.isValid() && guard < 64; f = folderOf (f), ++guard)
+        if ((bool) f[IDs::solo]) return true;
+    return false;
+}
+
+bool Project::anySolo()
+{
+    for (auto t : getTracks())
+        if ((bool) t[IDs::solo]) return true;
+    return false;
+}
+
+juce::Array<juce::ValueTree> Project::laneTracks()
+{
+    juce::Array<juce::ValueTree> lanes;
+    for (auto t : getTracks())
+        if (! isFolder (t)) lanes.add (t);
+    return lanes;
+}
+
+int Project::blockEnd (const juce::ValueTree& track)
+{
+    auto tracks = getTracks();
+    int i = tracks.indexOf (track);
+    if (i < 0) return -1;
+    ++i;
+    if (! isFolder (track)) return i;
+    while (i < tracks.getNumChildren() && isInside (tracks.getChild (i), track)) ++i;
+    return i;
+}
+
+juce::ValueTree Project::addFolder (const juce::String& name, int index, const juce::String& folderId)
+{
+    juce::ValueTree f (IDs::TRACK);
+    f.setProperty (IDs::id, newId(), nullptr);
+    f.setProperty (IDs::name, name.isNotEmpty() ? name : juce::String ("Folder"), nullptr);
+    f.setProperty (IDs::isFolder, true, nullptr);
+    f.setProperty (IDs::colour, getTracks().getNumChildren() % 8, nullptr);
+    f.setProperty (IDs::height, 30, nullptr);
+    f.setProperty (IDs::mute, false, nullptr);
+    f.setProperty (IDs::solo, false, nullptr);
+    f.setProperty (IDs::folded, false, nullptr);
+    if (folderId.isNotEmpty()) f.setProperty (IDs::folderId, folderId, nullptr);
+    getTracks().addChild (f, index, &undoManager);
+    return f;
+}
+
+juce::ValueTree Project::putInNewFolder (juce::ValueTree track)
+{
+    auto tracks = getTracks();
+    const int index = tracks.indexOf (track);
+    if (index < 0) return {};
+    auto f = addFolder ("Folder", index, track[IDs::folderId].toString());
+    f.setProperty (IDs::colour, track[IDs::colour], &undoManager);
+    track.setProperty (IDs::folderId, f[IDs::id].toString(), &undoManager);
+    return f;
+}
+
+void Project::moveTrack (juce::ValueTree track, int toIndex, const juce::String& folderId)
+{
+    auto tracks = getTracks();
+    const int first = tracks.indexOf (track);
+    if (first < 0) return;
+    auto target = findTrack (folderId);
+    if (target == track || (target.isValid() && isInside (target, track))) return;   // not into itself
+
+    const int end = blockEnd (track);
+    toIndex = juce::jlimit (0, tracks.getNumChildren(), toIndex);
+
+    if (toIndex < first || toIndex > end)
+    {
+        juce::Array<juce::ValueTree> block;
+        for (int i = first; i < end; ++i) block.add (tracks.getChild (i));
+        for (int i = end; --i >= first;) tracks.removeChild (i, &undoManager);
+        if (toIndex > first) toIndex -= block.size();
+        for (int i = 0; i < block.size(); ++i)
+            tracks.addChild (block[i], toIndex + i, &undoManager);
+    }
+
+    if (track[IDs::folderId].toString() != folderId)
+    {
+        if (folderId.isEmpty()) track.removeProperty (IDs::folderId, &undoManager);
+        else track.setProperty (IDs::folderId, folderId, &undoManager);
+    }
+}
+
+void Project::ungroupFolder (juce::ValueTree folder)
+{
+    if (! isFolder (folder)) return;
+    const auto up = folder[IDs::folderId].toString();
+    const auto id = folder[IDs::id].toString();
+    for (auto t : getTracks())
+        if (t[IDs::folderId].toString() == id)
+        {
+            if (up.isEmpty()) t.removeProperty (IDs::folderId, &undoManager);
+            else t.setProperty (IDs::folderId, up, &undoManager);
+        }
+    getTracks().removeChild (folder, &undoManager);
 }
 
 //== Boxes =====================================================================
@@ -181,6 +357,8 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
     right.setProperty (IDs::fadeIn, cutFade, nullptr);
     right.setProperty (IDs::fadeOut, juce::jmin (fadeOut, end - t), nullptr);
 
+    rewriteProportions (right, t, end - t, nullptr);
+    rewriteProportions (box, start, t - start, &undoManager);
     box.setProperty (IDs::length, t - start, &undoManager);
     box.setProperty (IDs::fadeIn, juce::jmin (fadeIn, t - start), &undoManager);
     box.setProperty (IDs::fadeOut, cutFade, &undoManager);
@@ -211,6 +389,7 @@ juce::ValueTree Project::duplicateBox (juce::ValueTree box)
     auto copy = box.createCopy();
     copy.setProperty (IDs::id, newId(), nullptr);
     copy.setProperty (IDs::start, boxEnd (box), nullptr);
+    refitProportions (copy);
     box.getParent().appendChild (copy, &undoManager);
     return copy;
 }
@@ -220,12 +399,13 @@ void Project::moveBox (juce::ValueTree box, juce::ValueTree toTrack, double newS
     newStart = juce::jmax (0.0, newStart);
     auto from = box.getParent();
 
-    if (toTrack.isValid() && from != toTrack)
+    if (toTrack.isValid() && from != toTrack && ! isFolder (toTrack))
     {
         from.removeChild (box, &undoManager);
         toTrack.appendChild (box, &undoManager);
     }
 
+    rewriteProportions (box, newStart, boxLength (box), &undoManager);
     box.setProperty (IDs::start, newStart, &undoManager);
 }
 
@@ -248,8 +428,9 @@ void Project::trimStart (juce::ValueTree box, double newStart)
     newStart = juce::jlimit (earliest, end - minBoxLength, newStart);
     const double delta = newStart - boxStart (box);
 
-    box.setProperty (IDs::start, newStart, &undoManager);
     if (isSound (box)) box.setProperty (IDs::offset, offset + delta, &undoManager);
+    rewriteProportions (box, newStart, end - newStart, &undoManager);
+    box.setProperty (IDs::start, newStart, &undoManager);
     box.setProperty (IDs::length, end - newStart, &undoManager);
     setFades (box, box[IDs::fadeIn], box[IDs::fadeOut]);
 }
@@ -259,6 +440,7 @@ void Project::trimEnd (juce::ValueTree box, double newEnd)
     // Text boxes can be any length; sound boxes end with their sound.
     const double available = isSound (box) ? soundSeconds (box[IDs::soundId]) - (double) box[IDs::offset] : 1.0e7;
     const double length = juce::jlimit (minBoxLength, juce::jmax (minBoxLength, available), newEnd - boxStart (box));
+    rewriteProportions (box, boxStart (box), length, &undoManager);
     box.setProperty (IDs::length, length, &undoManager);
     setFades (box, box[IDs::fadeIn], box[IDs::fadeOut]);
 }
@@ -285,6 +467,230 @@ double Project::getContentEnd()
         for (auto b : t)
             end = juce::jmax (end, boxEnd (b));
     return end;
+}
+
+//== Proportion frames =========================================================
+
+double Project::getPieceLength()
+{
+    if (hasSetPieceLength()) return (double) state[IDs::frameLength];
+    return juce::jmax (1.0, getContentEnd());
+}
+
+void Project::setPieceLength (double seconds)
+{
+    state.setProperty (IDs::frameLength, juce::jmax (0.0, seconds), &undoManager);
+}
+
+bool Project::hasSpan() const
+{
+    return (double) state.getProperty (IDs::spanEnd, 0.0) - (double) state.getProperty (IDs::spanStart, 0.0) > 1.0e-6;
+}
+
+void Project::setSpan (double a, double b)
+{
+    if (a > b) std::swap (a, b);
+    a = juce::jmax (0.0, a);
+    b = juce::jmax (0.0, b);
+    state.setProperty (IDs::spanStart, a, &undoManager);
+    state.setProperty (IDs::spanEnd, b, &undoManager);
+}
+
+Project::Frame Project::frameFor (const juce::String& ref)
+{
+    if (ref == "piece") return { 0.0, getPieceLength() };
+    if (ref == "span")
+    {
+        if (! hasSpan()) return {};
+        const double a = state[IDs::spanStart], b = state[IDs::spanEnd];
+        return { a, b - a };
+    }
+    if (ref.isEmpty()) return {};
+    auto b = findBox (ref);
+    if (! b.isValid()) return {};
+    return { boxStart (b), boxLength (b) };
+}
+
+juce::String Project::frameName (const juce::String& ref)
+{
+    if (ref == "piece") return "piece";
+    if (ref == "span") return "span";
+    auto b = findBox (ref);
+    return b.isValid() ? b[IDs::name].toString() : juce::String ("(removed box)");
+}
+
+juce::String Project::getRulerFrame()
+{
+    const auto ref = state.getProperty (IDs::rulerFrame, "piece").toString();
+    return frameFor (ref).isValid() ? ref : juce::String ("piece");
+}
+
+void Project::setRulerFrame (const juce::String& ref)
+{
+    state.setProperty (IDs::rulerFrame, ref, nullptr);
+}
+
+juce::Array<double> Project::getDenominators() const
+{
+    if (! state.hasProperty (IDs::denominators))
+    {
+        // Every denominator up to 20; which ones show depends on the zoom.
+        juce::Array<double> all;
+        for (int d = 2; d <= 20; ++d) all.add (d);
+        return all;
+    }
+    return Proportion::parseList (state[IDs::denominators].toString());
+}
+
+void Project::setDenominators (const juce::Array<double>& list)
+{
+    state.setProperty (IDs::denominators, Proportion::formatList (list), nullptr);
+}
+
+//== Proportional boxes ========================================================
+
+bool Project::dependsOn (const juce::ValueTree& box, const juce::ValueTree& frameBox)
+{
+    auto b = box;
+    for (int guard = 0; guard < 64; ++guard)
+    {
+        const auto ref = boundFrame (b);
+        if (ref.isEmpty() || ref == "piece" || ref == "span") return false;
+        b = findBox (ref);
+        if (! b.isValid()) return false;
+        if (b == frameBox) return true;
+    }
+    return true;    // a loop: treat as dependent
+}
+
+bool Project::canUseAsFrame (const juce::ValueTree& box, const juce::String& ref)
+{
+    if (ref == "piece" || ref == "span" || ref.isEmpty()) return true;
+    auto frameBox = findBox (ref);
+    if (! frameBox.isValid() || frameBox == box) return false;
+    return ! dependsOn (frameBox, box);
+}
+
+void Project::freezePieceLengthFor (const juce::String& ref)
+{
+    // A box bound to the piece would otherwise change the length it is measured against.
+    if (ref == "piece" && ! hasSetPieceLength())
+        setPieceLength (juce::jmax (1.0, getContentEnd()));
+}
+
+void Project::bindBox (juce::ValueTree box, const juce::String& ref)
+{
+    if (ref.isEmpty())
+    {
+        box.removeProperty (IDs::propFrame, &undoManager);
+        return;
+    }
+    if (! canUseAsFrame (box, ref)) return;
+    freezePieceLengthFor (ref);
+    const auto f = frameFor (ref);
+    if (! f.isValid()) return;
+
+    const auto extra = getDenominators();
+    box.setProperty (IDs::propStart, Proportion::expressionFor (f.proportionOf (boxStart (box)), extra), &undoManager);
+    box.setProperty (IDs::propLength, Proportion::expressionFor (boxLength (box) / f.length, extra), &undoManager);
+    box.setProperty (IDs::propFrame, ref, &undoManager);
+    if (! box.hasProperty (IDs::propLock)) box.setProperty (IDs::propLock, true, &undoManager);
+}
+
+bool Project::setProportion (juce::ValueTree box, bool start, const juce::String& text, juce::String& error)
+{
+    const auto ref = boundFrame (box);
+    const auto f = frameFor (ref);
+    if (! f.isValid()) { error = "Choose a frame first."; return false; }
+
+    const auto r = Proportion::parse (text);
+    if (! r.ok) { error = r.error; return false; }
+    if (! start && r.value * f.length < minBoxLength) { error = "That length is too short."; return false; }
+    if (start && f.at (r.value) < 0.0) { error = "That start lies before 0:00."; return false; }
+
+    box.setProperty (start ? IDs::propStart : IDs::propLength, text.trim(), &undoManager);
+    if (! isLocked (box))
+    {
+        // Unlocked boxes take the new times once.
+        if (start) box.setProperty (IDs::start, f.at (r.value), &undoManager);
+        else box.setProperty (IDs::length, r.value * f.length, &undoManager);
+    }
+    return true;
+}
+
+void Project::setLock (juce::ValueTree box, bool locked)
+{
+    if (locked && ! isLocked (box))
+    {
+        // Take the present times as the proportions, so nothing jumps.
+        const auto f = frameFor (boundFrame (box));
+        if (f.isValid())
+        {
+            const auto extra = getDenominators();
+            box.setProperty (IDs::propStart, Proportion::expressionFor (f.proportionOf (boxStart (box)), extra), &undoManager);
+            box.setProperty (IDs::propLength, Proportion::expressionFor (boxLength (box) / f.length, extra), &undoManager);
+        }
+    }
+    box.setProperty (IDs::propLock, locked, &undoManager);
+}
+
+double Project::actualProportion (const juce::ValueTree& box, bool start)
+{
+    const auto f = frameFor (boundFrame (box));
+    if (! f.isValid()) return 0.0;
+    return start ? f.proportionOf (boxStart (box)) : boxLength (box) / f.length;
+}
+
+void Project::rewriteProportions (juce::ValueTree box, double newStart, double newLength, juce::UndoManager* undo)
+{
+    if (! isLocked (box)) return;
+    const auto f = frameFor (boundFrame (box));
+    if (! f.isValid()) return;
+
+    const auto extra = getDenominators();
+    auto write = [&] (const juce::Identifier& id, double value)
+    {
+        // Keep what was typed when it still says the same.
+        const auto old = Proportion::parse (box[id].toString());
+        if (old.ok && std::abs (old.value - value) < 1.0e-9) return;
+        box.setProperty (id, Proportion::expressionFor (value, extra), undo);
+    };
+    write (IDs::propStart, f.proportionOf (newStart));
+    write (IDs::propLength, newLength / f.length);
+}
+
+void Project::applyProportions()
+{
+    const juce::ScopedValueSetter<bool> svs (applying, true);
+
+    // Several passes, so boxes measured against boxes that just moved follow too.
+    for (int pass = 0; pass < 8; ++pass)
+    {
+        bool any = false;
+        for (auto t : getTracks())
+            for (auto b : t)
+            {
+                const auto ref = boundFrame (b);
+                if (ref.isEmpty() || ! isLocked (b)) continue;
+                const auto f = frameFor (ref);
+                if (! f.isValid()) continue;
+                const auto ps = Proportion::parse (b[IDs::propStart].toString());
+                const auto pl = Proportion::parse (b[IDs::propLength].toString());
+                if (! ps.ok || ! pl.ok) continue;
+
+                const double start = juce::jmax (0.0, f.at (ps.value));
+                double length = juce::jmax (minBoxLength, pl.value * f.length);
+                if (isSound (b))
+                {
+                    const double available = soundSeconds (b[IDs::soundId]) - (double) b.getProperty (IDs::offset, 0.0);
+                    if (available > minBoxLength) length = juce::jmin (length, available);
+                }
+
+                if (std::abs (start - boxStart (b)) > 1.0e-9)   { b.setProperty (IDs::start, start, nullptr); any = true; }
+                if (std::abs (length - boxLength (b)) > 1.0e-9) { b.setProperty (IDs::length, length, nullptr); any = true; }
+            }
+        if (! any) break;
+    }
 }
 
 //== JSON ======================================================================
@@ -362,7 +768,11 @@ bool Project::fromJson (const juce::String& text, juce::String& error)
     if (! tree.getChildWithName (IDs::SOUNDS).isValid()) tree.appendChild (juce::ValueTree (IDs::SOUNDS), nullptr);
     if (! tree.getChildWithName (IDs::TRACKS).isValid()) tree.appendChild (juce::ValueTree (IDs::TRACKS), nullptr);
 
-    state.copyPropertiesAndChildrenFrom (tree, nullptr);
+    {
+        const juce::ScopedValueSetter<bool> svs (loading, true);
+        state.copyPropertiesAndChildrenFrom (tree, nullptr);
+    }
+    applyProportions();
     undoManager.clearUndoHistory();
     return true;
 }

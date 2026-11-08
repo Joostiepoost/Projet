@@ -55,7 +55,7 @@ public:
     void mouseDoubleClick (const juce::MouseEvent&) override;
 
     std::function<void()> onDoubleClick;
-    juce::String placeholder = "No notes yet. Double-click or press Write to add some.";
+    juce::String placeholder = "No notes yet. Double-click or press Edit to add some.";
 
 private:
     int linkAt (juce::Point<float>) const;

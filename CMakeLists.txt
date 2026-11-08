@@ -41,6 +41,7 @@ set(PROJET_CORE_SOURCES
     Source/Engine/Arrangement.cpp
     Source/Engine/PlaybackEngine.cpp
     Source/Model/Project.cpp
+    Source/Model/Proportion.cpp
     Source/Model/ProjectFolder.cpp)
 
 set(PROJET_DEFINITIONS

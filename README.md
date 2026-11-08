@@ -40,8 +40,9 @@ Other options:
 | --- | --- | --- |
 | 1 | Engine and project folder: import as placeholder copies, tracks, sound boxes, playback with gain, fades, crossfades; measurements | done |
 | 1.1 | Start window, import progress panel with Cancel, faster rate conversion, playhead trace fixed | done |
-| 2 | Editing: text boxes, rich-text notes editor, type switching, multi-selection, split/copy/paste, undo everywhere | built, to test |
-| 3 | Rulers and tracks: proportion ruler, fraction snapping, track folders | |
+| 2 | Editing: text boxes, rich-text notes editor, type switching, multi-selection, split/copy/paste, undo everywhere | done |
+| 3a | Proportions and folders: proportion frames, typed proportions, divisions that follow the zoom, snapping with a readout, track folders | built, to test |
+| 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci), ratio checking | |
 | 4 | Framework, layers 1–3: energies and semiotic levels, shapes and fills, colour modes, track template, overview lanes | |
 | 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
 | 6 | Magnified inline expansion | |
@@ -52,7 +53,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using Projet (stages 1–2)
+## Using Projet (stages 1–3a)
 
 ### The project folder
 
@@ -112,6 +113,45 @@ Every piece is a folder:
 - Typing is saved as one undo step per pause (*Edit notes*).
 - **Kind** in the panel (or right-click > change kind): a text box can become a sound box (choose its sound in the panel) and back. The notes are always kept. Container, Board and Codebox come in later stages.
 
+### Proportions (stage 3a)
+
+Below the time ruler is the **proportion strip**: it divides a **frame** into fractions.
+
+- **The frame** is the piece, a span, or a box. Click the strip's name (*Proportion: piece 12:00*) for the menu:
+  - **The piece**: its set length, or its current length (*auto*) until you set one (*Set the piece length...*, or drag the frame's right edge on the strip, or type it in the project panel: `12:00`, or `auto`).
+  - **A span**: drag on the strip; the span becomes the frame. Drag its edges to adjust; *Remove the span* in the menu.
+  - **A box**: right-click a box > *Use as the ruler's frame* (the box gets a dashed outline).
+- **Divisions**: every denominator up to 20 by default. Simpler fractions get taller, brighter ticks and are labelled first. With *Finer divisions appear as you zoom in* on, the finer denominators join only when their ticks are far enough apart, so zooming in reveals 1/7, 1/11, 1/17 and so on. Choose the denominators in *Divisions* (one by one, or a preset), and add your own, also decimal: **7.5** gives 7 full parts and a half part at the end.
+- **Snapping**: moving and trimming boxes, and dragging spans, snap to the shown divisions and the frame's edges (as well as box edges and the playhead). **Shift** moves freely.
+- **Readout**: while you move or trim a box, a label shows where the edge is: *start 3/11 of piece 1:05.455*, or *0.2731 ≈ 3/11* when it is only close.
+
+**Giving a box proportions.** In the box panel, under *Proportions of a frame*, choose the frame (the piece, the span, or another box), or right-click > *Give it proportions of ...* (works on several boxes at once). Then type **Start** and **Length** as proportions of that frame:
+
+| Type | Means |
+| --- | --- |
+| `3/11` | three elevenths |
+| `2.5/11`, `3/7.5` | decimal numerator or denominator |
+| `0.2727`, `27.3%` | decimal or percentage |
+| `2/3 of 3/4` | a fraction of a fraction (= 1/2) |
+| `phi` or `φ`, `1/phi`, `1-1/phi`, `golden` | the golden ratio (1.618); `golden` = 0.618 |
+| `sqrt(2)/2`, `pi` | roots and constants |
+| `3:8` | a ratio: the first part of 3 + 8 (= 3/11) |
+
+- **Keep the proportions when the frame changes** (on by default): the box follows its frame. Move or stretch the frame (the box, the span, the piece length) and the box keeps 3/11. A box measured against a box measured against the piece follows the whole chain. Boxes with proportions have a small corner mark (filled while they follow).
+- Moving or trimming such a box rewrites its proportions (snapped to a fraction when it lands on one).
+- Off: the box stays where it is; the panel shows where it is now as proportions.
+- The panel also shows the end, and, for a box measured against another box, where it sits in the piece.
+- Copies keep their proportions at their new place; a box copied together with its frame box follows the copy.
+
+### Folders (stage 3a)
+
+- Right-click a track > **Put in a new folder**. Folders can hold folders.
+- **Drag a track header** to move it: between tracks, or onto the middle of a folder to put it inside. A folder moves with everything in it. Right-click > **Move out of the folder**.
+- The **triangle** folds a folder; its lane then shows a thin summary of all the boxes inside (it does that when open too).
+- A folder gives its **colour** to everything inside (their own colours come back when they leave it). **M** and **S** on a folder mute or solo everything inside.
+- Right-click a folder: fold, add a track inside, **ungroup** (the tracks stay, one level up), or delete the folder and its tracks.
+- Boxes live on tracks, never on folder lines. Sounds dropped on a folder line go on a new track inside it.
+
 ### The panel on the right
 
 - **Several boxes selected**: how many, and what you can do with them.
@@ -125,6 +165,13 @@ Every piece is a folder:
 - Overlapping boxes simply add up; their fades make the crossfade. For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+
+**Worth testing in stage 3a**:
+- Put tracks in folders, nest them, drag them in and out, fold them, mute and solo a folder, colour a folder.
+- Set the piece length, drag a span, use a box as the frame; zoom in and out and watch the divisions.
+- Give boxes proportions (3/11 of a box, the golden section of the piece, 3:8), then move and stretch the frame.
+- A box measured against a box measured against the piece; unlock one and move the frame.
+- Copy/paste and split boxes with proportions; undo all of it; save, quit and reopen.
 
 **Worth testing in stage 2**:
 - Make text boxes by double-clicking; write notes with headings, lists and links; click a link in the preview.

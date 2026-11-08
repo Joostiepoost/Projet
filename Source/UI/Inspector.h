@@ -35,6 +35,9 @@ private:
     enum class Mode { project, sound, text, several };
     void setMode (Mode);
     void commitName();
+    void commitProportion (bool start);
+    void commitPieceLength();
+    void refreshProportions();
     void fillSoundList();
     juce::String projectSummary();
 
@@ -59,6 +62,15 @@ private:
     juce::Slider opacity;
     juce::Label times, soundInfo;
     juce::TextButton revealPlaceholder { "Show copy" }, revealOriginal { "Show original" };
+    // Proportions (stage 3a)
+    juce::Label propLabel { {}, "Proportions of a frame" };
+    juce::ComboBox frameBox;
+    juce::StringArray frameRefs;                    // per combo item id - 1
+    juce::Label startLabel { {}, "Start" }, lengthLabel { {}, "Length" };
+    juce::TextEditor startField, lengthField;
+    juce::Label propInfo, propError;
+    juce::ToggleButton lockToggle { "Keep the proportions when the frame changes" };
+
     juce::Label notesLabel { {}, "Notes (kept whatever the kind)" };
     NotesEditor notes;
 
@@ -68,6 +80,8 @@ private:
     juce::ComboBox formatBox;
     juce::Label qualityLabel { {}, "Vorbis quality" };
     juce::Slider quality;
+    juce::Label pieceLengthLabel { {}, "Piece length, as a proportion frame (m:ss, or auto)" };
+    juce::TextEditor pieceLength;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Inspector)
 };

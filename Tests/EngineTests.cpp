@@ -10,6 +10,9 @@
 //   6. CPU.
 //   7. Import speed and placeholder size (Ogg vs FLAC).
 //   8. The fast (polyphase) rate conversion against the reference.
+//   9. Proportions (stage 3a): typed expressions, bound boxes following their
+//      frames, undo, and track folders.
+// --model runs only 9.
 
 #include <JuceHeader.h>
 #include "../Source/Engine/Importer.h"
@@ -17,6 +20,7 @@
 #include "../Source/Engine/Arrangement.h"
 #include "../Source/Engine/PlaybackEngine.h"
 #include "../Source/Model/Project.h"
+#include "../Source/Model/Proportion.h"
 
 #include <random>
 #include <thread>
@@ -500,6 +504,127 @@ void testPolyphase()
     line();
 }
 
+void testProportions()
+{
+    line ("## 9. Proportions and folders");
+    line();
+
+    // Typed expressions
+    struct Case { const char* text; double expected; };
+    const Case cases[] = {
+        { "3/11", 3.0 / 11.0 }, { "2.5/11", 2.5 / 11.0 }, { "3/7.5", 0.4 }, { "0.2727", 0.2727 }, { "27.3%", 0.273 },
+        { "2/3 of 3/4", 0.5 }, { "1-1/phi", 0.3819660113 }, { "1/\xcf\x86", 0.6180339887 }, { "golden", 0.6180339887 },
+        { "3:8", 3.0 / 11.0 }, { "(1+2)/12", 0.25 }, { "sqrt(2)/2", 0.7071067812 }, { "0,5", 0.5 }, { "1/2 + 1/3", 5.0 / 6.0 }
+    };
+    int parsed = 0;
+    for (auto& c : cases)
+    {
+        const auto r = Proportion::parse (juce::String::fromUTF8 (c.text));
+        const bool ok = r.ok && std::abs (r.value - c.expected) < 1.0e-6;
+        check (ok, juce::String ("parse ") + c.text + " -> " + juce::String (r.value, 6) + " " + r.error);
+        if (ok) ++parsed;
+    }
+    for (auto bad : { "", "3/", "abc", "1/0", "3:8:5", "(1+2" })
+        check (! Proportion::parse (bad).ok, juce::String ("rejects \"") + bad + "\"");
+    line ("- Expressions: " + juce::String (parsed) + " of " + juce::String ((int) std::size (cases)) + " read correctly; 6 malformed ones refused.");
+
+    check (Proportion::name (3.0 / 11.0) == "3/11", "name 3/11");
+    check (Proportion::name (0.5) == "1/2", "name 1/2");
+    check (Proportion::describe (0.2731).contains ("3/11"), "describe near 3/11");
+    check (Proportion::name (0.4, { 7.5 }) == "2/5", "name prefers simplest");
+
+    // Divisions: each position once, simplest name, decimal denominators
+    auto d = Proportion::divisions ({ 2, 4, 3, 6 });
+    check (d.size() == 7, "divisions 2,3,4,6: 1/6 1/4 1/3 1/2 2/3 3/4 5/6, got " + juce::String ((int) d.size()));
+    auto half = std::find_if (d.begin(), d.end(), [] (auto& x) { return std::abs (x.position - 0.5) < 1.0e-9; });
+    check (half != d.end() && half->label() == "1/2", "1/2 named simply");
+    auto dec = Proportion::divisions ({ 7.5 });
+    check (dec.size() == 7 && std::abs (dec.back().position - 7.0 / 7.5) < 1.0e-9, "7.5 gives 7 divisions");
+
+    // Bound boxes follow their frames
+    Project p;
+    p.resetToDefault ("Test");
+    auto track = p.getTrack (0);
+    auto a = p.addTextBox (track, 0.0, 240.0, "a");
+    auto a1 = p.addTextBox (track, 0.0, 10.0, "a1");
+    p.bindBox (a1, a[IDs::id].toString());
+    juce::String error;
+    check (p.setProportion (a1, false, "3/11", error), "set 3/11: " + error);
+    check (std::abs (Project::boxLength (a1) - 240.0 * 3.0 / 11.0) < 1.0e-6, "a1 is 3/11 of a");
+
+    p.getUndoManager().beginNewTransaction ("stretch a");
+    p.trimEnd (a, 330.0);
+    check (std::abs (Project::boxLength (a1) - 90.0) < 1.0e-6, "a1 follows a stretched to 330 s (90 s)");
+    p.getUndoManager().beginNewTransaction ("move a");
+    p.moveBox (a, track, 60.0);
+    check (std::abs (Project::boxStart (a1) - 60.0) < 1.0e-6, "a1 follows a moved");
+    p.getUndoManager().undo();
+    p.getUndoManager().undo();
+    check (std::abs (Project::boxLength (a1) - 240.0 * 3.0 / 11.0) < 1.0e-6 && std::abs (Project::boxStart (a1)) < 1.0e-6, "undo brings a1 back");
+
+    // Dragging a bound box rewrites its proportions
+    p.getUndoManager().beginNewTransaction ("move a1");
+    p.moveBox (a1, track, 120.0);
+    check (a1[IDs::propStart].toString() == "1/2", "a1 dragged to the middle reads 1/2, got " + a1[IDs::propStart].toString());
+
+    // Chains: a2 measured against a1
+    auto a2 = p.addTextBox (track, 0.0, 5.0, "a2");
+    p.bindBox (a2, a1[IDs::id].toString());
+    p.setProportion (a2, true, "0", error);
+    p.setProportion (a2, false, "1/2", error);
+    p.trimEnd (a, 480.0);
+    check (std::abs (Project::boxLength (a2) - 0.5 * Project::boxLength (a1)) < 1.0e-6, "a2 follows a1 when a changes");
+    check (! p.canUseAsFrame (a, a2[IDs::id].toString()), "no loops: a cannot be framed by a2");
+
+    // Unlocked boxes stay put
+    p.setLock (a1, false);
+    const double before = Project::boxStart (a1);
+    p.moveBox (a, track, 100.0);
+    check (std::abs (Project::boxStart (a1) - before) < 1.0e-6, "unlocked box stays");
+
+    // The piece frame freezes its length when a box is bound to it
+    Project q;
+    q.resetToDefault ("Piece");
+    auto t0 = q.getTrack (0);
+    q.addTextBox (t0, 0.0, 600.0, "whole");
+    auto b = q.addTextBox (t0, 0.0, 10.0, "b");
+    q.bindBox (b, "piece");
+    check (q.hasSetPieceLength() && std::abs (q.getPieceLength() - 600.0) < 1.0e-6, "piece length set when binding");
+    q.setProportion (b, true, "golden", error);
+    check (std::abs (Project::boxStart (b) - 600.0 / 1.6180339887) < 1.0e-3, "b at the golden section");
+
+    // Folders
+    Project f;
+    f.resetToDefault ("Folders");
+    auto t1 = f.getTrack (0);
+    auto t2 = f.addTrack ("T2");
+    auto t3 = f.addTrack ("T3");
+    auto folder = f.putInNewFolder (t1);
+    check (f.getTracks().indexOf (folder) == 0 && f.folderOf (t1) == folder, "track put in a new folder");
+    f.moveTrack (t3, f.blockEnd (folder), folder[IDs::id].toString());
+    check (f.folderOf (t3) == folder && f.getTracks().indexOf (t3) == 2, "track dragged into the folder, got index " + juce::String (f.getTracks().indexOf (t3)));
+    folder.setProperty (IDs::colour, 5, nullptr);
+    t3.setProperty (IDs::colour, 2, nullptr);
+    check (f.effectiveColour (t3) == 5, "folder colour wins");
+    folder.setProperty (IDs::mute, true, nullptr);
+    check (f.effectiveMute (t1) && ! f.effectiveMute (t2), "folder mute");
+    folder.setProperty (IDs::folded, true, nullptr);
+    check (! f.isVisible (t1) && f.isVisible (t2), "folded folder hides its tracks");
+    auto inner = f.putInNewFolder (t3);
+    check (f.depthOf (t3) == 2 && f.effectiveColour (t3) == 5, "folder in a folder");
+    f.moveTrack (folder, f.getTracks().getNumChildren(), {});
+    check (f.getTracks().getChild (0) == t2 && f.blockEnd (folder) == f.getTracks().getNumChildren(), "folder moves with its tracks");
+    f.ungroupFolder (inner);
+    check (f.folderOf (t3) == folder, "ungroup moves tracks up one level");
+    f.removeTrack (folder);
+    check (f.getNumTracks() == 1 && f.getTrack (0) == t2, "deleting a folder deletes its tracks");
+
+    line ("- Bound boxes follow their frame when it moves or stretches, also through a chain of frames; undo brings everything back; "
+          "dragging a bound box rewrites its proportions (1/2 when dropped in the middle); unlocked boxes stay put.");
+    line ("- Folders: putting tracks in and out, nesting, colour and mute passed on, folding, moving and deleting with their tracks.");
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -511,6 +636,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
+        else if (a == "--model") { testProportions(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -535,6 +661,7 @@ int main (int argc, char** argv)
     std::cout << "CPU..." << std::endl;              testCpu();
     std::cout << "Import speed..." << std::endl;     testImportSpeed (work, formats);
     std::cout << "Polyphase..." << std::endl;        testPolyphase();
+    std::cout << "Proportions..." << std::endl;      testProportions();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);
