@@ -250,11 +250,18 @@ void TimelineView::paintProportionLayer (juce::Graphics& g, const LayerRow& row)
     // Ticks: simpler fractions taller and brighter; series in their own colour.
     auto ticks = visibleTicks (row.layer);
     const float usable = (float) h - 3.0f;
+    // Long series (harmonic to 1/64) crowd together near one end: draw a series
+    // tick only when it is at least 3 px from the last one (zoom in for the rest).
+    std::vector<float> seriesDrawn;
     for (auto& k : ticks)
     {
         const float x = timeToX (k.time);
         if (k.series)
         {
+            bool crowded = false;
+            for (auto sx : seriesDrawn) if (std::abs (sx - x) < 3.0f) { crowded = true; break; }
+            if (crowded) continue;
+            seriesDrawn.push_back (x);
             g.setColour (seriesColour.withAlpha (0.9f));
             g.fillRect (x, (float) y0 + 1.0f, 1.0f, (float) h - 2.0f);
             juce::Path diamond;
@@ -632,7 +639,7 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         seriesMenu.addSubMenu ("Direction", direction ("fibonacci", 700), fib > 0);
         seriesMenu.addSectionHeader ("Harmonic (1/2, 1/3 ...)");
         seriesMenu.addItem (600, "Off", true, harmonic == 0);
-        for (int n : { 4, 6, 8, 12, 16 }) seriesMenu.addItem (600 + n, "Up to 1/" + juce::String (n), true, harmonic == n);
+        for (int n : { 4, 6, 8, 12, 16, 24, 32, 64 }) seriesMenu.addItem (600 + n, "Up to 1/" + juce::String (n), true, harmonic == n);
         seriesMenu.addSubMenu ("Direction", direction ("harmonic", 710), harmonic > 0);
         seriesMenu.addSeparator();
         seriesMenu.addItem (7, "Your own series: in the ruler panel...");

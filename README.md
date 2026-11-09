@@ -154,7 +154,7 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 **Series** (layer menu > *Series*, or the panel): drawn in their own colour (green-blue), labelled, snapped to.
 - **Golden section**: 1 level (0.382 and 0.618), 2 or 3 levels (each part cut again).
 - **Fibonacci**: the parts of 5, 8, 13, 21, 34 or 55 (for 13: 1/13, 2/13, 3/13, 5/13, 8/13).
-- **Harmonic**: 1/2, 1/3 ... up to 1/16.
+- **Harmonic**: 1/2, 1/3 ... up to 1/4, 1/6, 1/8, 1/12, 1/16, 1/24, 1/32 or 1/64.
 - **Your own**: proportions separated by commas (1/7, 3/7, golden of 1/2).
 - **Direction** (Fibonacci, harmonic, your own): *from the start*, *reversed* (measured from the end: harmonic to 1/8 reversed gives 1/2, 2/3, 3/4 ... 7/8; Fibonacci of 5 reversed gives 2/5, 3/5, 4/5), or *both*. The golden section is symmetric already.
 
