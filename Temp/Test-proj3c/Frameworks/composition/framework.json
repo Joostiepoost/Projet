@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "composition",
-  "version": 2,
+  "version": 3,
   "order": 10,
   "name": {"fr": "Cadre de composition", "en": "Composition framework"},
   "about": {
@@ -18,7 +18,7 @@
       },
       "kind": "choice",
       "control": "menu",
-      "mark": "none",
+      "mark": "glyph",
       "groups": {
         "name": {"fr": "famille", "en": "family"},
         "list": [
@@ -165,7 +165,7 @@
       "about": {"fr": "une deuxième énergie, dessinée plus claire", "en": "a second energy, drawn lighter"},
       "kind": "choice",
       "control": "menu",
-      "mark": "none",
+      "mark": "glyph",
       "valuesFrom": "energy"
     },
     {
@@ -313,6 +313,62 @@
               "recurrent"
             ]
           }
+        }
+      ]
+    },
+    {
+      "id": "profile",
+      "name": {"fr": "Profil dynamique", "en": "Dynamic profile"},
+      "about": {
+        "fr": "l'enveloppe d'intensité de la boîte : le glyphe d'énergie est dessiné dedans (deltas de Vande Gorne ; noms de Schaeffer, Traité 31.4)",
+        "en": "the box's intensity envelope: the energy glyph is drawn inside it (Vande Gorne's deltas; Schaeffer's names, Treatise 31.4)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "mark": "badge",
+      "default": "flat",
+      "showDefault": false,
+      "names": {"first": {"fr": "Schaeffer", "en": "Schaeffer"}, "second": {"fr": "Vande Gorne", "en": "Vande Gorne"}},
+      "values": [
+        {"id": "flat", "label": "=", "name": {"fr": "plat", "en": "flat"}, "env": [[0, 1], [1, 1]]},
+        {
+          "id": "resonance",
+          "label": "|>",
+          "name": {"fr": "résonance", "en": "resonance"},
+          "name2": {"fr": "attaque-résonance", "en": "attack-resonance"},
+          "env": [[0, 1], [0.08, 0.55], [0.35, 0.22], [1, 0.06]]
+        },
+        {
+          "id": "crescendo",
+          "label": "<",
+          "name": {"fr": "crescendo", "en": "crescendo"},
+          "name2": {"fr": "son renversé", "en": "reversed sound"},
+          "env": [[0, 0.06], [1, 1]]
+        },
+        {
+          "id": "decrescendo",
+          "label": ">",
+          "name": {"fr": "décrescendo", "en": "decrescendo"},
+          "env": [[0, 1], [1, 0.08]]
+        },
+        {
+          "id": "delta",
+          "label": "<>",
+          "name": {"fr": "delta", "en": "delta"},
+          "env": [[0, 0.06], [0.5, 1], [1, 0.06]]
+        },
+        {
+          "id": "hollow",
+          "label": "><",
+          "name": {"fr": "en creux", "en": "hollow"},
+          "name2": {"fr": "delta inversé", "en": "reversed delta"},
+          "env": [[0, 1], [0.5, 0.15], [1, 1]]
+        },
+        {
+          "id": "mordent",
+          "label": "|=",
+          "name": {"fr": "mordant", "en": "mordent"},
+          "env": [[0, 1], [0.07, 1], [0.2, 0.4], [1, 0.35]]
         }
       ]
     }
