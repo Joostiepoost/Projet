@@ -393,7 +393,7 @@ public:
             struct Choice { const char* key; const char* title; std::vector<int> values; };
             const Choice choices[] = { { "golden", "Golden", { 1, 2, 3 } },
                                        { "fibonacci", "Fibonacci", { 5, 8, 13, 21, 34, 55 } },
-                                       { "harmonic", "Harmonic", { 4, 6, 8, 12, 16 } } };
+                                       { "harmonic", "Harmonic", { 4, 6, 8, 12, 16, 24, 32, 64 } } };
             for (int c = 0; c < 3; ++c)
             {
                 auto* l = place (std::make_unique<juce::Label> (juce::String(), choices[c].title), c * (cw + 4), y, cw, 16);

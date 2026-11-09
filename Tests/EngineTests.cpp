@@ -659,6 +659,7 @@ void testMarks()
     auto fib = Proportion::seriesPoints ("fibonacci:13");
     check (fib.size() == 5 && fib.back().label == "8/13", "fibonacci of 13: 1 2 3 5 8 /13");
     check (Proportion::seriesPoints ("harmonic:4").size() == 3, "harmonic to 1/4");
+    check (Proportion::seriesPoints ("harmonic:64").size() == 63, "harmonic to 1/64");
     check (Proportion::seriesPoints ("custom:1/7, golden").size() == 2, "own series");
     check (Proportion::withSeriesPart ("golden:2;harmonic:8", "golden", "") == "harmonic:8", "remove a series");
     {
