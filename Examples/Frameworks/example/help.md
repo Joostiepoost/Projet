@@ -10,4 +10,4 @@ A small package to try what a framework can bring, and a model for your own.
 
 **To use it:** *Framework > Frameworks...*, then *Add a package folder...* and choose this folder (it goes into the library and this project). Or copy the folder into the library (`~/Library/Application Support/Projet/Frameworks`) and choose *Use in this project*.
 
-**To make your own:** copy this folder, give it another name and another `"id"`, and edit `framework.json`. Kinds: `choice`, `tags`, `number`, `text`. Marks: `strip`, `badge`, `label`, `glyph`, `none`. A `glyphs.js` next to it can draw the shapes of `glyph`-marked values (JavaScript, sandboxed: no files or network). See the README for every key.
+**To make your own:** copy this folder, give it another name and another `"id"`, and edit `framework.json`. Kinds: `choice`, `tags`, `number`, `text`. Marks: `strip`, `badge`, `label`, `glyph`, `none`, and for joins and endings `seam` and `end` (see Projet's thoresen package). A `glyphs.js` next to it can draw the shapes of `glyph`-marked values (JavaScript, sandboxed: no files or network). See the README for every key.

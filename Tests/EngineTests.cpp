@@ -752,10 +752,11 @@ void testFramework()
     // == The packages Projet ships
     auto fw = Framework::builtIn();
     const auto& packages = fw.getPackages();
-    check (packages.size() == 3 && packages[0].id == "composition" && packages[1].id == "schaeffer" && packages[2].id == "rk1",
-           "3 packages in order: composition, schaeffer, rk1");
+    check (packages.size() == 5 && packages[0].id == "composition" && packages[1].id == "schaeffer" && packages[2].id == "thoresen"
+           && packages[3].id == "vandegorne" && packages[4].id == "rk1",
+           "5 packages in order: composition, schaeffer, thoresen, vandegorne, rk1");
     for (auto& p : packages) check (p.warnings.isEmpty(), p.id + " loads without warnings " + p.warnings.joinIntoString ("; "));
-    check (fw.getCategories().size() == 6, "6 categories, got " + juce::String (fw.getCategories().size()));
+    check (fw.getCategories().size() == 11, "11 categories, got " + juce::String (fw.getCategories().size()));
     auto* energy = fw.findCategory ("composition.energy");
     auto* energy2 = fw.findCategory ("composition.energy2");
     auto* level = fw.findCategory ("composition.level");
@@ -817,7 +818,7 @@ void testFramework()
 
     // == Packages that are broken or odd
     check (! fw.addPackage ("{ not json", "broken", error) && error.isNotEmpty(), "a broken package is refused");
-    check (fw.getPackages().size() == 3 && fw.getCategories().size() == 6, "and nothing changes");
+    check (fw.getPackages().size() == 5 && fw.getCategories().size() == 11, "and nothing changes");
     check (! fw.addPackage ("[ 1, 2 ]", "list", error), "a file that holds no package is refused");
     check (fw.addPackage (R"({ "categories": [ { "name": "no id" }, { "id": "a", "kind": "colour" },
                                               { "id": "b", "kind": "tags", "along": true }, { "id": "b" },
@@ -826,7 +827,7 @@ void testFramework()
     check (odd != nullptr && odd->categories.size() == 2 && odd->warnings.size() == 5,
            "its id from the folder; bad categories left out, with warnings: " + (odd != nullptr ? odd->warnings.joinIntoString (" | ") : juce::String()));
     fw.removePackage ("oddone");
-    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 6, "removed");
+    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 11, "removed");
 
     // == A new framework needs only a folder: the example package
     const juce::File example (juce::String (PROJET_SOURCE_DIR) + "/Examples/Frameworks/example");
@@ -845,7 +846,7 @@ void testFramework()
     check (motion->kind == Framework::Kind::choice && motion->control == "buttons" && motion->along && motion->folders
            && materials->kind == Framework::Kind::tags && density->kind == Framework::Kind::number && source->kind == Framework::Kind::text,
            "kinds and settings");
-    check (fw.getCategories().size() == 10 && fw.getCategories()[6].key() == "example.motion", "after the builtins (order 60)");
+    check (fw.getCategories().size() == 15 && fw.getCategories()[11].key() == "example.motion", "after the builtins (order 60)");
     check (fw.valuesOf (*energy).size() == 11 && fw.findValue (*energy, "example-pulsation") != nullptr
            && fw.findValue (*energy, "example-pulsation")->from == "example" && fw.valuesOf (*energy2).size() == 11,
            "it adds an energy, which the second energy shares");
@@ -865,12 +866,12 @@ void testFramework()
     // == Converting 4a framework files
     juce::StringArray ids, jsons;
     juce::String lang, naming;
-    check (Framework::convertLegacy (Framework::legacyDefaultJson(), ids, jsons, lang, naming, error) && ids.size() == 3
+    check (Framework::convertLegacy (Framework::legacyDefaultJson(), ids, jsons, lang, naming, error) && ids.size() == 5
            && jsons[0] == Framework::builtins()[0].json && lang == "fr" && naming == "both", "an unedited 4a file becomes the builtins");
     auto edited = Framework::legacyDefaultJson().replace ("\"version\": 1,", "\"version\": 1, \"edited\": true,")
                                                 .replace ("\"language\": \"fr\"", "\"language\": \"en\"")
                                                 .replace ("\"roleNames\": \"both\"", "\"roleNames\": \"vandegorne\"");
-    check (Framework::convertLegacy (edited, ids, jsons, lang, naming, error) && ids.size() == 3 && jsons[0] != Framework::builtins()[0].json
+    check (Framework::convertLegacy (edited, ids, jsons, lang, naming, error) && ids.size() == 5 && jsons[0] != Framework::builtins()[0].json
            && lang == "en" && naming == "second", "an edited one is converted, with its language and role names");
     Framework converted;
     for (int i = 0; i < ids.size(); ++i) check (converted.addPackage (jsons[i], ids[i], error), "converted " + ids[i] + " loads: " + error);
@@ -984,8 +985,8 @@ void testFramework()
     auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetFrameworks").getNonexistentSibling();
     const auto lib = tmp.getChildFile ("Library");
     for (auto& b : Framework::builtins()) check (Framework::writeBuiltin (lib, b.id).wasOk(), "writes " + b.id);
-    check (Framework::packageFolders (lib).size() == 3 && Framework::folderVersion (lib.getChildFile ("composition")) == 3
-           && lib.getChildFile ("schaeffer").getChildFile ("help.md").existsAsFile(), "the library: 3 packages with their help");
+    check (Framework::packageFolders (lib).size() == 5 && Framework::folderVersion (lib.getChildFile ("composition")) == 4
+           && lib.getChildFile ("schaeffer").getChildFile ("help.md").existsAsFile(), "the library: 5 packages with their help");
     check (lib.getChildFile ("composition").getChildFile ("glyphs.js").existsAsFile()
            && ! lib.getChildFile ("schaeffer").getChildFile ("glyphs.js").exists(),
            "composition brings its glyphs.js; schaeffer has none");
@@ -996,13 +997,13 @@ void testFramework()
     Framework fromDisk;
     Framework::Report report;
     fromDisk.loadFolder (lib, report);
-    check (fromDisk.getPackages().size() == 3 && report.errors.size() == 1 && report.errors[0].startsWith ("broken"),
+    check (fromDisk.getPackages().size() == 5 && report.errors.size() == 1 && report.errors[0].startsWith ("broken"),
            "a broken package is reported, the others load: " + report.errors.joinIntoString ("; "));
     const auto piece4a = tmp.getChildFile ("Piece4a");
     piece4a.createDirectory();
     piece4a.getChildFile ("framework.json").replaceWithText (Framework::legacyDefaultJson().replace ("\"language\": \"fr\"", "\"language\": \"en\""));
     Framework::Report report4a;
-    check (Framework::ensureProject (piece4a, lang, naming, report4a).wasOk() && Framework::packageFolders (Framework::projectFolder (piece4a)).size() == 3
+    check (Framework::ensureProject (piece4a, lang, naming, report4a).wasOk() && Framework::packageFolders (Framework::projectFolder (piece4a)).size() == 5
            && piece4a.getChildFile ("framework-4a.json").existsAsFile() && ! piece4a.getChildFile ("framework.json").exists() && lang == "en",
            "a 4a project folder gets packages; its old file is kept as framework-4a.json");
     check (Framework::projectFolder (piece4a).getChildFile ("composition").getChildFile ("glyphs.js").existsAsFile(),
@@ -1114,6 +1115,134 @@ void testGlyphs()
     line();
 }
 
+void testJunctions()
+{
+    line ("## 13. Junctions, endings, mixing relations (stage 4c)");
+    line();
+    auto fw = Framework::builtIn();
+    auto* junction = fw.findCategory ("thoresen.junction");
+    auto* ending = fw.findCategory ("thoresen.ending");
+    auto* mixing = fw.findCategory ("vandegorne.mixing");
+    auto* profile = fw.findCategory ("composition.profile");
+    auto* peak = fw.findCategory ("composition.peak");
+    auto* peakShape = fw.findCategory ("composition.peakshape");
+    check (junction != nullptr && ending != nullptr && mixing != nullptr && peak != nullptr && peakShape != nullptr, "the new categories load");
+    if (junction == nullptr || ending == nullptr || mixing == nullptr || peak == nullptr || peakShape == nullptr) return;
+    for (auto& p : fw.getPackages()) check (p.warnings.isEmpty(), p.id + " loads cleanly " + p.warnings.joinIntoString ("; "));
+
+    // == As data
+    check (junction->between && junction->mark == Framework::Mark::seam && junction->derive.size() == 6 && fw.valuesOf (*junction).size() == 7,
+           "the junction: a join, a seam sign, six timing rules, seven kinds");
+    bool signs = true;
+    for (auto& v : fw.valuesOf (*junction)) signs = signs && v.sign.isNotEmpty();
+    check (signs && fw.findValue (*junction, "hinged")->endX == 33.0f && fw.findValue (*junction, "superimposed")->endX < 0.0f,
+           "every kind has its sign; the end bracket where it has one");
+    check (ending->atEnd && ending->mark == Framework::Mark::end && fw.valuesOf (*ending).size() == 6
+           && fw.findValue (*ending, "conclusive")->seamSign.isNotEmpty(), "endings: at the end, with signs and seam marks");
+    check (Framework::marksFor (*junction) == juce::Array<Framework::Mark> { Framework::Mark::none, Framework::Mark::seam, Framework::Mark::badge, Framework::Mark::label }
+           && Framework::marksFor (*ending).contains (Framework::Mark::end) && ! Framework::marksFor (*profile).contains (Framework::Mark::end),
+           "the marks that suit joins and endings");
+    check (mixing->between && mixing->onlyWith.category == "thoresen.junction" && mixing->onlyWith.values.size() == 3
+           && fw.findValue (*mixing, "relay")->onlyWith.values == juce::StringArray { "hinged" },
+           "mixing relations only on overlaps; relay and metamorphosis only on hinged ones");
+    check (peak->kind == Framework::Kind::number && peak->defaultValue == "50" && peak->envelope == "peak" && peak->onlyWith.category == "composition.profile"
+           && peakShape->envelope == "shape" && fw.findValue (*profile, "delta")->peak == 1 && fw.findValue (*profile, "crescendo")->peak == -1,
+           "the peak: a number moving delta and hollow peaks, and its shape");
+
+    // == Joins found from the timing
+    Project p;
+    p.resetToDefault ("joins");
+    p.setFramework (&fw);
+    auto t1 = p.getTrack (0);
+    auto t2 = p.addTrack ("other");
+    auto a = p.addTextBox (t1, 0.0, 10.0, "a");
+    auto b = p.addTextBox (t1, 11.0, 4.0, "b");         // gap 1 s
+    auto c = p.addTextBox (t1, 15.03, 4.97, "c");       // 30 ms
+    auto d = p.addTextBox (t1, 20.01, 4.99, "d");       // 10 ms
+    auto e = p.addTextBox (t1, 24.0, 6.0, "e");         // overlap 1 s
+    auto f = p.addTextBox (t1, 28.0, 22.0, "f");        // overlap 2 s
+    auto g = p.addTextBox (t1, 35.0, 25.0, "g");        // overlap 15 s
+    auto kind = [&] (const juce::ValueTree& box) { return p.frameworkValue (box, *junction).value; };
+    check (! p.joinBefore (a).isValid() && kind (a).isEmpty(), "the first box has no junction");
+    check (p.joinBefore (b).before == a && std::abs (p.joinBefore (b).gap - 1.0) < 1.0e-9 && p.boxAfter (a) == b, "the box before, and the gap");
+    check (kind (b) == "separate" && kind (c) == "joint" && kind (d) == "close" && kind (e) == "hinged" && kind (f) == "hinged" && kind (g) == "overlapping",
+           "separate, joint, close, hinged, overlapping: " + kind (b) + " " + kind (c) + " " + kind (d) + " " + kind (e) + " " + kind (f) + " " + kind (g));
+    check (p.frameworkValue (b, *junction).fromTiming(), "found from the timing");
+    auto bridge = p.addTextBox (t2, 9.0, 3.0, "bridge");
+    check (kind (b) == "bridged" && p.joinBefore (b).covered, "a box on another track spanning the gap: bridged");
+    t2.setProperty (IDs::mute, true, nullptr);
+    check (kind (b) == "separate", "not while that track is muted");
+    t2.setProperty (IDs::mute, false, nullptr);
+    p.moveBox (bridge, t2, 10.5);
+    check (kind (b) == "separate", "nor when it does not span the whole gap");
+
+    // == Chosen junctions
+    p.setFrameworkValue (b, *junction, "superimposed");
+    check (kind (b) == "superimposed" && p.frameworkValue (b, *junction).isOwn(), "a chosen junction is kept");
+    p.moveBox (b, t1, 10.0);
+    check (kind (b) == "superimposed", "even when the timing changes");
+    p.setFrameworkValue (b, *junction, {});
+    check (kind (b) == "close" && p.frameworkValue (b, *junction).fromTiming(), "From the timing: back to what the timing says");
+
+    // == Mixing relations: only on overlaps
+    p.setFrameworkValue (c, *mixing, "fusion");
+    p.setFrameworkValue (e, *mixing, "relay");
+    p.setFrameworkValue (g, *mixing, "relay");
+    check (p.frameworkValue (c, *mixing).value.isEmpty() && ! p.applies (c, *mixing), "no mixing relation on a joint");
+    check (p.frameworkValue (e, *mixing).value == "relay", "relay of energy on a hinged overlap");
+    check (p.applies (g, *mixing) && ! p.valueApplies (g, *mixing, "relay") && p.frameworkValue (g, *mixing).value.isEmpty()
+           && p.valueApplies (g, *mixing, "fusion"), "but not on a longer overlap, where fusion still can");
+    p.setFrameworkValue (g, *junction, "hinged");
+    check (p.frameworkValue (g, *mixing).value == "relay", "a chosen hinged junction lets it through");
+
+    // == Splits: the join stays left, the ending goes right
+    p.setFrameworkValue (f, *junction, "overlapping");
+    p.setFrameworkValue (f, *ending, "cut");
+    p.getUndoManager().beginNewTransaction ("Split");
+    auto right = p.splitBox (f, 40.0);
+    check (right.isValid() && f[junction->property()].toString() == "overlapping" && ! right.hasProperty (junction->property())
+           && ! f.hasProperty (ending->property()) && right[ending->property()].toString() == "cut",
+           "the left part keeps the junction, the right part the ending");
+    p.getUndoManager().undo();
+    check (f[ending->property()].toString() == "cut", "undo brings the ending back");
+
+    // == The profile's peak
+    auto box = p.addTextBox (t2, 100.0, 10.0, "peaked");
+    check (p.frameworkValue (box, *peak).value.isEmpty(), "no peak without a profile that has one");
+    p.setFrameworkValue (box, *profile, "delta");
+    check (p.frameworkValue (box, *peak).value == "50" && p.frameworkValue (box, *peak).isDefault()
+           && p.frameworkValue (box, *peakShape).value == "hard", "a delta: peak in the middle, hard");
+    const juce::Array<float> delta { 0.0f, 0.06f, 0.5f, 1.0f, 1.0f, 0.06f };
+    check (Framework::shapeEnvelope (delta, 1, 0.25, false) == juce::Array<float> { 0.0f, 0.06f, 0.25f, 1.0f, 1.0f, 0.06f },
+           "the peak moves to a quarter of the box");
+    const auto soft = Framework::shapeEnvelope (delta, 1, 0.25, true);
+    float top = 0.0f, topAt = -1.0f, quarterway = 0.0f;
+    for (int i = 0; i + 1 < soft.size(); i += 2)
+    {
+        if (soft[i + 1] > top) { top = soft[i + 1]; topAt = soft[i]; }
+        if (std::abs (soft[i] - 0.125f) < 0.011f) quarterway = soft[i + 1];
+    }
+    check (soft.size() == 98 && std::abs (top - 1.0f) < 1.0e-4f && std::abs (topAt - 0.25f) < 0.011f && std::abs (quarterway - 0.53f) < 0.02f,
+           "a soft peak: rounded, still at the top where it was put");
+    check (Framework::shapeEnvelope (delta, 1, -1.0, false) == delta && Framework::shapeEnvelope (delta, -1, 0.3, false) == delta,
+           "no peak position, or no peak: unchanged");
+
+    // == A library from before 4c gets the new packages, once
+    auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetLibrary4c").getNonexistentSibling();
+    for (auto id : { "composition", "schaeffer", "rk1" }) Framework::writeBuiltin (tmp, id);
+    Framework::setLibraryFolder (tmp);
+    juce::String lang, naming;
+    Framework::Report first;
+    check (Framework::ensureLibrary (lang, naming, first).wasOk() && tmp.getChildFile ("thoresen").isDirectory()
+           && tmp.getChildFile ("vandegorne").isDirectory() && first.notes.size() == 1, "the new packages arrive: " + first.notes.joinIntoString ("; "));
+    tmp.getChildFile ("thoresen").deleteRecursively();
+    Framework::Report second;
+    check (Framework::ensureLibrary (lang, naming, second).wasOk() && ! tmp.getChildFile ("thoresen").exists() && second.notes.isEmpty(),
+           "and one you remove stays removed");
+    tmp.deleteRecursively();
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -1125,7 +1254,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -1154,6 +1283,7 @@ int main (int argc, char** argv)
     std::cout << "Marks..." << std::endl;            testMarks();
     std::cout << "Framework packages..." << std::endl; testFramework();
     std::cout << "Energy glyphs..." << std::endl;      testGlyphs();
+    std::cout << "Junctions..." << std::endl;          testJunctions();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

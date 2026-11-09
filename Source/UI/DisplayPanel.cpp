@@ -59,7 +59,7 @@ public:
         // Marks
         if (fw.getCategories().isEmpty())
             y = note ("This project uses no framework packages with categories.", y, w);
-        static const char* markNames[] = { "Not shown", "Strip", "Badge", "Label", "Glyph" };
+        static const char* markNames[] = { "Not shown", "Strip", "Badge", "Label", "Glyph", "At the seam", "At the end" };
         for (auto& p : fw.getPackages())
         {
             if (p.categories.isEmpty()) continue;
@@ -182,7 +182,7 @@ public:
             };
             y += 30;
         }
-        y = note ("Strips run along the bottom of the boxes, badges sit at the bottom right, labels at the bottom left. A glyph draws its value's shape in the band above the strips, shaped by the dynamic profile.", y, w);
+        y = note ("Strips run along the bottom of the boxes, badges sit at the bottom right, labels at the bottom left. A glyph draws its value's shape in the band above the strips, shaped by the dynamic profile. Seam signs sit at the top of the lane where a box meets the one before it; end signs at a box's end.", y, w);
         setSize (w, y + 8);
     }
 

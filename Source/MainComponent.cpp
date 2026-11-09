@@ -26,7 +26,22 @@ MainComponent::MainComponent()
     addAndMakeVisible (transport);
     addAndMakeVisible (timeline);
     addAndMakeVisible (inspector);
+    addAndMakeVisible (panelEdge);
     addChildComponent (importPanel);
+    project.setFramework (&framework);
+
+    // The panel on the right: shown or hidden, and how wide (stage 4c).
+    panelShown = settings->getBoolValue ("panelShown", true);
+    panelWidth = settings->getIntValue ("panelWidth", 320);
+    panelEdge.getWidth_ = [this] { return panelWidth; };
+    panelEdge.onWidth = [this] (int w)
+    {
+        panelWidth = juce::jlimit (minPanelWidth, maxPanelWidth(), w);
+        resized();
+    };
+    panelEdge.onDone = [this] { properties.getUserSettings()->setValue ("panelWidth", panelWidth); };
+    inspector.onHidePanel = [this] { setPanelShown (false); };
+    transport.onTogglePanel = [this] { setPanelShown (! panelShown); };
     addChildComponent (startPanel);
 
     startPanel.onNew = [this] { newProjectDialog(); };
@@ -53,7 +68,7 @@ MainComponent::MainComponent()
     };
     inspector.onExpandNotes = [this] { openNotesWindow(); };
     timeline.onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
-    timeline.onShowRulerPanel = [this] (const juce::String& layerId) { inspector.showRuler (layerId); };
+    timeline.onShowRulerPanel = [this] (const juce::String& layerId) { setPanelShown (true); inspector.showRuler (layerId); };
     inspector.getRulerPanel().getPlayhead = [this] { return engine.getPositionSeconds(); };
     inspector.getRulerPanel().setProperties (properties.getUserSettings());
     inspector.getRulerPanel().onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
@@ -113,6 +128,7 @@ MainComponent::MainComponent()
         if (naming == "first" || naming == "second") settings->setValue ("frameworkNaming", "composition.role=" + naming);
         if (made.failed()) transport.setStatus (made.getErrorMessage(), true);
         else if (! report.errors.isEmpty()) transport.setStatus (report.errors.joinIntoString (" "), true);
+        else libraryNotice = report.notes.joinIntoString (" ");
     }
 
     openLastOrShowStart();
@@ -139,11 +155,28 @@ void MainComponent::paint (juce::Graphics& g)
     g.fillAll (Theme::background);
 }
 
+void MainComponent::setPanelShown (bool shown)
+{
+    if (shown == panelShown && inspector.isVisible() == shown) return;
+    panelShown = shown;
+    properties.getUserSettings()->setValue ("panelShown", shown);
+    resized();
+    commandManager.commandStatusChanged();          // the View menu says Show or Hide
+}
+
 void MainComponent::resized()
 {
     auto r = getLocalBounds();
     transport.setBounds (r.removeFromTop (48));
-    inspector.setBounds (r.removeFromRight (320));
+    transport.setPanelShown (panelShown);
+    inspector.setVisible (panelShown);
+    panelEdge.setVisible (panelShown);
+    if (panelShown)
+    {
+        panelWidth = juce::jlimit (minPanelWidth, maxPanelWidth(), panelWidth);
+        inspector.setBounds (r.removeFromRight (panelWidth));
+        panelEdge.setBounds (r.removeFromRight (5));
+    }
     timeline.setBounds (r);
     startPanel.setBounds (getLocalBounds());
     layoutImportPanel();
@@ -213,6 +246,7 @@ void MainComponent::afterProjectLoaded()
     markClean();
     rememberProject();
     transport.setStatus ({});
+    if (libraryNotice.isNotEmpty()) { transport.setStatus (libraryNotice); libraryNotice = {}; }
     showGlyphProblems();
 
     // A device at another rate than the project still plays correctly (through
@@ -708,7 +742,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& c)
                   cmdUndo, cmdRedo, cmdDelete, cmdDuplicate, cmdDeselect,
                   cmdPlayStop, cmdToStart, cmdZoomIn, cmdZoomOut, cmdZoomFit,
                   cmdAddTrack, cmdAudioSettings, cmdShortcuts,
-                  cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow });
+                  cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel });
 }
 
 void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommandInfo& info)
@@ -756,6 +790,10 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case cmdZoomIn:        info.setInfo ("Zoom in", "Zoom in", "View", 0); info.addDefaultKeypress ('=', cmd); break;
         case cmdZoomOut:       info.setInfo ("Zoom out", "Zoom out", "View", 0); info.addDefaultKeypress ('-', cmd); break;
         case cmdZoomFit:       info.setInfo ("Show the whole piece", "Zoom to fit", "View", 0); info.addDefaultKeypress ('0', cmd); break;
+        case cmdTogglePanel:
+            info.setInfo (panelShown ? "Hide panel" : "Show panel", "Hide or show the panel on the right", "View", 0);
+            info.addDefaultKeypress ('i', cmd | juce::ModifierKeys::altModifier);
+            break;
 
         case cmdAddTrack:      info.setInfo ("Add track", "Add a track below the selected one", "Track", 0); info.addDefaultKeypress ('n', cmd | shift); info.setActive (open); break;
         case cmdAudioSettings: info.setInfo ("Audio settings...", "Output device and sample rate", "Audio", 0); info.addDefaultKeypress (',', cmd); break;
@@ -774,7 +812,7 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
 bool MainComponent::perform (const InvocationInfo& info)
 {
     if (! hasProject() && info.commandID != cmdNewProject && info.commandID != cmdOpenProject
-        && info.commandID != cmdAudioSettings && info.commandID != cmdShortcuts)
+        && info.commandID != cmdAudioSettings && info.commandID != cmdShortcuts && info.commandID != cmdTogglePanel)
         return true;
 
     switch (info.commandID)
@@ -812,6 +850,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case cmdZoomIn:       timeline.zoomBy (1.5, engine.getPositionSeconds()); break;
         case cmdZoomOut:      timeline.zoomBy (1.0 / 1.5, engine.getPositionSeconds()); break;
         case cmdZoomFit:      timeline.zoomToFit(); break;
+        case cmdTogglePanel:  setPanelShown (! panelShown); break;
 
         case cmdAddTrack:
         {
@@ -857,7 +896,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
         case 1: add ({ cmdUndo, cmdRedo, 0, cmdCut, cmdCopy, cmdPaste, cmdDuplicate, cmdDelete, 0, cmdSplit, cmdNewTextBox, cmdNotesWindow, 0, cmdSelectAll, cmdDeselect }); break;
         case 2:
         {
-            add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit });
+            add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit, 0, cmdTogglePanel });
             m.addSeparator();
             // Colour modes (stage 4a, 4b): 6000 = track colours, 6001 + category index
             const auto mode = project.getState().getProperty (IDs::colourMode, "own").toString();
@@ -975,7 +1014,7 @@ void MainComponent::menuItemSelected (int id, int)
                                          ? framework.getCategories()[index].key() : juce::String ("own"));
         return;
     }
-    if (id == 6099) { inspector.showDisplay(); return; }
+    if (id == 6099) { setPanelShown (true); inspector.showDisplay(); return; }
     if (id == 6100 || (id >= highlightBase && id < highlightBase + 500 * framework.getCategories().size()))
     {
         if (id == 6100) timeline.clearHighlight();
@@ -1088,6 +1127,7 @@ void MainComponent::showGlyphProblems()
 
 void MainComponent::showPackages()
 {
+    setPanelShown (true);
     if (! hasProject()) return;
     inspector.showPackages();
     refreshPackages();

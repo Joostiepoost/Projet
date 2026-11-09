@@ -34,6 +34,11 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
         t->setColour (juce::TextButton::textColourOffId, Theme::textMuted);
         addChildComponent (*t);
     }
+    hideButton.setColour (juce::TextButton::buttonColourId, Theme::background.withAlpha (0.0f));
+    hideButton.setColour (juce::TextButton::textColourOffId, Theme::textMuted);
+    hideButton.setTooltip ("Hide the panel (Cmd-Alt-I; the Panel button at the top brings it back)");
+    hideButton.onClick = [this] { if (onHidePanel) onHidePanel(); };
+    addAndMakeVisible (hideButton);
     boxTab.setTooltip ("The box: sound, gain, fades, proportions, notes");
     frameworkTab.setTooltip ("The categories of the project's framework packages (energy, semiotic level, role, type ...)");
     boxTab.onClick = [this] { if (nameEditor.hasKeyboardFocus (true)) commitName(); showFramework = false; refresh(); };
@@ -502,8 +507,10 @@ void Inspector::setMode (Mode m)
     frameworkPanel.setVisible (fw);
     if (fw)
         for (auto* c : getChildren())
-            if (c != &title && c != &boxTab && c != &frameworkTab && c != &frameworkPanel)
+            if (c != &title && c != &boxTab && c != &frameworkTab && c != &frameworkPanel && c != &hideButton)
                 c->setVisible (false);
+    hideButton.setVisible (true);
+    hideButton.toFront (false);
 }
 
 juce::String Inspector::projectSummary()
@@ -641,6 +648,7 @@ void Inspector::paint (juce::Graphics& g)
 
 void Inspector::resized()
 {
+    hideButton.setBounds (1, 12, 14, 20);          // in the left margin, clear of every title row
     auto r = getLocalBounds().reduced (16, 12);
     auto titleRow = r.removeFromTop (20);
     if (isBoxMode())

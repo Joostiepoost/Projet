@@ -52,6 +52,7 @@ public:
     std::function<void()> onExpandNotes;
     /** The Framework tab's "Frameworks..." button. */
     std::function<void()> onShowFrameworks;
+    std::function<void()> onHidePanel;          // the panel's own hide button (stage 4c)
 
 private:
     enum class Mode { project, sound, text, several, ruler, display, packages };
@@ -80,6 +81,7 @@ private:
     DisplayPanel displayPanel { project, framework };
     PackagesPanel packagesPanel;
     juce::TextButton boxTab { "Box" }, frameworkTab { "Framework" };
+    juce::TextButton hideButton { juce::String::fromUTF8 ("\xc2\xbb") };   // the panel goes, the timeline widens
     bool showFramework = false;
     bool isBoxMode() const                          { return mode == Mode::sound || mode == Mode::text || mode == Mode::several; }
 

@@ -68,6 +68,17 @@ namespace
         return s.isEmpty() || s == "-0" ? juce::String ("0") : s;
     }
 
+    /** {"category": "junction", "values": [...]}; the key is completed on rebuild. */
+    Framework::Condition readCondition (const juce::var& v)
+    {
+        Framework::Condition c;
+        if (v.getDynamicObject() == nullptr) return c;
+        c.category = v["category"].toString().trim();
+        for (auto& id : readStrings (v["values"])) c.values.add (cleanValueId (id));
+        if (c.values.isEmpty()) c.category = {};
+        return c;
+    }
+
     Framework::Value readValue (const juce::var& v, int index, const juce::String& from)
     {
         Framework::Value x;
@@ -102,6 +113,17 @@ namespace
                     pairs.set (i, pairs[i - 2]);
             if (pairs.size() >= 4) x.env = pairs;
         }
+        x.peak = (int) v.getProperty ("peak", -1);
+        if (! juce::isPositiveAndBelow (x.peak, x.env.size() / 2)) x.peak = -1;
+        x.curve = v["curve"].toString().trim().toLowerCase();
+        x.sign = v["sign"].toString().trim();
+        x.seamSign = v["seamSign"].toString().trim();
+        if (auto* at = v["endAt"].getArray(); at != nullptr && at->size() >= 2)
+        {
+            x.endX = (float) (double) at->getUnchecked (0);
+            x.endY = (float) (double) at->getUnchecked (1);
+        }
+        x.onlyWith = readCondition (v["onlyWith"]);
         return x;
     }
 
@@ -177,6 +199,25 @@ namespace
         c.columns = readAxes (v["chart"]["columns"]);
         c.chartCaption = readName (v["chart"]["caption"]);
 
+        // Stage 4c: joins, ends, conditions, profile shaping.
+        c.between = v["between"].toString().trim().toLowerCase() == "previous";
+        c.atEnd = (bool) v.getProperty ("atEnd", false);
+        if (auto* rules = v["derive"].getArray())
+            for (auto& r : *rules)
+            {
+                Framework::Rule rule;
+                rule.value = cleanValueId (r["value"].toString());
+                if (r.hasProperty ("from") && ! r["from"].isVoid()) rule.from = (double) r["from"];
+                if (r.hasProperty ("to") && ! r["to"].isVoid()) rule.to = (double) r["to"];
+                if (r.hasProperty ("covered")) rule.covered = (bool) r["covered"] ? 1 : 0;
+                if (rule.value.isNotEmpty()) c.derive.add (rule);
+            }
+        if (auto* notes = v["notes"].getArray())
+            for (auto& n : *notes)
+                c.notes.add ({ (double) n.getProperty ("from", 0.0), (double) n.getProperty ("to", 0.0), readName (n["text"]) });
+        c.onlyWith = readCondition (v["onlyWith"]);
+        c.envelope = v["envelope"].toString().trim().toLowerCase();
+
         if (auto* a = v["values"].getArray())
         {
             juce::StringArray seen;
@@ -194,7 +235,23 @@ namespace
             warnings.add ("Only a choice can change along a box (" + c.id + ").");
             c.along = false;
         }
-        if (c.kind != Framework::Kind::choice) c.defaultValue = {};
+        if (c.kind == Framework::Kind::number && c.defaultValue.isNotEmpty())
+            c.defaultValue = juce::String (juce::jlimit (c.minimum, c.maximum, c.defaultValue.getDoubleValue()));
+        else if (c.kind != Framework::Kind::choice) c.defaultValue = {};
+        if (c.between && c.kind != Framework::Kind::choice)
+        {
+            warnings.add ("Only a choice can belong to the join with the box before (" + c.id + ").");
+            c.between = false;
+        }
+        if (c.between && (c.along || c.folders))
+        {
+            warnings.add ("A join (" + c.id + ") cannot change along a box or come from a folder.");
+            c.along = c.folders = false;
+        }
+        if (! c.between) c.derive.clear();
+        if (c.envelope.isNotEmpty() && c.envelope != "peak" && c.envelope != "shape") c.envelope = {};
+        if (c.envelope == "peak" && c.kind != Framework::Kind::number) c.envelope = {};
+        if (c.envelope == "shape" && c.kind != Framework::Kind::choice) c.envelope = {};
         return true;
     }
 }
@@ -346,7 +403,7 @@ void Framework::rebuild()
         const auto& src = source (c);
         c.hasTwoNames = false;
         for (auto& v : src.values) c.hasTwoNames = c.hasTwoNames || ! v.name2.isEmpty();
-        if (c.defaultValue.isNotEmpty() && findValue (c, c.defaultValue) == nullptr)
+        if (c.kind == Kind::choice && c.defaultValue.isNotEmpty() && findValue (c, c.defaultValue) == nullptr)
         {
             warnings.add ("The default of " + c.key() + " (" + c.defaultValue + ") is not one of its values.");
             c.defaultValue = {};
@@ -360,6 +417,37 @@ void Framework::rebuild()
             if (c.rows.isEmpty()) { c.rows = src.rows; c.columns = src.columns; c.chartCaption = src.chartCaption; }
         }
         if (! marksFor (c).contains (c.mark)) c.mark = Mark::none;
+
+        // Rules naming no value of the category are left out.
+        for (int r = c.derive.size(); --r >= 0;)
+            if (findValue (c, c.derive.getReference (r).value) == nullptr)
+            {
+                warnings.add ("A timing rule of " + c.key() + " names " + c.derive.getReference (r).value + ", which is not one of its values.");
+                c.derive.remove (r);
+            }
+    }
+
+    // "Only with": complete the keys; a condition on a missing category is dropped.
+    auto resolve = [categoryIndex] (Condition& cond, const juce::String& package, juce::StringArray& warnings, const juce::String& what)
+    {
+        if (! cond.isSet()) return;
+        if (! cond.category.containsChar ('.')) cond.category = package + "." + cleanId (cond.category);
+        if (categoryIndex (cond.category) < 0)
+        {
+            warnings.add (what + " applies only with " + cond.category + ", which no loaded package has; it applies always.");
+            cond = {};
+        }
+    };
+    for (auto& c : categories)
+    {
+        auto& warnings = packages.getReference (packageIndex (c.package)).warnings;
+        resolve (c.onlyWith, c.package, warnings, c.key());
+        if (c.onlyWith.category == c.key()) c.onlyWith = {};
+        for (auto& v : c.values)
+        {
+            resolve (v.onlyWith, v.from.isNotEmpty() ? v.from : c.package, warnings, c.key() + " " + v.id);
+            if (v.onlyWith.category == c.key()) v.onlyWith = {};
+        }
     }
 }
 
@@ -532,6 +620,8 @@ juce::String Framework::markName (Mark m)
         case Mark::badge: return "badge";
         case Mark::label: return "label";
         case Mark::glyph: return "glyph";
+        case Mark::seam:  return "seam";
+        case Mark::end:   return "end";
     }
     return {};
 }
@@ -543,6 +633,8 @@ Framework::Mark Framework::markFromName (const juce::String& s, Mark fallback)
     if (n == "badge") return Mark::badge;
     if (n == "label") return Mark::label;
     if (n == "glyph") return Mark::glyph;
+    if (n == "seam") return Mark::seam;
+    if (n == "end") return Mark::end;
     if (n == "none") return Mark::none;
     return fallback;
 }
@@ -550,11 +642,61 @@ Framework::Mark Framework::markFromName (const juce::String& s, Mark fallback)
 juce::Array<Framework::Mark> Framework::marksFor (const Category& c)
 {
     juce::Array<Mark> out { Mark::none };
+    if (c.between)
+    {
+        out.addArray ({ Mark::seam, Mark::badge, Mark::label });
+        return out;
+    }
     if (c.kind == Kind::choice || c.kind == Kind::number) out.add (Mark::strip);
     if (c.kind == Kind::choice) out.add (Mark::glyph);
+    bool signs = false;
+    for (auto& v : c.values) signs = signs || v.sign.isNotEmpty();
+    if (c.kind == Kind::choice && signs) out.add (Mark::end);
     out.add (Mark::badge);
     out.add (Mark::label);
     return out;
+}
+
+juce::Array<float> Framework::shapeEnvelope (const juce::Array<float>& env, int peakIndex, double peakAt, bool soft)
+{
+    auto out = env;
+    const int n = out.size() / 2;
+    if (n < 2) return out;
+
+    // The peak moves; the points before and after it stretch to follow.
+    if (peakAt >= 0.0 && juce::isPositiveAndBelow (peakIndex, n))
+    {
+        const float p = juce::jlimit (0.0f, 1.0f, (float) peakAt);
+        const float tp = env[peakIndex * 2];
+        for (int i = 0; i < n; ++i)
+        {
+            const float t = env[i * 2];
+            float moved = p;
+            if (i < peakIndex) moved = tp > 0.0f ? t / tp * p : 0.0f;
+            else if (i > peakIndex) moved = tp < 1.0f ? p + (t - tp) / (1.0f - tp) * (1.0f - p) : 1.0f;
+            out.set (i * 2, moved);
+        }
+    }
+    if (! soft) return out;
+
+    // Rounded: each stretch follows a half cosine, flat at every point (so the peak is round).
+    juce::Array<float> round;
+    constexpr int steps = 48;
+    for (int s = 0; s <= steps; ++s)
+    {
+        const float t = (float) s / (float) steps;
+        int k = 0;
+        while (k < n - 2 && t > out[(k + 1) * 2]) ++k;
+        const float t0 = out[k * 2], a0 = out[k * 2 + 1], t1 = out[(k + 1) * 2], a1 = out[(k + 1) * 2 + 1];
+        float a = t <= t0 ? a0 : t >= t1 ? a1 : 0.0f;
+        if (t > t0 && t < t1)
+        {
+            const float u = (t - t0) / (t1 - t0);
+            a = a0 + (a1 - a0) * (1.0f - std::cos (juce::MathConstants<float>::pi * u)) * 0.5f;
+        }
+        round.addArray ({ t, a });
+    }
+    return round;
 }
 
 Framework::Mark Framework::chosenMark (const Category& c, const juce::StringPairArray& display)
@@ -700,10 +842,55 @@ namespace
     }
 }
 
+namespace
+{
+    /** The library remembers which of Projet's packages it was given, so a
+        package Projet starts shipping arrives once, and one you remove from
+        the library stays removed. */
+    juce::File shippedList (const juce::File& lib)        { return lib.getChildFile (".shipped"); }
+
+    juce::StringArray readShipped (const juce::File& lib)
+    {
+        juce::StringArray ids;
+        ids.addTokens (shippedList (lib).loadFileAsString(), "\n", {});
+        ids.trim();
+        ids.removeEmptyStrings();
+        return ids;
+    }
+
+    void writeShipped (const juce::File& lib, const juce::StringArray& ids)
+    {
+        shippedList (lib).replaceWithText (ids.joinIntoString ("\n") + "\n");
+    }
+}
+
 juce::Result Framework::ensureLibrary (juce::String& language, juce::String& naming, Report& report)
 {
     const auto lib = libraryFolder();
-    if (lib.isDirectory()) return juce::Result::ok();
+    if (lib.isDirectory())
+    {
+        // Packages Projet has started shipping since the library was made.
+        auto shipped = readShipped (lib);
+        if (shipped.isEmpty())                              // a library from before 4c: what it holds counts
+            for (auto& f : packageFolders (lib)) shipped.add (f.getFileName());
+        juce::StringArray added;
+        for (auto& b : builtins())
+        {
+            if (shipped.contains (b.id)) continue;
+            if (! lib.getChildFile (b.id).exists())
+            {
+                const auto r = writePackage (lib.getChildFile (b.id), b.json, b.help, b.glyphs);
+                if (r.failed()) return r;
+                added.add (b.id);
+            }
+            shipped.add (b.id);
+        }
+        writeShipped (lib, shipped);
+        if (! added.isEmpty())
+            report.notes.add ("New in the library: " + added.joinIntoString (", ")
+                              + " (Framework > Frameworks... > Use in this project).");
+        return juce::Result::ok();
+    }
     if (! lib.createDirectory()) return juce::Result::fail ("Could not make " + lib.getFullPathName());
 
     const auto old = appFolder().getChildFile ("framework.json");
@@ -717,15 +904,29 @@ juce::Result Framework::ensureLibrary (juce::String& language, juce::String& nam
             if (r.failed()) return r;
             retire (old);
             report.notes.add ("The app's framework file became the packages of the library (kept as framework-4a.json).");
+            juce::StringArray shipped;
+            for (auto& b : builtins())                      // and the packages 4a did not have
+            {
+                if (! lib.getChildFile (b.id).exists())
+                {
+                    const auto w = writePackage (lib.getChildFile (b.id), b.json, b.help, b.glyphs);
+                    if (w.failed()) return w;
+                }
+                shipped.add (b.id);
+            }
+            writeShipped (lib, shipped);
             return juce::Result::ok();
         }
         report.errors.add ("The app's framework file could not be converted (" + error + "); the library starts with Projet's packages.");
     }
+    juce::StringArray shipped;
     for (auto& b : builtins())
     {
         const auto r = writePackage (lib.getChildFile (b.id), b.json, b.help, b.glyphs);
         if (r.failed()) return r;
+        shipped.add (b.id);
     }
+    writeShipped (lib, shipped);
     return juce::Result::ok();
 }
 
@@ -942,6 +1143,9 @@ bool Framework::convertLegacy (const juce::String& json, juce::StringArray& ids,
         ids.add (id);
         jsons.add (juce::JSON::toString (v, false));
     }
+    // And the packages 4a did not have (Thoresen, Vande Gorne), as Projet ships them.
+    for (auto& b : builtins())
+        if (! ids.contains (b.id)) { ids.add (b.id); jsons.add (b.json); }
     return true;
 }
 

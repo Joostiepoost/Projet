@@ -45,6 +45,15 @@ public:
         Colours colours;
     };
 
+    /** "Only with": a category (or value) that applies only while another
+        category has one of these values (mixing relations only on overlaps). */
+    struct Condition
+    {
+        juce::String category;                  // its key, after loading
+        juce::StringArray values;
+        bool isSet() const noexcept             { return category.isNotEmpty(); }
+    };
+
     struct Value
     {
         juce::String id, label, glyph, fill;
@@ -55,12 +64,34 @@ public:
         int order = 0, weight = 0, row = -1, col = -1;
         juce::StringArray detailsFr, detailsEn;
         juce::Array<float> env;                 // intensity envelope, flat (t, a) pairs, t ascending
+        int peak = -1;                          // the envelope point a peak position moves (an index of env's pairs)
+        juce::String curve;                     // a peak shape: "soft" (rounded) or "hard"
+        juce::String sign;                      // an SVG path drawn for it on the timeline (a seam or an end sign)
+        juce::String seamSign;                  // an end value's mark on the end bracket of a seam sign, from (0, 0)
+        float endX = -1.0f, endY = -1.0f;       // a seam sign's end bracket of the box before (where seamSign goes)
+        Condition onlyWith;
     };
 
     struct Axis { juce::String id; Name name; };
 
     enum class Kind { choice, tags, number, text };
-    enum class Mark { none, strip, badge, label, glyph };
+    enum class Mark { none, strip, badge, label, glyph, seam, end };
+
+    /** A rule finding a join's value from the timing: the first that fits.
+        The gap is in seconds, negative for an overlap. */
+    struct Rule
+    {
+        juce::String value;
+        double from = -1.0e300, to = 1.0e300;   // from <= gap < to
+        int covered = -1;                       // -1 either way, 0 not covered, 1 covered by a box on another track
+    };
+
+    /** A remark on a range of gaps (Vande Gorne: between 20 and 50 ms the attack blurs). */
+    struct Note
+    {
+        double from = 0.0, to = 0.0;
+        Name text;
+    };
 
     struct Category
     {
@@ -88,6 +119,15 @@ public:
         juce::Array<Axis> rows, columns;        // chart
         bool hasTwoNames = false;               // some value has a second name
         int index = 0;                          // position in getCategories()
+
+        // Stage 4c
+        bool between = false;                   // the value belongs to the join with the box before (stored on the later box)
+        bool atEnd = false;                     // the value describes how the box ends
+        juce::Array<Rule> derive;               // a join's value from the timing, when the box has none of its own
+        juce::Array<Note> notes;                // remarks on ranges of gaps
+        Condition onlyWith;
+        juce::String envelope;                  // "peak": moves the peak of the box's profile (a number, % of the box);
+                                                // "shape": its values' curve rounds the profile (a choice)
     };
 
     struct Package
@@ -196,6 +236,10 @@ public:
     static Framework builtIn();
     static juce::Result writePackage (const juce::File& packageFolder, const juce::String& json, const juce::String& help,
                                       const juce::String& script = {});
+
+    /** A profile's envelope with its peak moved to `peakAt` (0..1; negative
+        keeps it) and, if `soft`, rounded (resampled along cosine curves). */
+    static juce::Array<float> shapeEnvelope (const juce::Array<float>& env, int peakIndex, double peakAt, bool soft);
     static juce::Result writeBuiltin (const juce::File& parent, const juce::String& id);
     /** Copies a package folder into `parent` (replacing the one there). */
     static juce::Result copyPackage (const juce::File& packageFolder, const juce::File& parent);
