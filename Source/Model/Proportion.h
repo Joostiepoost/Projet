@@ -55,7 +55,9 @@ namespace Proportion
 
     /** A point of a series (golden section, Fibonacci, harmonic, your own). */
     struct SeriesPoint { double position = 0.0; juce::String label; };
-    /** Series written as "golden:2;fibonacci:13;harmonic:8;custom:1/7,3/7". */
+    /** Series written as "golden:2;fibonacci:13;harmonic:8;custom:1/7,3/7".
+        "fibonacci.dir:reversed" (or "both") measures a series from the end of
+        the frame too; the same for harmonic and custom. */
     std::vector<SeriesPoint> seriesPoints (const juce::String& spec);
     juce::String seriesPart (const juce::String& spec, const juce::String& key);
     juce::String withSeriesPart (const juce::String& spec, const juce::String& key, const juce::String& value);

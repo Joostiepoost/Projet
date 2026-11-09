@@ -1,6 +1,7 @@
 // TimelineView.cpp
 
 #include "TimelineView.h"
+#include "Dialogs.h"
 #include "Theme.h"
 #include "TimeFormat.h"
 #include "../Engine/Arrangement.h"
@@ -1091,6 +1092,7 @@ void TimelineView::renameTrack (juce::ValueTree track)
     w->addButton ("Rename", 1, juce::KeyPress (juce::KeyPress::returnKey));
     w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     juce::Component::SafePointer<TimelineView> safe (this);
+    Dialogs::focusField (w, "name");
     w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w, track] (int result) mutable
     {
         if (safe == nullptr || result != 1) return;

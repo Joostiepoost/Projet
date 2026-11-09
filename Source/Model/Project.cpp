@@ -593,6 +593,13 @@ juce::ValueTree Project::addLayer (const juce::String& kind, int index)
 
 void Project::removeLayer (juce::ValueTree layer)
 {
+    // The last time layer stays: it is where you move the playhead.
+    if (isTimeLayer (layer))
+    {
+        int timeLayers = 0;
+        for (auto l : getRulers()) if (isTimeLayer (l)) ++timeLayers;
+        if (timeLayers <= 1) return;
+    }
     getRulers().removeChild (layer, nullptr);
 }
 
@@ -645,7 +652,7 @@ void Project::layersFromVar (const juce::var& v)
         if (! l.isValid() || l.getType() != IDs::LAYER) continue;
         l.setProperty (IDs::id, newId(), nullptr);
         // A preset from another project may name a box that is not here.
-        if (! isTimeLayer (l) && ! frameFor (l[IDs::frame].toString()).isValid()) l.setProperty (IDs::frame, "piece", nullptr);
+        if (l.hasProperty (IDs::frame) && ! frameFor (l[IDs::frame].toString()).isValid()) l.setProperty (IDs::frame, "piece", nullptr);
         rulers.appendChild (l, nullptr);
     }
     if (rulers.getNumChildren() == 0) ensureRulers();
