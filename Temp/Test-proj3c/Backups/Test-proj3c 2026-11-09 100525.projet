@@ -1,0 +1,98 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj3c",
+  "sampleRate": 48000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 6.975199572026652,
+  "playhead": 0.0,
+  "activeLayer": "0c4557a4c88a41e79a4a7f2a32bf44ff",
+  "spanStart": 7.518646918402778,
+  "spanEnd": 16.598837425595239,
+  "frameLength": 541.600022133247194,
+  "children": [
+    {
+      "type": "SOUNDS"
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "3730a5d294f343ea807a7e09f8d116ce",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "00a76b9f905f4fe69a772974faa85e07",
+              "kind": "text",
+              "name": "Text",
+              "start": 30.088890118513731,
+              "length": 23.696061197916666,
+              "opacity": 1.0,
+              "notes": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "id": "85d1112cfa7947d39126fb42d776661b",
+          "kind": "time",
+          "name": "Time",
+          "height": 30,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "0c4557a4c88a41e79a4a7f2a32bf44ff",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 71,
+          "visible": true,
+          "snap": true,
+          "frame": "piece",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "0c30d281aa754761a0e673f0fce00269",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 73,
+          "visible": true,
+          "snap": true,
+          "frame": "00a76b9f905f4fe69a772974faa85e07",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "371a197c94ee478698a5d03c04df63c9",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 61,
+          "visible": true,
+          "snap": true,
+          "frame": "span",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        }
+      ]
+    },
+    {
+      "type": "MARKS"
+    }
+  ]
+}
