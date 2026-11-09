@@ -5,7 +5,7 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 0.0,
+  "viewStart": 1.599029575693828,
   "pixelsPerSecond": 1.832165923965973,
   "playhead": 159.781932500322085,
   "activeLayer": "947881196e8d483f87c0746531c53004",
@@ -46,9 +46,14 @@
               "kind": "text",
               "name": "Text",
               "start": 30.088890118513731,
-              "length": 232.306214159803801,
+              "length": 221.271302505003462,
               "opacity": 1.0,
-              "notes": ""
+              "notes": "",
+              "energy": "percussion-resonance",
+              "level": "metonymic",
+              "typology": "Ax",
+              "energy2": "flux",
+              "roleAlong": "0.3:B:0.4"
             }
           ]
         },
@@ -67,8 +72,8 @@
               "id": "5e6dd725ecfb459db6ea49942bf1cbe1",
               "kind": "text",
               "name": "Text",
-              "start": 54.6343647066386,
-              "length": 45.618668193203149,
+              "start": 53.468415941192397,
+              "length": 43.451709486815041,
               "opacity": 1.0,
               "notes": "",
               "propStart": "0.10566",
