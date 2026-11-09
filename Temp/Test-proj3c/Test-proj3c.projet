@@ -5,14 +5,15 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 2.717494251673514,
-  "pixelsPerSecond": 2.896049737919904,
-  "playhead": 19.861333333333334,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 1.483288798174804,
+  "playhead": 415.717030994080403,
   "activeLayer": "95d9a8a4b22b4c73ae7cb8117493f2bc",
   "spanStart": 284.682966530954957,
   "spanEnd": 367.580734890112069,
   "frameLength": 655.987760695793895,
   "fwLanguage": "en",
+  "colourMode": "schaeffer.type",
   "children": [
     {
       "type": "SOUNDS"
@@ -109,7 +110,8 @@
               "propFrame": "span",
               "propLock": true,
               "fadeIn": 0.0,
-              "fadeOut": 0.005
+              "fadeOut": 0.005,
+              "fw.schaeffer.type": "N"
             },
             {
               "type": "BOX",
@@ -153,7 +155,13 @@
               "propFrame": "span",
               "propLock": true,
               "fadeIn": 0.005,
-              "fadeOut": 0.005
+              "fadeOut": 0.005,
+              "fw.example.materials": "wood,glass",
+              "fw.example.density": 6.0,
+              "fw.example.motion": "rising",
+              "fw.example.motion.along": "0.5:falling:0.3",
+              "fw.example.source": "little twigs breaking under feet",
+              "fw.composition.energy": "accumulation-corpuscules"
             }
           ]
         },
@@ -171,27 +179,32 @@
               "id": "e3d92b0476b24a3c8bbf1f829a641f52",
               "kind": "text",
               "name": "Text",
-              "start": 418.296760594560794,
-              "length": 57.736471911249055,
+              "start": 510.648604946237981,
+              "length": 73.338660894125994,
               "opacity": 1.0,
               "notes": "",
-              "propStart": "1.61179",
-              "propLength": "a3 - 1.61179",
+              "propStart": "2.725835",
+              "propLength": "0.884688",
               "propFrame": "span",
               "propLock": true,
               "fadeIn": 0.005,
-              "fadeOut": 0.005
+              "fadeOut": 0.005,
+              "fw.schaeffer.type": "N'",
+              "fw.composition.role": "F",
+              "fw.composition.level": "dison",
+              "fw.composition.energy": "percussion-resonance",
+              "fw.composition.energy2": "frottement-granulation"
             },
             {
               "type": "BOX",
               "id": "1a57ee6444ea43e18f0716bdd8b5d586",
               "kind": "text",
               "name": "Text",
-              "start": 11.677033648757634,
-              "length": 314.454823624460516,
+              "start": 53.468447213895693,
+              "length": 399.430289259210781,
               "opacity": 1.0,
               "notes": "",
-              "propStart": "-7.042684",
+              "propStart": "-6.233822",
               "propLength": "5.446381",
               "propFrame": "e3d92b0476b24a3c8bbf1f829a641f52",
               "propLock": true

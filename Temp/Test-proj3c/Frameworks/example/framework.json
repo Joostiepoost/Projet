@@ -1,0 +1,52 @@
+{
+  "projet": "framework package",
+  "id": "example",
+  "version": 1,
+  
+      "name": { "fr": "Mouvement", "en": "Motion" },
+      "about": { "fr": "où va le son", "en": "where the sound goes" },
+      "kind": "choice",
+      "mark": "badge",
+      "along": true,
+      "folders": true,
+      "values": [
+        { "id": "rising",   "label": "↗", "name": { "fr": "montant", "en": "rising" },     "colour": "#d08a5a" },
+        { "id": "falling",  "label": "↘", "name": { "fr": "descendant", "en": "falling" }, "colour": "#5d82bd" },
+        { "id": "static",   "label": "→", "name": { "fr": "statique", "en": "static" },    "colour": "#7a7d85" },
+        { "id": "circling", "label": "↻", "name": { "fr": "tournant", "en": "circling" },  "colour": "#8f7cc6" }
+      ]
+    },
+    {
+      "id": "materials",
+      "name": { "fr": "Matières", "en": "Materials" },
+      "about": { "fr": "de quoi le son est fait (plusieurs à la fois)", "en": "what the sound is made of (several at once)" },
+      "kind": "tags",
+      "mark": "label",
+      "values": [
+        { "id": "metal", " "air", "en": "air" } },
+        { "id": "voice", "name": { "fr": "voix", "en": "voice" } },
+        { "id": "synth", "name": { "fr": "synthèse", "en": "synthesis" } }
+      ]
+    },
+    {
+      "id": 
+    {
+      "id": "source",
+      "name": { "fr": "Source", "en": "Source" },
+      "about": { "fr": "où et comment le son a été pris", "en": "where and how the sound was recorded" },
+      "kind": "text",
+      "mark": "none"
+    }
+  ],
+  "additions": [
+    {
+      "category": "composition.energy",
+      "values": [
+        { "id": "example-pulsation",
+          "name": { "fr": "Pulsation (exemple)", "en": "Pulsation (example)" },
+          "groups": [ "loi" ],
+          "details": { "fr": [ "tempo", "régularité" ], "en": [ "tempo", "regularity" ] } }
+      ]
+    }
+  ]
+}
