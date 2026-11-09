@@ -1,0 +1,320 @@
+{
+  "projet": "framework package",
+  "id": "composition",
+  "version": 2,
+  "order": 10,
+  "name": {"fr": "Cadre de composition", "en": "Composition framework"},
+  "about": {
+    "fr": "Les modèles d'énergie (Vande Gorne), les niveaux sémiotiques (Peirce par Bayle, avec le signe métonymique de Thoresen) et les rôles (fonctions de couche de Thoresen, ou figure et fond de Vande Gorne).",
+    "en": "The energy models (Vande Gorne), the semiotic levels (Peirce via Bayle, with Thoresen's metonymic sign) and the roles (Thoresen's layer functions, or Vande Gorne's figure and ground)."
+  },
+  "categories": [
+    {
+      "id": "energy",
+      "name": {"fr": "Énergie", "en": "Energy"},
+      "about": {
+        "fr": "le modèle d'énergie du son (Vande Gorne, Techniques d'écriture, ch. 1)",
+        "en": "the energy model of the sound (Vande Gorne, Techniques d'écriture, ch. 1)"
+      },
+      "kind": "choice",
+      "control": "menu",
+      "mark": "none",
+      "groups": {
+        "name": {"fr": "famille", "en": "family"},
+        "list": [
+          {
+            "id": "materielle",
+            "name": {"fr": "matérielle", "en": "material"},
+            "colour": "#c49a4a",
+            "dark": "#3a3220",
+            "light": "#e3c58a"
+          },
+          {
+            "id": "globale",
+            "name": {"fr": "gestion globale", "en": "global management"},
+            "colour": "#4ea597",
+            "dark": "#1f403b",
+            "light": "#8fd6c9"
+          },
+          {
+            "id": "gestuelle",
+            "name": {"fr": "gestuelle", "en": "gestural"},
+            "colour": "#b9707e",
+            "dark": "#3d2529",
+            "light": "#e3a9b4"
+          },
+          {
+            "id": "mouvement",
+            "name": {"fr": "mouvement", "en": "movement"},
+            "colour": "#5d82bd",
+            "dark": "#2a3a55",
+            "light": "#a9c3ec"
+          },
+          {
+            "id": "loi",
+            "name": {"fr": "loi", "en": "law"},
+            "colour": "#8f7cc6",
+            "dark": "#2e2a45",
+            "light": "#c4b8ef"
+          }
+        ]
+      },
+      "details": {"fr": "Facteurs de variation", "en": "Variation factors"},
+      "values": [
+        {
+          "id": "percussion-resonance",
+          "name": {"fr": "Percussion-résonance", "en": "Percussion-resonance"},
+          "glyph": "percussion-resonance",
+          "groups": ["materielle"],
+          "details": {
+            "fr": ["dynamique", "halo harmonique", "attaque", "entretien"],
+            "en": ["dynamics", "harmonic halo", "attack", "sustainment"]
+          }
+        },
+        {
+          "id": "frottement-granulation",
+          "name": {"fr": "Frottement-granulation", "en": "Friction-granulation"},
+          "glyph": "frottement-granulation",
+          "groups": ["materielle", "gestuelle"],
+          "details": {
+            "fr": ["vitesse", "grain", "entretien itératif"],
+            "en": ["speed", "grain", "iterative sustainment"]
+          }
+        },
+        {
+          "id": "accumulation-corpuscules",
+          "name": {"fr": "Accumulation de corpuscules", "en": "Accumulation of corpuscles"},
+          "glyph": "accumulation-corpuscules",
+          "groups": ["globale"],
+          "details": {"fr": ["grain", "masse", "calibre", "densité"], "en": ["grain", "mass", "caliber", "density"]}
+        },
+        {
+          "id": "oscillation",
+          "name": {"fr": "Oscillation", "en": "Oscillation"},
+          "glyph": "oscillation",
+          "groups": ["loi"],
+          "details": {
+            "fr": [
+              "force de déclenchement",
+              "vitesse",
+              "densité",
+              "fréquence",
+              "spectre",
+              "espace G-D",
+              "profondeur"
+            ],
+            "en": ["triggering force", "speed", "density", "frequency", "spectrum", "left-right space", "depth"]
+          }
+        },
+        {
+          "id": "balancement",
+          "name": {"fr": "Balancement", "en": "Swaying"},
+          "glyph": "balancement",
+          "groups": ["gestuelle"],
+          "details": {
+            "fr": ["vitesse", "densité", "fréquence", "spectre", "espace G-D", "profondeur"],
+            "en": ["speed", "density", "frequency", "spectrum", "left-right space", "depth"]
+          }
+        },
+        {
+          "id": "rebond",
+          "name": {"fr": "Rebond", "en": "Bounce"},
+          "glyph": "rebond",
+          "groups": ["gestuelle", "loi"],
+          "details": {"fr": ["vitesse", "halo harmonique", "matière"], "en": ["speed", "harmonic halo", "matter"]}
+        },
+        {
+          "id": "flux",
+          "name": {"fr": "Flux", "en": "Flow"},
+          "glyph": "flux",
+          "groups": ["globale", "mouvement"],
+          "details": {"fr": ["densité", "profil de masse"], "en": ["density", "mass profile"]}
+        },
+        {
+          "id": "pression-deformation",
+          "name": {"fr": "Pression-déformation", "en": "Pressure-deformation"},
+          "glyph": "pression-deformation",
+          "groups": ["mouvement"],
+          "details": {
+            "fr": ["vitesse", "profil de masse ou mélodique", "enveloppe spectrale"],
+            "en": ["speed", "mass or melodic profile", "spectral envelope"]
+          }
+        },
+        {
+          "id": "rotation",
+          "name": {"fr": "Rotation", "en": "Rotation"},
+          "glyph": "rotation",
+          "groups": ["mouvement"],
+          "details": {"fr": ["vitesse", "fréquence", "espace"], "en": ["speed", "frequency", "space"]}
+        },
+        {
+          "id": "spirale",
+          "name": {"fr": "Spirale", "en": "Spiral"},
+          "glyph": "spirale",
+          "groups": ["mouvement"],
+          "details": {
+            "fr": ["vitesse", "fréquence", "espace", "direction de l'accélération"],
+            "en": ["speed", "frequency", "space", "direction of acceleration"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "energy2",
+      "name": {"fr": "Seconde énergie", "en": "Second energy"},
+      "about": {"fr": "une deuxième énergie, dessinée plus claire", "en": "a second energy, drawn lighter"},
+      "kind": "choice",
+      "control": "menu",
+      "mark": "none",
+      "valuesFrom": "energy"
+    },
+    {
+      "id": "level",
+      "name": {"fr": "Niveau sémiotique", "en": "Semiotic level"},
+      "about": {
+        "fr": "de la source telle quelle à la source cachée (Peirce par Bayle, plus le signe métonymique de Thoresen)",
+        "en": "from the source as it is to the source hidden (Peirce via Bayle, plus Thoresen's metonymic sign)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "mark": "strip",
+      "along": true,
+      "folders": true,
+      "values": [
+        {
+          "id": "ison",
+          "order": 1,
+          "fill": "solid",
+          "colour": "#4c8fd6",
+          "name": {"fr": "I-son", "en": "I-son"},
+          "about": {"fr": "icône : la source telle quelle", "en": "icon: the source as it is"}
+        },
+        {
+          "id": "dison",
+          "order": 2,
+          "fill": "hatched",
+          "colour": "#49b3a4",
+          "name": {"fr": "Di-son", "en": "Di-son"},
+          "about": {"fr": "diagramme : la source comme modèle", "en": "diagram: the source as a model"}
+        },
+        {
+          "id": "metonymic",
+          "order": 3,
+          "fill": "dotted",
+          "colour": "#c0a050",
+          "name": {"fr": "Métonymique", "en": "Metonymic"},
+          "about": {
+            "fr": "une partie ou un voisin pour le tout (Thoresen)",
+            "en": "a part or a neighbour stands for the whole (Thoresen)"
+          }
+        },
+        {
+          "id": "meson",
+          "order": 4,
+          "fill": "outline",
+          "colour": "#c27ab8",
+          "name": {"fr": "Mé-son", "en": "Mé-son"},
+          "about": {
+            "fr": "métaphore : la source cachée ou arbitraire",
+            "en": "metaphor: the source hidden or arbitrary"
+          }
+        }
+      ]
+    },
+    {
+      "id": "role",
+      "name": {"fr": "Rôle", "en": "Role"},
+      "about": {
+        "fr": "fonction de couche (Thoresen) ou figure et fond (Vande Gorne)",
+        "en": "layer function (Thoresen) or figure and ground (Vande Gorne)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "mark": "badge",
+      "along": true,
+      "default": "M",
+      "showDefault": false,
+      "names": {"first": {"fr": "Thoresen", "en": "Thoresen"}, "second": {"fr": "Vande Gorne", "en": "Vande Gorne"}},
+      "details": {"fr": "Traits (Vande Gorne)", "en": "Traits (Vande Gorne)"},
+      "values": [
+        {
+          "id": "F",
+          "label": "F",
+          "weight": 3,
+          "name": {"fr": "premier plan", "en": "foreground"},
+          "name2": {"fr": "figure", "en": "figure"},
+          "details": {
+            "fr": [
+              "discontinu",
+              "morphologique",
+              "proche",
+              "mobile",
+              "varié",
+              "mince",
+              "fort",
+              "aigu",
+              "grain",
+              "net",
+              "intermittent"
+            ],
+            "en": [
+              "discontinuous",
+              "morphological",
+              "near",
+              "mobile",
+              "varied",
+              "thin",
+              "loud",
+              "high",
+              "grainy",
+              "sharp",
+              "intermittent"
+            ]
+          }
+        },
+        {
+          "id": "M",
+          "label": "M",
+          "weight": 2,
+          "name": {"fr": "plan moyen", "en": "middleground"},
+          "name2": {"fr": "entre les deux", "en": "in between"}
+        },
+        {
+          "id": "B",
+          "label": "B",
+          "weight": 1,
+          "name": {"fr": "arrière-plan", "en": "background"},
+          "name2": {"fr": "fond", "en": "ground"},
+          "details": {
+            "fr": [
+              "continu",
+              "harmonique",
+              "loin",
+              "immobile",
+              "répétitif",
+              "épais",
+              "doux",
+              "grave",
+              "lisse",
+              "flou",
+              "récurrent"
+            ],
+            "en": [
+              "continuous",
+              "harmonic",
+              "far",
+              "still",
+              "repetitive",
+              "thick",
+              "soft",
+              "low",
+              "smooth",
+              "blurred",
+              "recurrent"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

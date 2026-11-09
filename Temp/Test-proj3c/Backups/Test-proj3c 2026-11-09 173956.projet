@@ -1,0 +1,297 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj3c",
+  "sampleRate": 48000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 2.300592056697722,
+  "playhead": 159.781932500322085,
+  "activeLayer": "95d9a8a4b22b4c73ae7cb8117493f2bc",
+  "spanStart": 284.682966530954957,
+  "spanEnd": 367.580734890112069,
+  "frameLength": 655.987760695793895,
+  "children": [
+    {
+      "type": "SOUNDS"
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "name": "Macro-divisions",
+          "isFolder": true,
+          "colour": 1,
+          "height": 30,
+          "mute": false,
+          "solo": false,
+          "folded": false
+        },
+        {
+          "type": "TRACK",
+          "id": "3730a5d294f343ea807a7e09f8d116ce",
+          "name": "Track 1",
+          "colour": 1,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "00a76b9f905f4fe69a772974faa85e07",
+              "kind": "text",
+              "name": "Text",
+              "start": 30.088890118513731,
+              "length": 221.271302505003462,
+              "opacity": 1.0,
+              "notes": "",
+              "energy": "percussion-resonance",
+              "level": "metonymic",
+              "typology": "X'",
+              "energy2": "flux",
+              "roleAlong": "0.3:B:0.4;0.65:M:0;0.825:F:0.1",
+              "role": "F"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "68af6ec280d5469794d8053944322155",
+          "name": "Track 2",
+          "colour": 4,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "5e6dd725ecfb459db6ea49942bf1cbe1",
+              "kind": "text",
+              "name": "Text",
+              "start": 53.468415941192397,
+              "length": 43.451709486815041,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "0.10566",
+              "propLength": "0.196373",
+              "propFrame": "00a76b9f905f4fe69a772974faa85e07",
+              "propLock": true
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "d49d5b6221674b769a14a22d5a02e969",
+          "name": "Track 3",
+          "colour": 6,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "5875c6e3a72a4ebba34c0ec89e633119",
+              "kind": "text",
+              "name": "Text",
+              "start": 312.315555984007347,
+              "length": 20.761248698940733,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "1/3",
+              "propLength": "0.250444",
+              "propFrame": "span",
+              "propLock": true,
+              "fadeIn": 0.0,
+              "fadeOut": 0.005
+            },
+            {
+              "type": "BOX",
+              "id": "5a6bbc6fa2cd411e9e0a69dd77a0ef05",
+              "kind": "text",
+              "name": "Text",
+              "start": 441.494043114503768,
+              "length": 19.949679546704598,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "1.89162",
+              "propLength": "0.240654",
+              "propFrame": "span",
+              "propLock": true,
+              "fadeIn": 0.005,
+              "fadeOut": 0.0
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "73825509694141b0aa8802fe393f3870",
+          "name": "Track 4",
+          "colour": 3,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "b672e57ea59647a9b9297188c378749e",
+              "kind": "text",
+              "name": "Text",
+              "start": 404.378391082595044,
+              "length": 13.918369511965761,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "1.443892",
+              "propLength": "0.167898",
+              "propFrame": "span",
+              "propLock": true,
+              "fadeIn": 0.005,
+              "fadeOut": 0.005
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "a8167e7328634087ba31e7fab0368415",
+          "name": "Track 5",
+          "colour": 4,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "e3d92b0476b24a3c8bbf1f829a641f52",
+              "kind": "text",
+              "name": "Text",
+              "start": 418.296760594560794,
+              "length": 57.736471911249055,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "1.61179",
+              "propLength": "a3 - 1.61179",
+              "propFrame": "span",
+              "propLock": true,
+              "fadeIn": 0.005,
+              "fadeOut": 0.005
+            },
+            {
+              "type": "BOX",
+              "id": "1a57ee6444ea43e18f0716bdd8b5d586",
+              "kind": "text",
+              "name": "Text",
+              "start": 11.677033648757634,
+              "length": 314.454823624460516,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "-7.042684",
+              "propLength": "5.446381",
+              "propFrame": "e3d92b0476b24a3c8bbf1f829a641f52",
+              "propLock": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "kind": "time",
+          "name": "Time",
+          "height": 88,
+          "visible": true,
+          "id": "127745d9b52240b2838f20e9c88cea6e"
+        },
+        {
+          "type": "LAYER",
+          "kind": "proportion",
+          "name": "Piece",
+          "height": 90,
+          "visible": true,
+          "frame": "piece",
+          "snap": true,
+          "autoDivisions": true,
+          "denominators": "2,3,4",
+          "series": "golden:2;fibonacci:5",
+          "id": "b7fb7451d97a462ea9c02369e68b2622"
+        },
+        {
+          "type": "LAYER",
+          "kind": "proportion",
+          "name": "Span",
+          "height": 90,
+          "visible": true,
+          "frame": "span",
+          "snap": true,
+          "autoDivisions": true,
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "id": "95d9a8a4b22b4c73ae7cb8117493f2bc",
+          "series": "harmonic:8"
+        },
+        {
+          "type": "LAYER",
+          "id": "947881196e8d483f87c0746531c53004",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "1a57ee6444ea43e18f0716bdd8b5d586",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true,
+          "series": "harmonic.dir:reversed;harmonic:16;custom:harmonic to 1/32;custom.dir:reversed;fibonacci:21;fibonacci.dir:reversed"
+        },
+        {
+          "type": "LAYER",
+          "id": "f739bedca37343e7b8a3c3e89455b2b5",
+          "kind": "time",
+          "name": "Time",
+          "height": 90,
+          "visible": true,
+          "frame": "5875c6e3a72a4ebba34c0ec89e633119"
+        }
+      ]
+    },
+    {
+      "type": "MARKS",
+      "children": [
+        {
+          "type": "MARK",
+          "id": "2f0c3bb702e24afcb4305e80c03b5852",
+          "name": "a2",
+          "frame": "span",
+          "expr": "1.244485"
+        },
+        {
+          "type": "MARK",
+          "id": "687e7342152942689c49303958eae1e1",
+          "name": "a3",
+          "frame": "span",
+          "expr": "2.308268"
+        },
+        {
+          "type": "MARK",
+          "id": "db43a69dee3c4b868396f9f0848da420",
+          "name": "m3",
+          "frame": "00a76b9f905f4fe69a772974faa85e07",
+          "expr": "0.282359"
+        },
+        {
+          "type": "MARK",
+          "id": "3bf0b09185294a128739b2f5caf994ab",
+          "name": "a1",
+          "frame": "span",
+          "expr": "-2.921122"
+        }
+      ]
+    }
+  ]
+}

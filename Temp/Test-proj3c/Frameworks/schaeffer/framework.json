@@ -1,0 +1,314 @@
+{
+  "projet": "framework package",
+  "id": "schaeffer",
+  "version": 2,
+  "order": 20,
+  "name": {"fr": "Schaeffer", "en": "Schaeffer"},
+  "about": {
+    "fr": "La typologie du Traité des objets musicaux (tableau récapitulatif, fig. 34) : la masse vers le bas, l'entretien en travers.",
+    "en": "The typology of the Treatise on musical objects (summary table, fig. 34): mass down, sustainment across."
+  },
+  "categories": [
+    {
+      "id": "type",
+      "name": {"fr": "Type (typologie de Schaeffer)", "en": "Type (Schaeffer's typology)"},
+      "about": {
+        "fr": "le type de l'objet sonore dans la typologie de Schaeffer",
+        "en": "the type of the sound object in Schaeffer's typology"
+      },
+      "kind": "choice",
+      "control": "chart",
+      "mark": "badge",
+      "groups": {
+        "name": {"fr": "zone", "en": "zone"},
+        "list": [
+          {
+            "id": "balanced",
+            "name": {"fr": "équilibré", "en": "balanced"},
+            "colour": "#4ea597",
+            "dark": "#1f403b",
+            "light": "#8fd6c9"
+          },
+          {
+            "id": "redundant",
+            "name": {"fr": "redondant", "en": "redundant"},
+            "colour": "#7a7d85",
+            "dark": "#2b2d33",
+            "light": "#c9c6bd"
+          },
+          {
+            "id": "eccentric",
+            "name": {"fr": "excentrique", "en": "eccentric"},
+            "colour": "#8f7cc6",
+            "dark": "#2e2a45",
+            "light": "#c4b8ef"
+          }
+        ]
+      },
+      "chart": {
+        "rows": [
+          {"id": "pitch", "name": {"fr": "hauteur définie", "en": "definite pitch"}},
+          {"id": "complex", "name": {"fr": "complexe, fixe", "en": "complex, fixed"}},
+          {"id": "varying", "name": {"fr": "peu variable", "en": "slightly varying"}},
+          {"id": "unpredictable", "name": {"fr": "variation imprévisible", "en": "unpredictable"}}
+        ],
+        "columns": [
+          {"id": "unpredictable-held", "name": {"fr": "facture imprévisible", "en": "unpredictable facture"}},
+          {"id": "homogeneous-held", "name": {"fr": "facture nulle (tenue)", "en": "no facture (held)"}},
+          {"id": "held", "name": {"fr": "tenu formé", "en": "formed held"}},
+          {"id": "impulse", "name": {"fr": "impulsion", "en": "impulse"}},
+          {"id": "iterative", "name": {"fr": "itératif formé", "en": "formed iterative"}},
+          {
+            "id": "homogeneous-iterative",
+            "name": {"fr": "facture nulle (itérative)", "en": "no facture (iterative)"}
+          },
+          {
+            "id": "unpredictable-iterative",
+            "name": {"fr": "facture imprévisible", "en": "unpredictable facture"}
+          }
+        ],
+        "caption": {
+          "fr": "Masse vers le bas, entretien en travers (Schaeffer, Traité, fig. 34)",
+          "en": "Mass down, sustainment across (Schaeffer, Treatise fig. 34)"
+        }
+      },
+      "values": [
+        {
+          "id": "En",
+          "label": "(En)",
+          "row": 0,
+          "col": 0,
+          "groups": ["eccentric"],
+          "name": {"fr": "échantillon, tonique", "en": "sample, tonic"}
+        },
+        {
+          "id": "Hn",
+          "label": "Hn",
+          "row": 0,
+          "col": 1,
+          "groups": ["redundant"],
+          "name": {"fr": "son homogène tonique", "en": "tonic homogeneous sound"}
+        },
+        {
+          "id": "N",
+          "label": "N",
+          "row": 0,
+          "col": 2,
+          "groups": ["balanced"],
+          "name": {"fr": "son tenu formé, tonique", "en": "formed held note, tonic"}
+        },
+        {
+          "id": "N'",
+          "label": "N′",
+          "row": 0,
+          "col": 3,
+          "groups": ["balanced"],
+          "name": {"fr": "impulsion tonique", "en": "tonic impulse"}
+        },
+        {
+          "id": "N''",
+          "label": "N″",
+          "row": 0,
+          "col": 4,
+          "groups": ["balanced"],
+          "name": {"fr": "itératif formé, tonique", "en": "formed iterative note, tonic"}
+        },
+        {
+          "id": "Zn",
+          "label": "Zn",
+          "row": 0,
+          "col": 5,
+          "groups": ["redundant"],
+          "name": {"fr": "itératif homogène, tonique", "en": "tonic homogeneous iteration"}
+        },
+        {
+          "id": "An",
+          "label": "(An)",
+          "row": 0,
+          "col": 6,
+          "groups": ["eccentric"],
+          "name": {"fr": "accumulation, tonique", "en": "accumulation, tonic"}
+        },
+        {
+          "id": "Ex",
+          "label": "(Ex)",
+          "row": 1,
+          "col": 0,
+          "groups": ["eccentric"],
+          "name": {"fr": "échantillon, complexe", "en": "sample, complex"}
+        },
+        {
+          "id": "Hx",
+          "label": "Hx",
+          "row": 1,
+          "col": 1,
+          "groups": ["redundant"],
+          "name": {"fr": "son homogène complexe", "en": "complex homogeneous sound"}
+        },
+        {
+          "id": "X",
+          "label": "X",
+          "row": 1,
+          "col": 2,
+          "groups": ["balanced"],
+          "name": {"fr": "son tenu formé, complexe", "en": "formed held note, complex"}
+        },
+        {
+          "id": "X'",
+          "label": "X′",
+          "row": 1,
+          "col": 3,
+          "groups": ["balanced"],
+          "name": {"fr": "impulsion complexe", "en": "complex impulse"}
+        },
+        {
+          "id": "X''",
+          "label": "X″",
+          "row": 1,
+          "col": 4,
+          "groups": ["balanced"],
+          "name": {"fr": "itératif formé, complexe", "en": "formed iterative note, complex"}
+        },
+        {
+          "id": "Zx",
+          "label": "Zx",
+          "row": 1,
+          "col": 5,
+          "groups": ["redundant"],
+          "name": {"fr": "itératif homogène, complexe", "en": "complex homogeneous iteration"}
+        },
+        {
+          "id": "Ax",
+          "label": "(Ax)",
+          "row": 1,
+          "col": 6,
+          "groups": ["eccentric"],
+          "name": {"fr": "accumulation, complexe", "en": "accumulation, complex"}
+        },
+        {
+          "id": "Ey",
+          "label": "(Ey)",
+          "row": 2,
+          "col": 0,
+          "groups": ["eccentric"],
+          "name": {"fr": "échantillon, variable", "en": "sample, varying"}
+        },
+        {
+          "id": "Tn",
+          "label": "Tn",
+          "row": 2,
+          "col": 1,
+          "groups": ["redundant"],
+          "name": {"fr": "trame tonique", "en": "tonic weft"}
+        },
+        {
+          "id": "Tx",
+          "label": "Tx",
+          "row": 2,
+          "col": 1,
+          "groups": ["redundant"],
+          "name": {"fr": "trame complexe", "en": "complex weft"}
+        },
+        {
+          "id": "Y",
+          "label": "Y",
+          "row": 2,
+          "col": 2,
+          "groups": ["balanced"],
+          "name": {"fr": "son tenu formé, variable", "en": "formed held note, varying"}
+        },
+        {
+          "id": "Y'",
+          "label": "Y′",
+          "row": 2,
+          "col": 3,
+          "groups": ["balanced"],
+          "name": {"fr": "impulsion variable", "en": "varying impulse"}
+        },
+        {
+          "id": "Y''",
+          "label": "Y″",
+          "row": 2,
+          "col": 4,
+          "groups": ["balanced"],
+          "name": {"fr": "itératif formé, variable", "en": "formed iterative note, varying"}
+        },
+        {
+          "id": "Zy",
+          "label": "Zy",
+          "row": 2,
+          "col": 5,
+          "groups": ["redundant"],
+          "name": {
+            "fr": "itératif homogène, variable (ostinato particulier)",
+            "en": "varying homogeneous iteration (a particular ostinato)"
+          }
+        },
+        {
+          "id": "Ay",
+          "label": "(Ay)",
+          "row": 2,
+          "col": 6,
+          "groups": ["eccentric"],
+          "name": {"fr": "accumulation, variable", "en": "accumulation, varying"}
+        },
+        {
+          "id": "E",
+          "label": "E",
+          "row": 3,
+          "col": 0,
+          "groups": ["eccentric"],
+          "name": {"fr": "échantillon", "en": "sample"}
+        },
+        {
+          "id": "T",
+          "label": "T",
+          "row": 3,
+          "col": 1,
+          "groups": ["eccentric"],
+          "name": {"fr": "trame", "en": "weft"}
+        },
+        {
+          "id": "W",
+          "label": "W",
+          "row": 3,
+          "col": 2,
+          "groups": ["eccentric"],
+          "name": {"fr": "grosse note", "en": "large note"}
+        },
+        {
+          "id": "Phi",
+          "label": "Φ",
+          "row": 3,
+          "col": 3,
+          "groups": ["eccentric"],
+          "name": {"fr": "fragment", "en": "fragment"}
+        },
+        {
+          "id": "K",
+          "label": "K",
+          "row": 3,
+          "col": 4,
+          "groups": ["eccentric"],
+          "name": {"fr": "cellule", "en": "cell"}
+        },
+        {
+          "id": "P",
+          "label": "P",
+          "row": 3,
+          "col": 5,
+          "groups": ["eccentric"],
+          "name": {"fr": "ostinato", "en": "ostinato"}
+        },
+        {
+          "id": "A",
+          "label": "A",
+          "row": 3,
+          "col": 6,
+          "groups": ["eccentric"],
+          "name": {"fr": "accumulation", "en": "accumulation"}
+        }
+      ]
+    }
+  ]
+}

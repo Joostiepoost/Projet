@@ -5,13 +5,14 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 0.0,
-  "pixelsPerSecond": 2.300592056697722,
-  "playhead": 159.781932500322085,
+  "viewStart": 2.717494251673514,
+  "pixelsPerSecond": 2.896049737919904,
+  "playhead": 19.861333333333334,
   "activeLayer": "95d9a8a4b22b4c73ae7cb8117493f2bc",
   "spanStart": 284.682966530954957,
   "spanEnd": 367.580734890112069,
   "frameLength": 655.987760695793895,
+  "fwLanguage": "en",
   "children": [
     {
       "type": "SOUNDS"
@@ -49,12 +50,12 @@
               "length": 221.271302505003462,
               "opacity": 1.0,
               "notes": "",
-              "energy": "percussion-resonance",
-              "level": "metonymic",
-              "typology": "X'",
-              "energy2": "flux",
-              "roleAlong": "0.3:B:0.4;0.65:M:0;0.825:F:0.1",
-              "role": "F"
+              "fw.composition.energy": "percussion-resonance",
+              "fw.composition.energy2": "oscillation",
+              "fw.composition.level": "metonymic",
+              "fw.composition.role": "F",
+              "fw.composition.role.along": "0.3:B:0.4;0.65:M:0;0.825:F:0.1",
+              "fw.schaeffer.type": "X'"
             }
           ]
         },
