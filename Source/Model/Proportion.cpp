@@ -363,6 +363,16 @@ std::vector<SeriesPoint> seriesPoints (const juce::String& spec)
         }
     }
 
+    // Each series (but the golden section, which is symmetric) can also be
+    // measured from the end of the frame: "reversed" (1 - p), or "both".
+    auto addWithDirection = [&] (const juce::String& key, double p, const juce::String& label, const juce::String& reversedLabel)
+    {
+        const auto dir = seriesPart (spec, key + ".dir");
+        if (dir != "reversed") add (p, label);
+        if (dir == "reversed" || dir == "both") add (1.0 - p, reversedLabel);
+    };
+    auto fraction = [] (juce::int64 n, juce::int64 d) { return juce::String (n) + "/" + juce::String (d); };
+
     // Fibonacci: F(j)/F(n) for the chosen F(n) (5, 8, 13, 21, 34, 55...)
     const int fib = seriesPart (spec, "fibonacci").getIntValue();
     if (fib >= 3)
@@ -370,19 +380,27 @@ std::vector<SeriesPoint> seriesPoints (const juce::String& spec)
         juce::Array<int> f { 1, 2 };
         while (f.getLast() < fib && f.size() < 20) f.add (f[f.size() - 1] + f[f.size() - 2]);
         const int n = f.getLast();
-        for (auto v : f) if (v < n) add ((double) v / n, juce::String (v) + "/" + juce::String (n));
+        for (auto v : f) if (v < n) addWithDirection ("fibonacci", (double) v / n, fraction (v, n), fraction (n - v, n));
     }
 
-    // Harmonic: 1/2, 1/3 ... 1/N
+    // Harmonic: 1/2, 1/3 ... 1/N (reversed: 1/2, 2/3, 3/4 ...)
     const int harmonic = seriesPart (spec, "harmonic").getIntValue();
     for (int k = 2; k <= juce::jmin (harmonic, 64); ++k)
-        add (1.0 / k, "1/" + juce::String (k));
+        addWithDirection ("harmonic", 1.0 / k, fraction (1, k), fraction (k - 1, k));
 
     // Your own list of expressions
     for (auto& t : juce::StringArray::fromTokens (seriesPart (spec, "custom"), ",", ""))
     {
         const auto r = parse (t);
-        if (r.ok) add (r.value, t.trim());
+        if (! r.ok) continue;
+        const auto label = t.trim();
+        juce::String reversed;
+        const auto num = label.upToFirstOccurrenceOf ("/", false, false), den = label.fromFirstOccurrenceOf ("/", false, false);
+        if (label.containsChar ('/') && num.containsOnly ("0123456789") && den.containsOnly ("0123456789") && num.isNotEmpty() && den.isNotEmpty())
+            reversed = fraction (den.getLargeIntValue() - num.getLargeIntValue(), den.getLargeIntValue());
+        else
+            reversed = label.containsAnyOf ("+-*/: ") ? "1-(" + label + ")" : "1-" + label;
+        addWithDirection ("custom", r.value, label, reversed);
     }
 
     std::sort (out.begin(), out.end(), [] (auto& a, auto& b) { return a.position < b.position; });

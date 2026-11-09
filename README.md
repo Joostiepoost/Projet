@@ -145,8 +145,9 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 
 ### Ruler layers, marks, series and ratios (stage 3b)
 
-**Layers.** The ruler is a stack of layers: one **time** layer and any number of **proportion** layers, each with its own frame, divisions and series. Click a layer's name for its menu. **Drag a layer's lower edge** (in the name column) to make it taller or thinner.
+**Layers.** The ruler is a stack of **time** layers and **proportion** layers, each proportion layer with its own frame, divisions and series. Click a layer's name for its menu. **Drag a layer's lower edge** (in the name column) to make it taller or thinner.
 - The **ruler panel** (layer menu > *Ruler layers panel...*) lists the layers top to bottom: drag the dots to reorder, the eye shows or hides, **S M L** sizes, **x** deletes. Click a layer to see its details below: name, frame, snapping, divisions (1/2 to 1/20 and your own), series, and its marks. *Done* goes back.
+- **Time layers**: add as many as you like (*+ Time layer*, or a layer's menu). Each counts from the start of the piece, the span, or a box (*Count from*): a layer counting from a box reads the time inside it (negative before it) and follows the box. Clicking any time layer moves the playhead. The last time layer cannot be deleted.
 - The proportion layer you last clicked is the **active** one (a small square before its name): its grid shows through the tracks, and *Use as the ruler's frame* and new box proportions refer to it.
 - **Presets**: *Time and the piece (A)*, *Time only*, *Form work (B)* (golden section of the piece above the time, a span below). *Save...* keeps the present layers as your own preset, for all projects.
 
@@ -155,6 +156,7 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 - **Fibonacci**: the parts of 5, 8, 13, 21, 34 or 55 (for 13: 1/13, 2/13, 3/13, 5/13, 8/13).
 - **Harmonic**: 1/2, 1/3 ... up to 1/16.
 - **Your own**: proportions separated by commas (1/7, 3/7, golden of 1/2).
+- **Direction** (Fibonacci, harmonic, your own): *from the start*, *reversed* (measured from the end: harmonic to 1/8 reversed gives 1/2, 2/3, 3/4 ... 7/8; Fibonacci of 5 reversed gives 2/5, 3/5, 4/5), or *both*. The golden section is symmetric already.
 
 **Marks** are named proportions of a frame. They follow their frame and are drawn on every layer with that frame, and as dashed lines through the tracks.
 - **Double-click** a proportion layer for a new mark (it asks for a name, such as *a1*); **drag** a mark to move it (it snaps). Right-click a mark: rename, type its proportion, move it to the playhead, pin the selected boxes to it, delete.

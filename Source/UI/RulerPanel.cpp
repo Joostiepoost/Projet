@@ -1,6 +1,7 @@
 // RulerPanel.cpp
 
 #include "RulerPanel.h"
+#include "Dialogs.h"
 #include "Theme.h"
 #include "TimeFormat.h"
 
@@ -102,6 +103,8 @@ public:
         auto text = layer[IDs::name].toString();
         const auto frameName = project.frameName (project.layerFrame (layer));
         if (! time && ! text.equalsIgnoreCase (frameName)) text << "  (" << frameName << ")";
+        const auto from = layer.getProperty (IDs::frame, "piece").toString();
+        if (time && from != "piece" && project.frameFor (from).isValid()) text << "  (from " << project.frameName (from) << ")";
         g.drawText (text, nameArea(), juce::Justification::centredLeft, true);
 
         // S M L
@@ -119,8 +122,8 @@ public:
             g.drawText (names[i], b, juce::Justification::centred);
         }
 
-        // Delete (not the time layer)
-        if (! time)
+        // Delete (not the last time layer)
+        if (canDelete())
         {
             auto d = deleteArea().toFloat().reduced (3.0f);
             g.setColour (Theme::textMuted);
@@ -150,7 +153,7 @@ public:
         if (eyeArea().expanded (4).contains (pos)) { layer.setProperty (IDs::visible, ! (bool) layer.getProperty (IDs::visible, true), nullptr); return; }
         for (int i = 0; i < 3; ++i)
             if (sizeArea (i).contains (pos)) { layer.setProperty (IDs::height, i == 0 ? sizeSmall : (i == 1 ? sizeMedium : sizeLarge), nullptr); return; }
-        if (! Project::isTimeLayer (layer) && deleteArea().contains (pos)) { project.removeLayer (layer); return; }
+        if (canDelete() && deleteArea().contains (pos)) { project.removeLayer (layer); return; }
         if (onSelect) onSelect();
     }
 
@@ -158,6 +161,14 @@ private:
     Project& project;
     juce::ValueTree layer;
     bool selected = false, draggingHandle = false;
+
+    bool canDelete() const
+    {
+        if (! Project::isTimeLayer (layer)) return true;
+        int timeLayers = 0;
+        for (auto l : project.getRulers()) if (Project::isTimeLayer (l)) ++timeLayers;
+        return timeLayers > 1;
+    }
 
     juce::Rectangle<int> eyeArea() const    { return { 22, getHeight() / 2 - 5, 16, 10 }; }
     juce::Rectangle<int> deleteArea() const { return { getWidth() - 22, getHeight() / 2 - 8, 16, 16 }; }
@@ -227,11 +238,12 @@ public:
                 project.setActiveLayer (l);
                 owner.layerId = l[IDs::id].toString();
             };
-            bool hasTime = false;
-            for (auto l : p.getRulers()) hasTime = hasTime || Project::isTimeLayer (l);
             auto* addTime = place (std::make_unique<juce::TextButton> ("+ Time layer"), (w + 6) / 2, y - 24, (w - 6) / 2, 24);
-            addTime->setEnabled (! hasTime);
-            addTime->onClick = [this] { project.addLayer ("time", 0); };
+            addTime->onClick = [this]
+            {
+                auto l = project.addLayer ("time");
+                owner.layerId = l[IDs::id].toString();
+            };
         }
 
         // Presets
@@ -280,7 +292,26 @@ public:
 
         if (Project::isTimeLayer (layer))
         {
-            note ("Click or drag on it to move the playhead.");
+            label ("Count from");
+            auto* from = add (std::make_unique<juce::ComboBox>(), 24, 6);
+            juce::StringArray refs { "piece", "span" };
+            from->addItem ("The start of the piece (0:00)", 1);
+            from->addItem ("The start of the span", 2);
+            from->setItemEnabled (2, p.hasSpan());
+            for (auto b : p.allBoxes())
+            {
+                refs.add (b[IDs::id].toString());
+                from->addItem ("The start of the box " + b[IDs::name].toString() + "  (" + b.getParent()[IDs::name].toString() + ")", refs.size());
+            }
+            const auto cur = layer.getProperty (IDs::frame, "piece").toString();
+            from->setSelectedId (p.frameFor (cur).isValid() ? refs.indexOf (cur) + 1 : 1, juce::dontSendNotification);
+            from->onChange = [from, refs, layer] () mutable
+            {
+                const int i = from->getSelectedId() - 1;
+                if (i >= 0 && i < refs.size()) layer.setProperty (IDs::frame, refs[i], nullptr);
+            };
+            note ("Click or drag on any time layer to move the playhead. A layer counting from a box reads the time inside that box "
+                  "(negative before it), and follows the box when it moves.");
             finish();
             return;
         }
@@ -392,9 +423,39 @@ public:
                     layer.setProperty (IDs::series, Proportion::withSeriesPart (layer[IDs::series].toString(), key, v), nullptr);
                 };
             }
-            y += 30;
+            y += 28;
+
+            // Direction: from the start, from the end (reversed), or both
+            auto directionBox = [this, layer, spec] (const juce::String& seriesKey, int left, int boxTop, int boxWidth) mutable
+            {
+                const auto key = seriesKey;
+                auto* d = place (std::make_unique<juce::ComboBox>(), left, boxTop, boxWidth, 24);
+                d->addItem ("From the start", 1);
+                d->addItem ("Reversed", 2);
+                d->addItem ("Both", 3);
+                const auto cur = Proportion::seriesPart (spec, key + ".dir");
+                d->setSelectedId (cur == "reversed" ? 2 : (cur == "both" ? 3 : 1), juce::dontSendNotification);
+                d->setTooltip ("Reversed measures the series from the end of the frame (1/3 becomes 2/3)");
+                d->onChange = [d, layer, key] () mutable
+                {
+                    const int id = d->getSelectedId();
+                    layer.setProperty (IDs::series, Proportion::withSeriesPart (layer[IDs::series].toString(), key + ".dir",
+                                                                                id == 2 ? "reversed" : (id == 3 ? "both" : "")), nullptr);
+                };
+                return d;
+            };
+            {
+                auto* sym = place (std::make_unique<juce::Label> (juce::String(), "symmetric"), 0, y, cw, 24);
+                styleLabel (*sym, 10.5f);
+                directionBox ("fibonacci", cw + 4, y, cw);
+                directionBox ("harmonic", 2 * (cw + 4), y, cw);
+                y += 30;
+            }
+
             label ("Your own series: proportions separated by commas (1/7, 3/7, 0.3)");
-            auto* custom = add (std::make_unique<juce::TextEditor>(), 24, 6);
+            auto* custom = place (std::make_unique<juce::TextEditor>(), 0, y, w - cw - 4, 24);
+            directionBox ("custom", w - cw, y, cw);
+            y += 30;
             custom->setText (Proportion::seriesPart (spec, "custom"), false);
             auto commit = [layer, custom] () mutable
             {
@@ -580,6 +641,7 @@ private:
         win->addButton ("Save", 1, juce::KeyPress (juce::KeyPress::returnKey));
         win->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
         juce::Component::SafePointer<Content> safe (this);
+        Dialogs::focusField (win, "name");
         win->enterModalState (true, juce::ModalCallbackFunction::create ([safe, win] (int result)
         {
             if (safe == nullptr || result != 1) return;

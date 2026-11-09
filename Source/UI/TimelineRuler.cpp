@@ -3,6 +3,7 @@
 // frame, divisions, series and marks.
 
 #include "TimelineView.h"
+#include "Dialogs.h"
 #include "Theme.h"
 #include "TimeFormat.h"
 
@@ -153,9 +154,17 @@ void TimelineView::paintTimeLayer (juce::Graphics& g, const LayerRow& row)
     g.setColour (Theme::line);
     g.fillRect (0, y0 + h - 1, getWidth(), 1);
 
+    // Counted from the start of the piece (0:00), a span or a box.
+    const auto ref = row.layer.getProperty (IDs::frame, "piece").toString();
+    const auto from = project.frameFor (ref);
+    const bool local = ref != "piece" && from.isValid();
+    const double origin = local ? from.start : 0.0;
+
     g.setColour (Theme::textMuted);
-    g.setFont (Theme::font (11.0f));
-    g.drawText (row.layer[IDs::name].toString(), 12, y0, headerWidth - 16, h, juce::Justification::centredLeft);
+    g.setFont (Theme::font (h < 16 ? 9.5f : 11.0f));
+    juce::String label = row.layer[IDs::name].toString();
+    if (local) label << " from " << project.frameName (ref);
+    g.drawText (label + juce::String::fromUTF8 (" \xe2\x96\xbe"), 12, y0, headerWidth - 16, h, juce::Justification::centredLeft, true);
 
     // A step that leaves at least 70 px between labels.
     static const double steps[] = { 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200 };
@@ -168,7 +177,13 @@ void TimelineView::paintTimeLayer (juce::Graphics& g, const LayerRow& row)
 
     const bool roomForLabels = h >= 20;
     const double end = xToTime ((float) getWidth());
-    const double first = std::floor (viewStart / step) * step;
+    const double first = origin + std::floor ((viewStart - origin) / step) * step;
+    if (local)
+    {
+        // Where its count starts
+        g.setColour (Theme::accent.withAlpha (0.6f));
+        g.fillRect (timeToX (origin) - 1.0f, (float) y0, 2.0f, (float) h - 1.0f);
+    }
     for (double t = first; t <= end; t += step)
     {
         const float x = timeToX (t);
@@ -179,7 +194,8 @@ void TimelineView::paintTimeLayer (juce::Graphics& g, const LayerRow& row)
         {
             g.setColour (Theme::text);
             g.setFont (Theme::mono (11.0f));
-            g.drawText (TimeFormat::format (t, decimals), (int) x + 4, y0 + 2, 80, juce::jmin (16, h - 6), juce::Justification::centredLeft);
+            const double shown = std::abs (t - origin) < step * 1.0e-6 ? 0.0 : t - origin;
+            g.drawText (TimeFormat::format (shown, decimals), (int) x + 4, y0 + 2, 80, juce::jmin (16, h - 6), juce::Justification::centredLeft);
         }
 
         // Minor ticks
@@ -532,12 +548,29 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
     size.addItem (3, "Large", true, sizeName (h) == "L");
 
     juce::PopupMenu m;
+    int timeLayers = 0;
+    for (auto l : project.getRulers()) if (Project::isTimeLayer (l)) ++timeLayers;
+
     if (time)
     {
-        m.addSectionHeader ("Time layer");
+        const auto from = layer.getProperty (IDs::frame, "piece").toString();
+        juce::PopupMenu count;
+        count.addItem (30, "The start of the piece (0:00)", true, from == "piece" || ! project.frameFor (from).isValid());
+        count.addItem (31, "The start of the span", project.hasSpan(), from == "span");
+        if (selected.isValid())
+            count.addItem (32, "The start of the selected box: " + selected[IDs::name].toString(), true, from == selected[IDs::id].toString());
+        else if (from != "piece" && from != "span" && project.frameFor (from).isValid())
+            count.addItem (32, "The start of the box " + project.frameName (from), true, true);
+        else
+            count.addItem (32, "The start of a box (select one first)", false);
+
+        m.addSectionHeader (layer[IDs::name].toString());
+        m.addSubMenu ("Count from", count);
         m.addSubMenu ("Size", size);
         m.addItem (4, "Hide");
         m.addItem (5, "Add a proportion layer below");
+        m.addItem (9, "Add a time layer below");
+        m.addItem (8, "Delete this layer", timeLayers > 1);
         m.addSeparator();
         m.addItem (6, "Ruler layers panel...");
     }
@@ -584,12 +617,23 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         seriesMenu.addSectionHeader ("Golden section");
         seriesMenu.addItem (500, "Off", true, golden == 0);
         for (int lv = 1; lv <= 3; ++lv) seriesMenu.addItem (500 + lv, juce::String (lv) + (lv == 1 ? " level (0.382, 0.618)" : " levels"), true, golden == lv);
+        auto direction = [&] (const juce::String& key, int base)
+        {
+            const auto dir = Proportion::seriesPart (series, key + ".dir");
+            juce::PopupMenu d;
+            d.addItem (base, "From the start", true, dir != "reversed" && dir != "both");
+            d.addItem (base + 1, "From the end (reversed)", true, dir == "reversed");
+            d.addItem (base + 2, "Both", true, dir == "both");
+            return d;
+        };
         seriesMenu.addSectionHeader ("Fibonacci");
         seriesMenu.addItem (510, "Off", true, fib == 0);
         for (int n : { 5, 8, 13, 21, 34, 55 }) seriesMenu.addItem (510 + n, "Parts of " + juce::String (n), true, fib == n);
+        seriesMenu.addSubMenu ("Direction", direction ("fibonacci", 700), fib > 0);
         seriesMenu.addSectionHeader ("Harmonic (1/2, 1/3 ...)");
         seriesMenu.addItem (600, "Off", true, harmonic == 0);
         for (int n : { 4, 6, 8, 12, 16 }) seriesMenu.addItem (600 + n, "Up to 1/" + juce::String (n), true, harmonic == n);
+        seriesMenu.addSubMenu ("Direction", direction ("harmonic", 710), harmonic > 0);
         seriesMenu.addSeparator();
         seriesMenu.addItem (7, "Your own series: in the ruler panel...");
 
@@ -610,6 +654,7 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         m.addSubMenu ("Size", size);
         m.addItem (4, "Hide");
         m.addItem (5, "Add a proportion layer below");
+        m.addItem (9, "Add a time layer below");
         m.addItem (8, "Delete this layer");
         m.addItem (6, "Ruler layers panel...");
     }
@@ -635,6 +680,10 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         }
         else if (r == 6 || r == 7) { if (safe->onShowRulerPanel) safe->onShowRulerPanel (layer[IDs::id].toString()); }
         else if (r == 8) p.removeLayer (layer);
+        else if (r == 9) p.addLayer ("time", p.getRulers().indexOf (layer) + 1);
+        else if (r == 30) layer.setProperty (IDs::frame, "piece", nullptr);
+        else if (r == 31) layer.setProperty (IDs::frame, "span", nullptr);
+        else if (r == 32 && selected.isValid()) layer.setProperty (IDs::frame, selected[IDs::id].toString(), nullptr);
         else if (r == 10) p.setLayerFrame (layer, "piece");
         else if (r == 11) p.setLayerFrame (layer, "span");
         else if (r == 12 && selected.isValid()) p.setLayerFrame (layer, selected[IDs::id].toString());
@@ -675,6 +724,13 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         else if (r >= 500 && r < 510) setSeries ("golden", r - 500);
         else if (r >= 510 && r < 600) setSeries ("fibonacci", r - 510);
         else if (r >= 600 && r < 700) setSeries ("harmonic", r - 600);
+        else if (r >= 700 && r < 720)
+        {
+            const juce::String key = r < 710 ? "fibonacci.dir" : "harmonic.dir";
+            const int choice = (r - 700) % 10;
+            layer.setProperty (IDs::series, Proportion::withSeriesPart (layer[IDs::series].toString(), key,
+                                                                        choice == 1 ? "reversed" : (choice == 2 ? "both" : "")), nullptr);
+        }
         safe->repaint();
     });
 }
@@ -741,6 +797,7 @@ void TimelineView::askPieceLength()
     w->addButton ("Set", 1, juce::KeyPress (juce::KeyPress::returnKey));
     w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     juce::Component::SafePointer<TimelineView> safe (this);
+    Dialogs::focusField (w, "length");
     w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w] (int result)
     {
         if (safe == nullptr || result != 1) return;
@@ -765,6 +822,7 @@ void TimelineView::askCustomDenominator (juce::ValueTree layer)
     w->addButton ("Add", 1, juce::KeyPress (juce::KeyPress::returnKey));
     w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     juce::Component::SafePointer<TimelineView> safe (this);
+    Dialogs::focusField (w, "d");
     w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w, layer] (int result)
     {
         if (safe == nullptr || result != 1) return;
@@ -792,6 +850,7 @@ void TimelineView::askMarkName (juce::ValueTree mark)
     w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     if (auto* ed = w->getTextEditor ("name")) ed->selectAll();
     juce::Component::SafePointer<TimelineView> safe (this);
+    Dialogs::focusField (w, "name");
     w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w, mark] (int result) mutable
     {
         if (safe == nullptr || result != 1) return;
@@ -813,6 +872,7 @@ void TimelineView::askMarkExpression (juce::ValueTree mark)
     w->addButton ("Set", 1, juce::KeyPress (juce::KeyPress::returnKey));
     w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     juce::Component::SafePointer<TimelineView> safe (this);
+    Dialogs::focusField (w, "expr");
     w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w, mark] (int result) mutable
     {
         if (safe == nullptr || result != 1) return;
@@ -838,6 +898,7 @@ void TimelineView::askRatioSplit (const juce::String& frameRef, juce::ValueTree 
     w->addButton (box ? "Marks in the box" : "Make marks", 1, juce::KeyPress (juce::KeyPress::returnKey));
     w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     juce::Component::SafePointer<TimelineView> safe (this);
+    Dialogs::focusField (w, "parts");
     w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w, frameRef, boxToCut] (int result) mutable
     {
         if (safe == nullptr || result == 0) return;

@@ -661,6 +661,16 @@ void testMarks()
     check (Proportion::seriesPoints ("harmonic:4").size() == 3, "harmonic to 1/4");
     check (Proportion::seriesPoints ("custom:1/7, golden").size() == 2, "own series");
     check (Proportion::withSeriesPart ("golden:2;harmonic:8", "golden", "") == "harmonic:8", "remove a series");
+    {
+        auto rev = Proportion::seriesPoints ("harmonic:8;harmonic.dir:reversed");
+        check (rev.size() == 7 && rev.back().label == "7/8" && std::abs (rev.back().position - 0.875) < 1.0e-12, "harmonic to 1/8 reversed ends at 7/8");
+        auto fibRev = Proportion::seriesPoints ("fibonacci:5;fibonacci.dir:reversed");
+        check (fibRev.size() == 3 && fibRev[0].label == "2/5" && fibRev[2].label == "4/5", "fibonacci of 5 reversed: 2/5 3/5 4/5");
+        auto both = Proportion::seriesPoints ("fibonacci:5;fibonacci.dir:both");
+        check (both.size() == 4, "fibonacci of 5 both: 1/5 2/5 3/5 4/5 (3/5 once), got " + juce::String ((int) both.size()));
+        auto own = Proportion::seriesPoints ("custom:1/7, golden;custom.dir:reversed");
+        check (own.size() == 2 && own[1].label == "6/7", "own series reversed");
+    }
 
     // Marks follow their frame; boxes name them
     Project p;
