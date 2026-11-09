@@ -3,7 +3,8 @@
 // One box selected: name, kind (sound / text; later kinds listed but not yet
 // available), for sound boxes the sound, gain, fades and opacity, the times,
 // and the box's notes (kept whatever the kind). Several boxes: how many.
-// Nothing selected: the project.
+// Nothing selected: the project. With boxes selected, a Framework tab shows
+// their framework fields (stage 4a).
 
 #pragma once
 
@@ -13,11 +14,12 @@
 #include "../Engine/SoundData.h"
 #include "NotesEditor.h"
 #include "RulerPanel.h"
+#include "FrameworkPanel.h"
 
 class Inspector : public juce::Component
 {
 public:
-    Inspector (Project&, projet::SoundPool&, const ProjectFolder&);
+    Inspector (Project&, projet::SoundPool&, const ProjectFolder&, const Framework&);
 
     void setSelection (const juce::Array<juce::ValueTree>& boxes);
     /** Shows the ruler layers (stage 3b), with this layer's details ("" = the active one). */
@@ -56,6 +58,12 @@ private:
     Mode mode = Mode::project;
     RulerPanel rulerPanel { project };
     bool updating = false;
+    // Box / Framework tabs (stage 4a)
+    const Framework& framework;
+    FrameworkPanel frameworkPanel { project, framework };
+    juce::TextButton boxTab { "Box" }, frameworkTab { "Framework" };
+    bool showFramework = false;
+    bool isBoxMode() const                          { return mode == Mode::sound || mode == Mode::text || mode == Mode::several; }
 
     juce::Label title;
     juce::Label nameLabel { {}, "Name" }, kindLabel { {}, "Kind" }, soundLabel { {}, "Sound" };

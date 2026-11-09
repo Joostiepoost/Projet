@@ -43,7 +43,10 @@ Other options:
 | 2 | Editing: text boxes, rich-text notes editor, type switching, multi-selection, split/copy/paste, undo everywhere | done |
 | 3a | Proportions and folders: proportion frames, typed proportions, divisions that follow the zoom, snapping with a readout, track folders | done |
 | 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci, harmonic, your own), ratio checking | built, to test |
-| 4 | Framework, layers 1–3: energies and semiotic levels, shapes and fills, colour modes, track template, overview lanes | |
+| 4a | Framework file and box fields: energies, semiotic levels, roles, Schaeffer's type; changes along a box; colour modes, highlight, folder levels | built, to test |
+| 4b | Energy glyphs, profiles with Schaeffer's names, semiotic fills, figure/ground weight | |
+| 4c | Junction and demarcation signs, mixing relations on overlaps | |
+| 4d | Semiotic track template, overview lanes, writing types and nodes, accents and goals | |
 | 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
 | 6 | Magnified inline expansion | |
 | 7 | Takes | |
@@ -53,7 +56,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using Projet (stages 1–3b)
+## Using Projet (stages 1–4a)
 
 ### The project folder
 
@@ -169,6 +172,33 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 
 **Ratio checking**: select two or more boxes; the panel shows them in time order with their **lengths as a ratio** (*3 : 8 : 5*, or *≈ 8 : 13* when only close), what fraction one is of the other, the gaps or overlaps between them, and where they sit in the active layer's frame.
 
+### The framework (stage 4a)
+
+Boxes can now carry the vocabulary of the framework: **energy** (Vande Gorne's energy models, grouped in families), a **second energy** (drawn lighter), a **semiotic level** (i-son, di-son, métonymique, mé-son), a **role** (F / M / B: foreground or figure, middle ground, background or ground) and a **type** from Schaeffer's typology (the 29 types of the chart).
+
+**The framework file.** All names, colours and lists come from a JSON file, so you can rename, translate or extend them without a new build.
+- Each project has its own copy, `framework.json` in the project folder. New projects get a copy of the app's file (`~/Library/Application Support/Projet/framework.json`, made the first time Projet runs).
+- In the file: `"language": "fr"` or `"en"`; `"roleNames": "both"`, `"thoresen"` (premier plan / plan moyen / arrière-plan) or `"vandegorne"` (figure / entre les deux / fond). The letters F, M, B stay the same; a box without a role counts as M.
+- **Framework** menu: *Show the project's framework file* (in Finder), *Reload the framework file* (after editing it), *Replace it with the app's framework file...*, *Use this project's framework for new projects...*, *Show the app's framework file*.
+- Boxes store ids, not names. If you remove something from the file, boxes that use it show `id?` until you put it back or choose something else. A broken file is refused with a message, and Projet uses the built-in framework until it is fixed and reloaded.
+
+**The Framework tab.** Select boxes and click **Framework** at the top of the panel on the right (**Box** goes back).
+- **Energy** and **Second energy**: menus grouped by family; the family pills and the variation factors show below.
+- **Semiotic level** and **Role**: click a button; click the box's own level again to remove it (it then uses the folder's level, if any).
+- **Type**: opens Schaeffer's chart (masses down, sustainments across, the balanced zone in the middle). Click a cell; **x** removes the type.
+- With **several boxes** selected, a choice is given to all of them; *(different ...)* shows when they differ.
+- Everything is also in the **right-click menu** of a box: *Energy*, *Second energy*, *Semiotic level*, *Role*, *Type (Schaeffer)*.
+
+**Changes along a box** (one box selected): under the level and the role, **+ Change along the box** adds a change: *at* (% of the box), what it *becomes*, and *over* (% of the box; 0 = sudden, more = gradual). The strip above shows the result; **x** removes a change. On the timeline the level strip and the role weight change at the same places. Splitting a box keeps the changes in the right part.
+
+**Folder levels.** Right-click a folder > **Semiotic level for its boxes**: every box inside without its own level takes it (drawn paler; the folder header shows the level as a pill). A box's own level always wins; a folder inside a folder wins over the outer one.
+
+**On the timeline**: a thin strip along the bottom of each box in its level colour, the role as a letter badge (F, M, B), and the type label (K, N, Y′ ...).
+
+**Colour modes** (*View > Colour boxes by*): *Track colours* (as before), *Energy family*, *Semiotic level*, or *Type (balanced, redundant, eccentric)*. Boxes without a value stay grey. The mode is kept with the project but does not count as a change.
+
+**Highlight** (*View > Highlight*): tick families, energies, levels, roles or types; the other boxes fade. Within one kind any ticked value counts (energy A *or* B); across kinds all must match (a family *and* a level). *Show all (clear)* ends it.
+
 ### Folders (stage 3a)
 
 - Right-click a track > **Put in a new folder**. Folders can hold folders.
@@ -182,6 +212,7 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 
 - **Several boxes selected**: how many, and what you can do with them.
 - **A text box selected**: name, kind, opacity, times, notes.
+- **Box / Framework** (top of the panel, when boxes are selected): the box's own settings, or its framework fields (see above).
 - **A sound box selected**: name, kind, sound, gain (−60 to +12 dB; double-click for 0), fade in and out with their shapes (linear, equal power, S-curve), **opacity** (visual only: overlapping boxes show through), start, end, length and offset into the sound, and the sound (copy, original, rates).
 - **Nothing selected**: the project: sample rate, number of tracks, boxes and sounds, size of the copies, length, folder; the format for new imports and the Vorbis quality.
 
@@ -191,6 +222,14 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 - Overlapping boxes simply add up; their fades make the crossfade. For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+
+**Worth testing in stage 4a**:
+- Give boxes energies, levels, roles and types, one at a time and several at once; use the Framework tab and the right-click menu; undo it all.
+- Add changes along a box (sudden and gradual), split the box across a change, undo.
+- Give a folder a level; give one box inside its own level; nest folders with different levels.
+- Switch the colour modes; highlight combinations (two energies; a family and a level); clear.
+- Open the project's `framework.json`, rename something or set `"language": "en"` and `"roleNames": "thoresen"`, then *Reload*. Remove an energy that a box uses and reload (the box shows `id?`). Break the file (delete a bracket) and reload.
+- Save, quit and reopen; open a project from before stage 4a (it gets a framework file).
 
 **Worth testing in stage 3b**:
 - Add, reorder, hide and size layers (in the panel and by dragging a layer's edge); try the presets; save your own.

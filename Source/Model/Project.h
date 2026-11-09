@@ -9,6 +9,7 @@
 #include <JuceHeader.h>
 #include "Identifiers.h"
 #include "Proportion.h"
+#include "Framework.h"
 
 enum class FadeShape { linear = 0, equalPower, sCurve };
 constexpr int numFadeShapes = 3;
@@ -228,6 +229,17 @@ public:
     /** Brings every locked box in line with its frame (not undoable: the
         times follow from the proportions). Runs after every change. */
     void applyProportions();
+
+    //== Framework fields (stage 4a) ==========================================
+    /** The box's semiotic level: its own, or the nearest folder's (then
+        `inherited` is set). "" if neither has one. */
+    juce::String effectiveLevel (const juce::ValueTree& box, bool* inherited = nullptr);
+    /** The level of the nearest folder around the track that has one. */
+    juce::String folderLevel (const juce::ValueTree& track);
+    /** Changes of a field along a box (IDs::levelAlong or IDs::roleAlong). */
+    static juce::Array<Along::Change> changesAlong (const juce::ValueTree& box, const juce::Identifier& alongField)
+                                                    { return Along::parse (box[alongField].toString()); }
+    void setChangesAlong (juce::ValueTree box, const juce::Identifier& alongField, const juce::Array<Along::Change>&);
 
     /** Called after any change to the model (also undo/redo). */
     std::function<void()> onChanged;

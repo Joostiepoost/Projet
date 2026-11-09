@@ -14,7 +14,9 @@
 //      frames, undo, and track folders.
 //  10. Ruler layers and marks (stage 3b): marks following frames, names in
 //      expressions, pins, ratio splits, series, ratios, presets, migration.
-// --model runs only 9 and 10.
+//  11. Framework (stage 4a): the default file, names in both languages, bad
+//      files refused, changes along a box, splitting them, folder levels.
+// --model runs only 9, 10 and 11.
 
 #include <JuceHeader.h>
 #include "../Source/Engine/Importer.h"
@@ -23,6 +25,7 @@
 #include "../Source/Engine/PlaybackEngine.h"
 #include "../Source/Model/Project.h"
 #include "../Source/Model/Proportion.h"
+#include "../Source/Model/Framework.h"
 
 #include <random>
 #include <thread>
@@ -738,6 +741,92 @@ void testMarks()
     line();
 }
 
+
+void testFramework()
+{
+    line ("## 11. Framework");
+    line();
+    juce::String error;
+
+    Framework fw;
+    check (fw.getFamilies().size() == 5, "5 families");
+    check (fw.getEnergies().size() == 10, "10 energies");
+    check (fw.getLevels().size() == 4 && fw.getLevels()[0].id == "ison" && fw.getLevels()[3].id == "meson", "4 levels, concrete to abstract");
+    check (fw.getRoles().size() == 3 && fw.getRoles()[0].id == "F" && fw.defaultRole() == "M", "roles F M B, M by default");
+    check (fw.getTypes().size() == 29, "29 types, got " + juce::String (fw.getTypes().size()));
+    check (fw.getMasses().size() == 4 && fw.getSustainments().size() == 7, "typology 4 x 7");
+    check (fw.getOperations()["primitives"].size() == 10 && fw.getOperations()["macros"].size() == 16, "10 primitives, 16 macros");
+    check (fw.getLanguage() == "fr" && fw.energyName ("rebond") == "Rebond" && fw.energyName ("pression-deformation") == juce::String::fromUTF8 ("Pression-d\xc3\xa9" "formation"), "French by default, accents kept");
+    check (fw.energyName ("nothing") == "nothing?" && fw.energyName ({}).isEmpty(), "unknown ids shown as unknown");
+    check (fw.typeLabel ("X''") == juce::String::fromUTF8 ("X\xe2\x80\xb3"), "X'' shown as X double prime");
+    check (fw.energyColour ("rebond") == 0xffb9707eu, "rebond takes the gestural colour");
+    check (fw.findType ("Tx") != nullptr && fw.findType ("Tx")->zone == "redundant", "Tx is redundant");
+    check (fw.figureTraits (true).size() == 11 && fw.figureTraits (false).size() == 11, "11 figure / ground contrasts");
+
+    // English, and role names
+    auto json = Framework::defaultJson().replace ("\"language\": \"fr\"", "\"language\": \"en\"").replace ("\"roleNames\": \"both\"", "\"roleNames\": \"thoresen\"");
+    check (fw.load (json, error), "English file loads: " + error);
+    check (fw.energyName ("rebond") == "Bounce" && fw.roleName ("F") == "F foreground" && fw.roleName ("B", true) == "B", "English names, Thoresen roles: " + fw.roleName ("F"));
+
+    // A broken file changes nothing
+    check (! fw.load ("{ not json", error) && error.isNotEmpty(), "broken file refused");
+    check (fw.energyName ("rebond") == "Bounce", "and nothing changed");
+    check (! fw.load ("{ \"framework\": \"Projet\" }", error), "empty framework refused");
+
+    // Changes along a box
+    auto changes = Along::parse ("0.9:ison:0;0.7:meson:0.08");
+    check (changes.size() == 2 && changes[0].at == 0.7 && changes[0].to == "meson" && std::abs (changes[0].width - 0.08) < 1.0e-12, "parse, sorted");
+    check (Along::format (changes) == "0.7:meson:0.08;0.9:ison:0", "format: " + Along::format (changes));
+    check (Along::valueAt ("dison", changes, 0.5) == "dison" && Along::valueAt ("dison", changes, 0.8) == "meson"
+           && Along::valueAt ("dison", changes, 0.95) == "ison", "value along the box");
+    juce::String b;
+    juce::Array<Along::Change> part;
+    Along::section ("dison", changes, 0.5, 1.0, b, part);
+    check (b == "dison" && part.size() == 2 && std::abs (part[0].at - 0.4) < 1.0e-12 && std::abs (part[0].width - 0.16) < 1.0e-12, "right half rescaled");
+    Along::section ("dison", changes, 0.8, 1.0, b, part);
+    check (b == "meson" && part.size() == 1 && std::abs (part[0].at - 0.5) < 1.0e-12, "a section starting after a change takes it as its base");
+
+    // Splitting a box keeps each part's changes; folders give their level
+    Project p;
+    p.resetToDefault ("t");
+    auto track = p.getTrack (0);
+    auto box = p.addTextBox (track, 0.0, 10.0, "b");
+    box.setProperty (IDs::level, "dison", nullptr);
+    box.setProperty (IDs::levelAlong, "0.7:meson:0;0.9:ison:0", nullptr);
+    box.setProperty (IDs::roleAlong, "0.2:F:0", nullptr);
+    p.getUndoManager().beginNewTransaction ("Split");
+    auto right = p.splitBox (box, 8.0);
+    check (right.isValid() && right[IDs::level].toString() == "meson" && right[IDs::levelAlong].toString() == "0.5:ison:0",
+           "right part: base meson, change at half: " + right[IDs::level].toString() + " " + right[IDs::levelAlong].toString());
+    check (box[IDs::levelAlong].toString() == "0.875:meson:0" && box[IDs::level].toString() == "dison", "left part: " + box[IDs::levelAlong].toString());
+    check (right[IDs::role].toString() == "F" && ! right.hasProperty (IDs::roleAlong) && box[IDs::roleAlong].toString() == "0.25:F:0", "roles split too");
+    p.getUndoManager().undo();
+    check (box[IDs::levelAlong].toString() == "0.7:meson:0;0.9:ison:0" && Project::boxLength (box) == 10.0, "undo restores the changes");
+
+    auto folder = p.putInNewFolder (track);
+    auto plain = p.addTextBox (track, 20.0, 2.0, "plain");
+    bool inherited = false;
+    check (p.effectiveLevel (plain, &inherited).isEmpty() && ! inherited, "no level anywhere");
+    folder.setProperty (IDs::level, "ison", nullptr);
+    check (p.effectiveLevel (plain, &inherited) == "ison" && inherited, "the folder gives its level");
+    check (p.effectiveLevel (box, &inherited) == "dison" && ! inherited, "a box's own level overrides it");
+    auto outer = p.putInNewFolder (folder);
+    outer.setProperty (IDs::level, "meson", nullptr);
+    check (p.effectiveLevel (plain) == "ison", "the nearest folder wins");
+    folder.removeProperty (IDs::level, nullptr);
+    check (p.effectiveLevel (plain, &inherited) == "meson" && inherited, "else the outer folder's");
+
+    // Saved and read back (the type is stored as "typology": "type" names the node in the file)
+    box.setProperty (IDs::typology, "X''", nullptr);
+    juce::String err;
+    Project q;
+    check (q.fromJson (p.toJson(), err) && q.findBox (box[IDs::id].toString())[IDs::levelAlong].toString() == box[IDs::levelAlong].toString(),
+           "changes along a box survive saving");
+    check (q.findBox (box[IDs::id].toString())[IDs::typology].toString() == "X''" && q.findBox (box[IDs::id].toString()).getType() == IDs::BOX,
+           "the type survives saving, and the box stays a box");
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -749,7 +838,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -776,6 +865,7 @@ int main (int argc, char** argv)
     std::cout << "Polyphase..." << std::endl;        testPolyphase();
     std::cout << "Proportions..." << std::endl;      testProportions();
     std::cout << "Marks..." << std::endl;            testMarks();
+    std::cout << "Framework..." << std::endl;        testFramework();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

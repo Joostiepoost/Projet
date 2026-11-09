@@ -184,6 +184,7 @@ bool MainComponent::openProject (const juce::File& file)
 
 void MainComponent::afterProjectLoaded()
 {
+    loadFramework (false);
     startPanel.setVisible (false);
     pool.clear();
     timeline.selectBox ({});
@@ -814,7 +815,7 @@ bool MainComponent::perform (const InvocationInfo& info)
 
 juce::StringArray MainComponent::getMenuBarNames()
 {
-    return { "File", "Edit", "View", "Transport", "Track", "Audio", "Help" };
+    return { "File", "Edit", "View", "Transport", "Track", "Framework", "Audio", "Help" };
 }
 
 juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::String&)
@@ -838,11 +839,63 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             break;
         }
         case 1: add ({ cmdUndo, cmdRedo, 0, cmdCut, cmdCopy, cmdPaste, cmdDuplicate, cmdDelete, 0, cmdSplit, cmdNewTextBox, cmdNotesWindow, 0, cmdSelectAll, cmdDeselect }); break;
-        case 2: add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit }); break;
+        case 2:
+        {
+            add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit });
+            m.addSeparator();
+            // Colour modes (stage 4a): ids 6000-6003
+            const auto mode = project.getState().getProperty (IDs::colourMode, "own").toString();
+            juce::PopupMenu colours;
+            colours.addItem (6000, "Track colours", hasProject(), mode == "own");
+            colours.addItem (6001, "Energy family", hasProject(), mode == "family");
+            colours.addItem (6002, "Semiotic level", hasProject(), mode == "level");
+            colours.addItem (6003, "Type (balanced, redundant, eccentric)", hasProject(), mode == "type");
+            m.addSubMenu ("Colour boxes by", colours, hasProject());
+
+            // Highlight: families 6110+, energies 6130+, levels 6150+, roles 6170+, types 6300+
+            const auto& h = timeline.getHighlight();
+            juce::PopupMenu hl;
+            hl.addItem (6100, "Show all (clear)", h.isActive());
+            hl.addSectionHeader ("Families");
+            for (int i = 0; i < framework.getFamilies().size(); ++i)
+                hl.addItem (6110 + i, framework.text (framework.getFamilies()[i].name), true, h.families.contains (framework.getFamilies()[i].id));
+            juce::PopupMenu energies, types;
+            for (int i = 0; i < framework.getEnergies().size(); ++i)
+                energies.addItem (6130 + i, framework.text (framework.getEnergies()[i].name), true, h.energies.contains (framework.getEnergies()[i].id));
+            hl.addSubMenu ("Energies", energies, true, juce::Image(), ! h.energies.isEmpty());
+            hl.addSectionHeader ("Semiotic levels");
+            for (int i = 0; i < framework.getLevels().size(); ++i)
+                hl.addItem (6150 + i, framework.text (framework.getLevels()[i].name), true, h.levels.contains (framework.getLevels()[i].id));
+            hl.addSectionHeader ("Roles");
+            for (int i = 0; i < framework.getRoles().size(); ++i)
+                hl.addItem (6170 + i, framework.roleName (framework.getRoles()[i].id), true, h.roles.contains (framework.getRoles()[i].id));
+            for (auto& zone : framework.getZones())
+            {
+                types.addSectionHeader (framework.text (zone.name));
+                for (int i = 0; i < framework.getTypes().size(); ++i)
+                    if (framework.getTypes()[i].zone == zone.id)
+                        types.addItem (6300 + i, framework.getTypes()[i].label + "   " + framework.text (framework.getTypes()[i].name), true,
+                                       h.types.contains (framework.getTypes()[i].id));
+            }
+            hl.addSubMenu ("Types", types, true, juce::Image(), ! h.types.isEmpty());
+            m.addSubMenu ("Highlight", hl, hasProject(), juce::Image(), h.isActive());
+            break;
+        }
         case 3: add ({ cmdPlayStop, cmdToStart }); break;
         case 4: add ({ cmdAddTrack }); break;
-        case 5: add ({ cmdAudioSettings }); break;
-        case 6: add ({ cmdShortcuts }); break;
+        case 5:
+        {
+            // The framework file (stage 4a): ids 6200+
+            m.addItem (6200, "Show the project's framework file", hasProject());
+            m.addItem (6201, "Reload the framework file", hasProject());
+            m.addSeparator();
+            m.addItem (6202, "Replace it with the app's framework file...", hasProject());
+            m.addItem (6203, "Use this project's framework for new projects...", hasProject());
+            m.addItem (6204, "Show the app's framework file");
+            break;
+        }
+        case 6: add ({ cmdAudioSettings }); break;
+        case 7: add ({ cmdShortcuts }); break;
         default: break;
     }
     return m;
@@ -850,11 +903,107 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
 
 void MainComponent::menuItemSelected (int id, int)
 {
+    if (id >= 6000 && id <= 6003)
+    {
+        static const char* modes[] = { "own", "family", "level", "type" };
+        {
+            const juce::ScopedValueSetter<bool> svs (suppressDirty, true);   // a view setting
+            project.getState().setProperty (IDs::colourMode, modes[id - 6000], nullptr);
+        }
+        timeline.repaint();
+        return;
+    }
+    if (id == 6100 || (id >= 6110 && id < 6200) || (id >= 6300 && id < 6400))
+    {
+        if (id == 6100) timeline.clearHighlight();
+        else if (id < 6130) timeline.toggleHighlight ("family", framework.getFamilies()[id - 6110].id);
+        else if (id < 6150) timeline.toggleHighlight ("energy", framework.getEnergies()[id - 6130].id);
+        else if (id < 6170) timeline.toggleHighlight ("level", framework.getLevels()[id - 6150].id);
+        else if (id < 6200) timeline.toggleHighlight ("role", framework.getRoles()[id - 6170].id);
+        else timeline.toggleHighlight ("type", framework.getTypes()[id - 6300].id);
+        const auto& h = timeline.getHighlight();
+        transport.setStatus (h.isActive() ? "Highlighting " + h.describe (framework) + " (View > Highlight > Show all to clear)" : juce::String());
+        return;
+    }
+    if (id >= 6200 && id < 6210) { frameworkFileCommand (id - 6200); return; }
     if (id >= 5000 && id < 5100)
     {
         const auto file = recentProjects.getFile (id - 5000);
         juce::Component::SafePointer<MainComponent> safeThis (this);
         askToSaveThen ([safeThis, file] { if (safeThis != nullptr) safeThis->openProject (file); });
+    }
+}
+
+//== Framework file (stage 4a) =================================================
+
+void MainComponent::loadFramework (bool announce)
+{
+    Framework::ensureAppFile();
+    if (! folder.isValid()) { framework = Framework(); return; }
+
+    const auto made = Framework::ensureProjectFile (folder.getFolder());
+    const auto file = Framework::projectFile (folder.getFolder());
+    juce::String error;
+    if (made.failed() || ! file.existsAsFile())
+    {
+        framework = Framework();
+        transport.setStatus ("No framework file in the project (" + made.getErrorMessage() + "); using the built-in one.", true);
+    }
+    else if (! framework.load (file.loadFileAsString(), error))
+    {
+        framework = Framework();
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "The framework file could not be read",
+                                                error + "\n\nProjet uses the built-in framework until the file is fixed "
+                                                "(then Framework > Reload the framework file).\n\n" + file.getFullPathName());
+    }
+    else if (announce)
+        transport.setStatus ("Framework reloaded: " + juce::String (framework.getEnergies().size()) + " energies, "
+                             + juce::String (framework.getLevels().size()) + " levels, " + juce::String (framework.getTypes().size()) + " types");
+
+    timeline.repaint();
+    inspector.setSelection (timeline.getSelectedBoxes());
+}
+
+void MainComponent::frameworkFileCommand (int which)
+{
+    juce::Component::SafePointer<MainComponent> safe (this);
+    switch (which)
+    {
+        case 0:
+            Framework::ensureProjectFile (folder.getFolder());
+            Framework::projectFile (folder.getFolder()).revealToUser();
+            break;
+        case 1:
+            loadFramework (true);
+            break;
+        case 2:
+            juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Replace the project's framework?",
+                "The project's framework file is replaced by the app's (" + Framework::appFile().getFullPathName()
+                + "). Boxes keep their energies, levels and types: ids the new file does not know are shown with a question mark.",
+                "Replace", "Cancel", this, juce::ModalCallbackFunction::create ([safe] (int r)
+            {
+                if (safe == nullptr || r != 1) return;
+                const auto result = Framework::copyAppToProject (safe->folder.getFolder());
+                if (result.failed()) safe->transport.setStatus (result.getErrorMessage(), true);
+                else safe->loadFramework (true);
+            }));
+            break;
+        case 3:
+            juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Use this framework for new projects?",
+                "This project's framework file becomes the app's framework file, which every new project copies. "
+                "Other projects keep their own copy until you replace it there.",
+                "Use it", "Cancel", this, juce::ModalCallbackFunction::create ([safe] (int r)
+            {
+                if (safe == nullptr || r != 1) return;
+                const auto result = Framework::copyProjectToApp (safe->folder.getFolder());
+                safe->transport.setStatus (result.failed() ? result.getErrorMessage() : juce::String ("New projects will use this framework."), result.failed());
+            }));
+            break;
+        case 4:
+            Framework::ensureAppFile();
+            Framework::appFile().revealToUser();
+            break;
+        default: break;
     }
 }
 

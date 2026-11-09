@@ -358,6 +358,23 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
     right.setProperty (IDs::fadeIn, cutFade, nullptr);
     right.setProperty (IDs::fadeOut, juce::jmin (fadeOut, end - t), nullptr);
 
+    // Changes along the box (stage 4a) are proportions of it: each part keeps its own.
+    const double cut = (t - start) / (end - start);
+    for (auto [baseId, alongId] : { std::pair<juce::Identifier, juce::Identifier> { IDs::level, IDs::levelAlong },
+                                    { IDs::role, IDs::roleAlong } })
+    {
+        const auto changes = changesAlong (box, alongId);
+        if (changes.isEmpty()) continue;
+        juce::String leftBase, rightBase;
+        juce::Array<Along::Change> leftChanges, rightChanges;
+        const auto base = box[baseId].toString();
+        Along::section (base, changes, 0.0, cut, leftBase, leftChanges);
+        Along::section (base, changes, cut, 1.0, rightBase, rightChanges);
+        if (rightBase.isEmpty()) right.removeProperty (baseId, nullptr); else right.setProperty (baseId, rightBase, nullptr);
+        if (rightChanges.isEmpty()) right.removeProperty (alongId, nullptr); else right.setProperty (alongId, Along::format (rightChanges), nullptr);
+        setChangesAlong (box, alongId, leftChanges);
+    }
+
     rewriteProportions (right, t, end - t, nullptr);
     rewriteProportions (box, start, t - start, &undoManager);
     box.setProperty (IDs::length, t - start, &undoManager);
@@ -843,6 +860,35 @@ juce::Array<juce::ValueTree> Project::cutBoxByRatio (juce::ValueTree box, const 
         current = right;
     }
     return pieces;
+}
+
+//== Framework fields (stage 4a) ===============================================
+
+juce::String Project::folderLevel (const juce::ValueTree& track)
+{
+    int guard = 0;
+    for (auto f = isFolder (track) ? track : folderOf (track); f.isValid() && guard < 64; f = folderOf (f), ++guard)
+        if (f[IDs::level].toString().isNotEmpty())
+            return f[IDs::level].toString();
+    return {};
+}
+
+juce::String Project::effectiveLevel (const juce::ValueTree& box, bool* inherited)
+{
+    if (inherited != nullptr) *inherited = false;
+    const auto own = box[IDs::level].toString();
+    if (own.isNotEmpty()) return own;
+    const auto fromFolder = folderLevel (box.getParent());
+    if (fromFolder.isNotEmpty() && inherited != nullptr) *inherited = true;
+    return fromFolder;
+}
+
+void Project::setChangesAlong (juce::ValueTree box, const juce::Identifier& alongField, const juce::Array<Along::Change>& changes)
+{
+    const auto text = Along::format (changes);
+    if (text == box[alongField].toString()) return;
+    if (text.isEmpty()) box.removeProperty (alongField, &undoManager);
+    else box.setProperty (alongField, text, &undoManager);
 }
 
 //== Proportional boxes ========================================================

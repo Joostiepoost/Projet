@@ -12,6 +12,7 @@
 
 #include "Model/Project.h"
 #include "Model/ProjectFolder.h"
+#include "Model/Framework.h"
 #include "Engine/SoundData.h"
 #include "Engine/Importer.h"
 #include "Engine/PlaybackEngine.h"
@@ -78,6 +79,9 @@ private:
     void rememberProject();
     void updateTitle();
     void markClean();
+    /** Reads the project's framework file (made from the app's if missing). */
+    void loadFramework (bool announce);
+    void frameworkFileCommand (int which);
 
     //== Sounds =================================================================
     void importDialog();
@@ -129,8 +133,9 @@ private:
     juce::ApplicationCommandManager commandManager;
 
     TransportBar transport;
-    TimelineView timeline { project, pool };
-    Inspector inspector { project, pool, folder };
+    Framework framework;            // the open project's framework file (stage 4a)
+    TimelineView timeline { project, pool, framework };
+    Inspector inspector { project, pool, folder, framework };
     ImportPanel importPanel;
     std::unique_ptr<NotesWindow> notesWindow;
     StartPanel startPanel;

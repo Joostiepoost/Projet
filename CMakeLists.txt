@@ -42,6 +42,8 @@ set(PROJET_CORE_SOURCES
     Source/Engine/PlaybackEngine.cpp
     Source/Model/Project.cpp
     Source/Model/Proportion.cpp
+    Source/Model/Framework.cpp
+    Source/Model/FrameworkDefault.cpp
     Source/Model/ProjectFolder.cpp)
 
 set(PROJET_DEFINITIONS
@@ -71,6 +73,7 @@ target_sources(Projet PRIVATE
     Source/UI/TimelineRuler.cpp
     Source/UI/Inspector.cpp
     Source/UI/RulerPanel.cpp
+    Source/UI/FrameworkPanel.cpp
     Source/UI/TransportBar.cpp
     Source/UI/ImportPanel.cpp
     Source/UI/StartPanel.cpp

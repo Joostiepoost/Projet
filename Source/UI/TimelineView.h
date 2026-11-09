@@ -27,12 +27,13 @@
 #include "../Model/Project.h"
 #include "../Engine/SoundData.h"
 #include "../Model/Proportion.h"
+#include "../Model/Framework.h"
 
 class TimelineView : public juce::Component,
                      public juce::FileDragAndDropTarget
 {
 public:
-    TimelineView (Project&, projet::SoundPool&);
+    TimelineView (Project&, projet::SoundPool&, const Framework&);
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -85,6 +86,21 @@ public:
 
     static constexpr int headerWidth = 172;
     static constexpr int folderHeight = 30;
+
+    //== Framework (stage 4a) =================================================
+    /** Boxes that match are drawn as usual, the others faded. Within a kind
+        (energies, levels ...) any choice matches; across kinds all must. */
+    struct Highlight
+    {
+        juce::StringArray energies, families, levels, roles, types;
+        bool isActive() const { return ! (energies.isEmpty() && families.isEmpty() && levels.isEmpty() && roles.isEmpty() && types.isEmpty()); }
+        juce::StringArray* listFor (const juce::String& kind);
+        juce::String describe (const Framework&) const;
+    };
+    void toggleHighlight (const juce::String& kind, const juce::String& id);
+    void clearHighlight()                           { highlight = {}; repaint(); }
+    const Highlight& getHighlight() const noexcept  { return highlight; }
+    bool matchesHighlight (const juce::ValueTree& box);
 
     /** Asks for parts ("2:3:5:8") and splits the frame into marks, or the box into parts. */
     void askRatioSplit (const juce::String& frameRef, juce::ValueTree boxToCut);
@@ -145,6 +161,12 @@ private:
     void paintTrackHeader (juce::Graphics&, const TrackRow&, int index);
     void paintBox (juce::Graphics&, const juce::ValueTree& box, const TrackRow&);
     void paintWaveform (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r);
+    /** The colour of the box in the current colour mode (track colour, family, level, type). */
+    juce::Colour boxColour (const juce::ValueTree& box, const TrackRow& row);
+    /** The level strip along the bottom, and the type and role badges. */
+    void paintFrameworkMarks (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha);
+    void addFrameworkMenus (juce::PopupMenu&);
+    void applyFrameworkMenu (int result, const juce::Array<juce::ValueTree>& boxes);
 
     juce::Rectangle<int> muteButton (const TrackRow& r) const;
     juce::Rectangle<int> soloButton (const TrackRow& r) const;
@@ -156,6 +178,8 @@ private:
 
     Project& project;
     projet::SoundPool& pool;
+    const Framework& framework;
+    Highlight highlight;
 
     double viewStart = 0.0, pps = 20.0;
     int scrollY = 0;

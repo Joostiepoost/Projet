@@ -9,7 +9,10 @@
 //       BOX        a box on the timeline: "sound" or "text" (stage 2); every box
 //                  has notes (Markdown) that survive a change of kind. A box can
 //                  be bound to a frame (propFrame) with a proportional start and
-//                  length (propStart, propLength: typed expressions, stage 3a)
+//                  length (propStart, propLength: typed expressions, stage 3a).
+//                  Framework fields (stage 4a): energy, energy2, level, role,
+//                  typology (ids from framework.json); levelAlong and roleAlong
+//                  hold changes along the box ("0.7:meson:0.08;...")
 //
 // Times are in seconds (doubles); the engine turns them into samples at the
 // project's sample rate.
@@ -54,6 +57,7 @@ namespace IDs
     PROJET_ID (snap)
     PROJET_ID (series)                // "golden:2;fibonacci:13;harmonic:8;custom:1/7,3/7"
     PROJET_ID (expr)                  // a mark's proportion, as typed
+    PROJET_ID (colourMode)            // "own", "family", "level", "type" (view state, stage 4a)
 
     // Common
     PROJET_ID (id)
@@ -76,6 +80,7 @@ namespace IDs
     PROJET_ID (isFolder)
     PROJET_ID (folderId)              // the folder a track is in ("" at the top)
     PROJET_ID (folded)                // a folder's tracks are hidden
+    PROJET_ID (level)                 // a folder's semiotic level, given to boxes without one (stage 4a); a box's own level
 
     // Box
     PROJET_ID (kind)                  // "sound", "text"; "container", "board", ... later
@@ -94,6 +99,12 @@ namespace IDs
     PROJET_ID (propStart)             // expression, e.g. "3/11"
     PROJET_ID (propLength)
     PROJET_ID (propLock)              // follow the frame when it changes (default on)
+    PROJET_ID (energy)                // framework ids (stage 4a)
+    PROJET_ID (energy2)
+    PROJET_ID (levelAlong)            // changes of level along the box
+    PROJET_ID (role)                  // F, M (default) or B
+    PROJET_ID (roleAlong)
+    PROJET_ID (typology)              // Schaeffer's type: N, X'', W, ... ("type" is taken by the JSON)
 
     #undef PROJET_ID
 }

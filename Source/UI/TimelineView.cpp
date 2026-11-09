@@ -20,8 +20,8 @@ namespace
     }
 }
 
-TimelineView::TimelineView (Project& p, projet::SoundPool& sp)
-    : project (p), pool (sp)
+TimelineView::TimelineView (Project& p, projet::SoundPool& sp, const Framework& f)
+    : project (p), pool (sp), framework (f)
 {
     setWantsKeyboardFocus (false);
 }
@@ -552,7 +552,20 @@ void TimelineView::paintTrackHeader (juce::Graphics& g, const TrackRow& r, int i
         g.setColour (juce::Colour (0xffc9c6bd));
         g.setFont (Theme::font (11.5f, true));
         const int x = foldButton (r).getRight() + 4;
-        g.drawText (track[IDs::name].toString().toUpperCase(), x, r.y, headerWidth - 56 - x, r.h, juce::Justification::centredLeft, true);
+        const auto level = track[IDs::level].toString();
+        const int levelW = level.isEmpty() ? 0 : juce::jmin (58, juce::GlyphArrangement::getStringWidthInt (Theme::font (10.5f), framework.levelName (level)) + 10);
+        g.drawText (track[IDs::name].toString().toUpperCase(), x, r.y, headerWidth - 56 - x - levelW, r.h, juce::Justification::centredLeft, true);
+        if (level.isNotEmpty())
+        {
+            // The level this folder gives its boxes.
+            const auto c = framework.levelColour (level);
+            juce::Rectangle<float> pill ((float) (headerWidth - 52 - levelW), (float) r.y + (float) (r.h - 15) / 2.0f, (float) levelW - 4.0f, 15.0f);
+            g.setColour ((c != 0 ? juce::Colour (c) : Theme::lineStrong).withAlpha (0.3f));
+            g.fillRoundedRectangle (pill, 7.0f);
+            g.setColour (c != 0 ? juce::Colour (c).brighter (0.5f) : Theme::text);
+            g.setFont (Theme::font (10.5f));
+            g.drawText (framework.levelName (level), pill, juce::Justification::centred, true);
+        }
     }
     else
     {
@@ -590,7 +603,9 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
     const bool sound = Project::isSound (box);
     float alpha = juce::jlimit (0.15f, 1.0f, (float) (double) box.getProperty (IDs::opacity, 1.0));
     if (project.effectiveMute (row.track)) alpha *= 0.45f;     // muted track (or folder): dimmed
-    const auto base = Theme::trackColour (project.effectiveColour (row.track));
+    if (highlight.isActive() && ! matchesHighlight (box)) alpha *= 0.22f;
+    const auto base = boxColour (box, row);
+    const bool colourMode = project.getState().getProperty (IDs::colourMode, "own").toString() != "own";
     const bool missing = sound && pool.get (box[IDs::soundId].toString()) == nullptr;
 
     if (! sound)
@@ -615,6 +630,16 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
                 g.drawText ("double-click to write", inner, juce::Justification::topLeft, true);
             }
         }
+        if (colourMode)
+        {
+            juce::Graphics::ScopedSaveState s (g);
+            juce::Path clip;
+            clip.addRoundedRectangle (r, 4.0f);
+            g.reduceClipRegion (clip);
+            g.setColour (base.withAlpha (alpha));
+            g.fillRect (r.withWidth (5.0f));
+        }
+        paintFrameworkMarks (g, box, r, alpha);
         juce::Path outline;
         outline.addRoundedRectangle (r.reduced (0.5f), 4.0f);
         if (selected)
@@ -627,7 +652,7 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
             juce::Path dashed;
             const float dashes[] = { 4.0f, 3.0f };
             juce::PathStrokeType (1.0f).createDashedStroke (dashed, outline, dashes, 2);
-            g.setColour (juce::Colour (0xff9a8f78).withAlpha (alpha));
+            g.setColour ((colourMode ? base : juce::Colour (0xff9a8f78)).withAlpha (alpha));
             g.fillPath (dashed);
         }
         return;
@@ -687,8 +712,220 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
         }
     }
 
+    paintFrameworkMarks (g, box, r, alpha);
     g.setColour (selected ? Theme::accent : base.withAlpha (alpha));
     g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : 1.0f);
+}
+
+//== Framework on the boxes (stage 4a) ==========================================
+
+juce::Colour TimelineView::boxColour (const juce::ValueTree& box, const TrackRow& row)
+{
+    const auto mode = project.getState().getProperty (IDs::colourMode, "own").toString();
+    if (mode == "own") return Theme::trackColour (project.effectiveColour (row.track));
+    juce::uint32 c = 0;
+    if (mode == "family") c = framework.energyColour (box[IDs::energy].toString());
+    else if (mode == "level") c = framework.levelColour (project.effectiveLevel (box));
+    else if (mode == "type") c = framework.typeColour (box[IDs::typology].toString());
+    return c != 0 ? juce::Colour (c) : juce::Colour (0xff4a4c52);   // not set: neutral grey
+}
+
+void TimelineView::paintFrameworkMarks (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha)
+{
+    juce::Graphics::ScopedSaveState state (g);
+    juce::Path clip;
+    clip.addRoundedRectangle (r, 4.0f);
+    g.reduceClipRegion (clip);
+
+    // The semiotic level along the box: a strip at the bottom (own level full,
+    // a folder's level fainter), with its changes.
+    bool inherited = false;
+    const auto level = project.effectiveLevel (box, &inherited);
+    const auto changes = Project::changesAlong (box, IDs::levelAlong);
+    if (level.isNotEmpty() || ! changes.isEmpty())
+    {
+        const auto strip = r.withTop (r.getBottom() - 4.0f);
+        auto colourOf = [this] (const juce::String& id)
+        {
+            const auto c = framework.levelColour (id);
+            return c != 0 ? juce::Colour (c) : juce::Colours::transparentBlack;
+        };
+        auto xAt = [&strip] (double p) { return strip.getX() + (float) p * strip.getWidth(); };
+        double from = 0.0;
+        auto current = level;
+        auto currentAlpha = inherited ? 0.5f : 1.0f;
+        for (auto& c : changes)
+        {
+            const double a = juce::jlimit (from, 1.0, c.at - c.width / 2.0), b = juce::jlimit (a, 1.0, c.at + c.width / 2.0);
+            g.setColour (colourOf (current).withMultipliedAlpha (currentAlpha * alpha));
+            g.fillRect (juce::Rectangle<float>::leftTopRightBottom (xAt (from), strip.getY(), xAt (a), strip.getBottom()));
+            if (b - a > 1.0e-6)
+            {
+                g.setGradientFill (juce::ColourGradient (colourOf (current).withMultipliedAlpha (currentAlpha * alpha), xAt (a), 0.0f,
+                                                         colourOf (c.to).withMultipliedAlpha (alpha), xAt (b), 0.0f, false));
+                g.fillRect (juce::Rectangle<float>::leftTopRightBottom (xAt (a), strip.getY(), xAt (b), strip.getBottom()));
+            }
+            current = c.to;
+            currentAlpha = 1.0f;
+            from = b;
+        }
+        g.setColour (colourOf (current).withMultipliedAlpha (currentAlpha * alpha));
+        g.fillRect (juce::Rectangle<float>::leftTopRightBottom (xAt (from), strip.getY(), xAt (1.0), strip.getBottom()));
+    }
+
+    // Badges, bottom right: the role (when not the default) and the type.
+    if (r.getWidth() < 40.0f || r.getHeight() < 22.0f) return;
+    float x = juce::jmin (r.getRight(), (float) getWidth()) - 4.0f;     // in view, also for long boxes
+    const float y = r.getBottom() - 6.0f - 14.0f;
+    auto badge = [&] (const juce::String& text, juce::Colour fill, juce::Colour edge, juce::Colour ink)
+    {
+        const auto font = Theme::font (10.5f, true);
+        const float w = (float) juce::GlyphArrangement::getStringWidthInt (font, text) + 10.0f;
+        if (x - w < juce::jmax (r.getX(), (float) headerWidth) + 30.0f) return;
+        juce::Rectangle<float> b (x - w, y, w, 14.0f);
+        g.setColour (fill.withMultipliedAlpha (alpha));
+        g.fillRoundedRectangle (b, 3.0f);
+        g.setColour (edge.withMultipliedAlpha (alpha));
+        g.drawRoundedRectangle (b.reduced (0.5f), 3.0f, 1.0f);
+        g.setColour (ink.withMultipliedAlpha (juce::jmax (0.6f, alpha)));
+        g.setFont (font);
+        g.drawText (text, b, juce::Justification::centred, false);
+        x -= w + 3.0f;
+    };
+    const auto type = box[IDs::typology].toString();
+    if (type.isNotEmpty())
+    {
+        auto* t = framework.findType (type);
+        auto* z = t != nullptr ? framework.findZone (t->zone) : nullptr;
+        badge (framework.typeLabel (type),
+               z != nullptr ? juce::Colour (z->dark) : Theme::panel2,
+               z != nullptr ? juce::Colour (z->colour) : Theme::lineStrong,
+               z != nullptr ? juce::Colour (z->light) : Theme::text);
+    }
+    const auto role = box[IDs::role].toString();
+    if ((role.isNotEmpty() && role != framework.defaultRole()) || box.hasProperty (IDs::roleAlong))
+    {
+        auto label = framework.roleName (role.isEmpty() ? framework.defaultRole() : role, true);
+        if (box.hasProperty (IDs::roleAlong))
+            for (auto& c : Project::changesAlong (box, IDs::roleAlong)) label << juce::String::fromUTF8 ("\xe2\x86\x92") << framework.roleName (c.to, true);
+        badge (label, Theme::background.withAlpha (0.85f), Theme::accent.withAlpha (0.8f), Theme::accent);
+    }
+}
+
+juce::StringArray* TimelineView::Highlight::listFor (const juce::String& kind)
+{
+    if (kind == "energy") return &energies;
+    if (kind == "family") return &families;
+    if (kind == "level") return &levels;
+    if (kind == "role") return &roles;
+    if (kind == "type") return &types;
+    return nullptr;
+}
+
+juce::String TimelineView::Highlight::describe (const Framework& f) const
+{
+    juce::StringArray parts;
+    for (auto& id : families) parts.add (f.familyName (id));
+    for (auto& id : energies) parts.add (f.energyName (id));
+    for (auto& id : levels) parts.add (f.levelName (id));
+    for (auto& id : roles) parts.add (f.roleName (id, true));
+    for (auto& id : types) parts.add (f.typeLabel (id));
+    return parts.joinIntoString (", ");
+}
+
+void TimelineView::toggleHighlight (const juce::String& kind, const juce::String& id)
+{
+    if (auto* list = highlight.listFor (kind))
+    {
+        if (list->contains (id)) list->removeString (id);
+        else list->add (id);
+    }
+    repaint();
+}
+
+bool TimelineView::matchesHighlight (const juce::ValueTree& box)
+{
+    const auto e1 = box[IDs::energy].toString(), e2 = box[IDs::energy2].toString();
+    if (! highlight.energies.isEmpty() && ! highlight.energies.contains (e1) && ! highlight.energies.contains (e2)) return false;
+    if (! highlight.families.isEmpty())
+    {
+        bool any = false;
+        for (auto& e : { e1, e2 })
+            if (auto* en = framework.findEnergy (e))
+                for (auto& fam : en->families) any = any || highlight.families.contains (fam);
+        if (! any) return false;
+    }
+    if (! highlight.levels.isEmpty())
+    {
+        bool any = highlight.levels.contains (project.effectiveLevel (box));
+        for (auto& c : Project::changesAlong (box, IDs::levelAlong)) any = any || highlight.levels.contains (c.to);
+        if (! any) return false;
+    }
+    if (! highlight.roles.isEmpty())
+    {
+        const auto role = box[IDs::role].toString();
+        bool any = highlight.roles.contains (role.isEmpty() ? framework.defaultRole() : role);
+        for (auto& c : Project::changesAlong (box, IDs::roleAlong)) any = any || highlight.roles.contains (c.to);
+        if (! any) return false;
+    }
+    if (! highlight.types.isEmpty() && ! highlight.types.contains (box[IDs::typology].toString())) return false;
+    return true;
+}
+
+void TimelineView::addFrameworkMenus (juce::PopupMenu& m)
+{
+    // Ids: energy 3000+, second energy 3200+, level 3400+, role 3500+, type 3600+ (index in the framework's lists; +0 = none)
+    juce::PopupMenu energy, energy2, level, role, type;
+    energy.addItem (3000, "None");
+    energy2.addItem (3200, "None");
+    const auto& energies = framework.getEnergies();
+    for (auto& family : framework.getFamilies())
+    {
+        bool heading = false;
+        for (int i = 0; i < energies.size(); ++i)
+            if (energies[i].families.size() > 0 && energies[i].families[0] == family.id)
+            {
+                if (! heading) { energy.addSectionHeader (framework.text (family.name)); energy2.addSectionHeader (framework.text (family.name)); heading = true; }
+                energy.addItem (3001 + i, framework.text (energies[i].name));
+                energy2.addItem (3201 + i, framework.text (energies[i].name));
+            }
+    }
+    level.addItem (3400, "None (or the folder's)");
+    for (int i = 0; i < framework.getLevels().size(); ++i)
+        level.addItem (3401 + i, framework.text (framework.getLevels()[i].name));
+    for (int i = 0; i < framework.getRoles().size(); ++i)
+        role.addItem (3501 + i, framework.roleName (framework.getRoles()[i].id));
+    type.addItem (3600, "None");
+    for (auto& zone : framework.getZones())
+    {
+        type.addSectionHeader (framework.text (zone.name));
+        for (int i = 0; i < framework.getTypes().size(); ++i)
+            if (framework.getTypes()[i].zone == zone.id)
+                type.addItem (3601 + i, framework.getTypes()[i].label + "   " + framework.text (framework.getTypes()[i].name));
+    }
+    m.addSubMenu ("Energy", energy);
+    m.addSubMenu ("Second energy", energy2);
+    m.addSubMenu ("Semiotic level", level);
+    m.addSubMenu ("Role", role);
+    m.addSubMenu ("Type (Schaeffer)", type);
+}
+
+void TimelineView::applyFrameworkMenu (int r, const juce::Array<juce::ValueTree>& boxes)
+{
+    juce::Identifier id;
+    juce::String value;
+    if (r >= 3000 && r < 3200)      { id = IDs::energy;  value = r == 3000 ? juce::String() : framework.getEnergies()[r - 3001].id; }
+    else if (r >= 3200 && r < 3400) { id = IDs::energy2; value = r == 3200 ? juce::String() : framework.getEnergies()[r - 3201].id; }
+    else if (r >= 3400 && r < 3500) { id = IDs::level;   value = r == 3400 ? juce::String() : framework.getLevels()[r - 3401].id; }
+    else if (r >= 3500 && r < 3600) { id = IDs::role;    value = framework.getRoles()[r - 3501].id; if (value == framework.defaultRole()) value = {}; }
+    else if (r >= 3600 && r < 3800) { id = IDs::typology;    value = r == 3600 ? juce::String() : framework.getTypes()[r - 3601].id; }
+    else return;
+    project.getUndoManager().beginNewTransaction ("Framework");
+    for (auto b : boxes)
+    {
+        if (value.isEmpty()) b.removeProperty (id, project.um());
+        else b.setProperty (id, value, project.um());
+    }
 }
 
 void TimelineView::paintWaveform (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r)
@@ -1123,6 +1360,11 @@ void TimelineView::showTrackMenu (juce::ValueTree track)
         m.addItem (10, (bool) track[IDs::folded] ? "Unfold" : "Fold");
         m.addItem (11, "Add track inside");
         m.addItem (12, "Ungroup (keep the tracks)");
+        juce::PopupMenu levels;
+        levels.addItem (300, "None", true, track[IDs::level].toString().isEmpty());
+        for (int i = 0; i < framework.getLevels().size(); ++i)
+            levels.addItem (301 + i, framework.text (framework.getLevels()[i].name), true, track[IDs::level].toString() == framework.getLevels()[i].id);
+        m.addSubMenu ("Semiotic level for its boxes", levels);
         m.addSeparator();
         m.addItem (4, "Delete folder and its tracks", project.laneTracks().size() > 1 || project.blockEnd (track) - project.getTracks().indexOf (track) <= 1);
     }
@@ -1170,6 +1412,12 @@ void TimelineView::showTrackMenu (juce::ValueTree track)
             p.getUndoManager().beginNewTransaction ("Move out of folder");
             p.moveTrack (track, p.blockEnd (f), f[IDs::folderId].toString());
         }
+        else if (r >= 300 && r < 400)
+        {
+            p.getUndoManager().beginNewTransaction ("Folder level");
+            if (r == 300) track.removeProperty (IDs::level, p.um());
+            else track.setProperty (IDs::level, safe->framework.getLevels()[r - 301].id, p.um());
+        }
         else if (r >= 100) { p.getUndoManager().beginNewTransaction ("Track colour"); track.setProperty (IDs::colour, r - 100, p.um()); }
         safe->repaint();
     });
@@ -1210,6 +1458,8 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
         m.addSubMenu ("Pin the end to a mark", pinEnd);
     }
     m.addItem (11, "Split by a ratio (cut, or marks in it)...", ! several);
+    m.addSeparator();
+    addFrameworkMenus (m);
 
     juce::Component::SafePointer<TimelineView> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, box, sound] (int r) mutable
@@ -1218,6 +1468,7 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
         auto& p = safe->project;
         auto selection = safe->getSelectedBoxes();
         if (selection.isEmpty()) selection.add (box);
+        if (r >= 3000 && r < 3800) { safe->applyFrameworkMenu (r, selection); safe->repaint(); return; }
 
         if (r == 1)
         {

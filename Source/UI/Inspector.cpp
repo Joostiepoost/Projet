@@ -24,9 +24,22 @@ namespace
     constexpr int kindSound = 1, kindText = 2, kindContainer = 3, kindBoard = 4, kindCodebox = 5;
 }
 
-Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f)
-    : project (p), pool (sp), folder (f), notes (p, false)
+Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f, const Framework& fw)
+    : project (p), pool (sp), folder (f), framework (fw), notes (p, false)
 {
+    for (auto* t : { &boxTab, &frameworkTab })
+    {
+        t->setClickingTogglesState (false);
+        t->setColour (juce::TextButton::buttonColourId, Theme::background);
+        t->setColour (juce::TextButton::textColourOffId, Theme::textMuted);
+        addChildComponent (*t);
+    }
+    boxTab.setTooltip ("The box: sound, gain, fades, proportions, notes");
+    frameworkTab.setTooltip ("Energy, semiotic level, role and type");
+    boxTab.onClick = [this] { if (nameEditor.hasKeyboardFocus (true)) commitName(); showFramework = false; refresh(); };
+    frameworkTab.onClick = [this] { if (nameEditor.hasKeyboardFocus (true)) commitName(); notes.commit(); showFramework = true; refresh(); };
+    addChildComponent (frameworkPanel);
+
     title.setFont (Theme::font (12.0f, true));
     title.setColour (juce::Label::textColourId, Theme::textMuted);
     addAndMakeVisible (title);
@@ -242,6 +255,7 @@ void Inspector::setSelection (const juce::Array<juce::ValueTree>& boxes)
     // Selecting boxes leaves the ruler panel; deselecting keeps it.
     if (mode == Mode::ruler && boxes.isEmpty()) { rulerPanel.refresh(); return; }
     notes.setBox (box);
+    frameworkPanel.setBoxes (boxes);
     refresh();
 }
 
@@ -435,6 +449,19 @@ void Inspector::setMode (Mode m)
     pieceLengthLabel.setVisible (proj);
     title.setVisible (m != Mode::ruler);
     rulerPanel.setVisible (m == Mode::ruler);
+
+    // Box / Framework tabs
+    const bool boxMode = isBoxMode();
+    const bool fw = boxMode && showFramework;
+    boxTab.setVisible (boxMode);
+    frameworkTab.setVisible (boxMode);
+    boxTab.setToggleState (boxMode && ! fw, juce::dontSendNotification);
+    frameworkTab.setToggleState (fw, juce::dontSendNotification);
+    frameworkPanel.setVisible (fw);
+    if (fw)
+        for (auto* c : getChildren())
+            if (c != &title && c != &boxTab && c != &frameworkTab && c != &frameworkPanel)
+                c->setVisible (false);
 }
 
 juce::String Inspector::projectSummary()
@@ -478,6 +505,7 @@ void Inspector::refresh()
 {
     if (mode == Mode::ruler) { rulerPanel.refresh(); return; }
     const juce::ScopedValueSetter<bool> svs (updating, true);
+    frameworkPanel.refresh();
 
     if (box.isValid() && ! box.getParent().isValid()) { box = {}; selectionSize = 0; notes.setBox ({}); }   // deleted
     if (! box.isValid()) propError.setText ({}, juce::dontSendNotification);
@@ -570,8 +598,21 @@ void Inspector::paint (juce::Graphics& g)
 void Inspector::resized()
 {
     auto r = getLocalBounds().reduced (16, 12);
-    title.setBounds (r.removeFromTop (20));
+    auto titleRow = r.removeFromTop (20);
+    if (isBoxMode())
+    {
+        frameworkTab.setBounds (titleRow.removeFromRight (82));
+        titleRow.removeFromRight (4);
+        boxTab.setBounds (titleRow.removeFromRight (48));
+    }
+    title.setBounds (titleRow);
     r.removeFromTop (6);
+
+    if (isBoxMode() && showFramework)
+    {
+        frameworkPanel.setBounds (r.withTrimmedRight (-8));
+        return;
+    }
 
     auto labelled = [&r] (juce::Label& l, juce::Component& c, int h)
     {
