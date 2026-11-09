@@ -26,6 +26,7 @@
 #include "../Source/Model/Project.h"
 #include "../Source/Model/Proportion.h"
 #include "../Source/Model/Framework.h"
+#include "../Source/Model/Glyphs.h"
 
 #include <random>
 #include <thread>
@@ -754,14 +755,16 @@ void testFramework()
     check (packages.size() == 3 && packages[0].id == "composition" && packages[1].id == "schaeffer" && packages[2].id == "rk1",
            "3 packages in order: composition, schaeffer, rk1");
     for (auto& p : packages) check (p.warnings.isEmpty(), p.id + " loads without warnings " + p.warnings.joinIntoString ("; "));
-    check (fw.getCategories().size() == 5, "5 categories, got " + juce::String (fw.getCategories().size()));
+    check (fw.getCategories().size() == 6, "6 categories, got " + juce::String (fw.getCategories().size()));
     auto* energy = fw.findCategory ("composition.energy");
     auto* energy2 = fw.findCategory ("composition.energy2");
     auto* level = fw.findCategory ("composition.level");
     auto* role = fw.findCategory ("composition.role");
+    auto* profile = fw.findCategory ("composition.profile");
     auto* type = fw.findCategory ("schaeffer.type");
-    check (energy != nullptr && energy2 != nullptr && level != nullptr && role != nullptr && type != nullptr, "energy, second energy, level, role, type");
-    if (energy == nullptr || energy2 == nullptr || level == nullptr || role == nullptr || type == nullptr) return;
+    check (energy != nullptr && energy2 != nullptr && level != nullptr && role != nullptr && profile != nullptr && type != nullptr,
+           "energy, second energy, level, role, profile, type");
+    if (energy == nullptr || energy2 == nullptr || level == nullptr || role == nullptr || profile == nullptr || type == nullptr) return;
     check (fw.groupsOf (*energy).size() == 5 && fw.valuesOf (*energy).size() == 10, "5 families, 10 energies");
     check (&fw.source (*energy2) == energy && fw.valuesOf (*energy2).size() == 10, "the second energy shares them");
     check (energy->control == "menu" && level->control == "buttons" && role->control == "buttons" && type->control == "chart", "controls: menu, buttons, chart");
@@ -774,7 +777,19 @@ void testFramework()
     check (fw.findPackage ("rk1")->json["operations"]["primitives"].size() == 10 && fw.findPackage ("rk1")->json["operations"]["macros"].size() == 16,
            "rk1 carries 10 primitives and 16 macros");
     check (level->mark == Framework::Mark::strip && role->mark == Framework::Mark::badge && type->mark == Framework::Mark::badge
-           && energy->mark == Framework::Mark::none, "marks as in 4a: level strip, role and type badges");
+           && energy->mark == Framework::Mark::glyph && energy2->mark == Framework::Mark::glyph,
+           "marks: level strip, role and type badges, energies glyphs");
+    check (fw.valuesOf (*profile).size() == 7 && profile->control == "buttons" && profile->mark == Framework::Mark::badge
+           && profile->defaultValue == "flat" && ! profile->showDefault && profile->hasTwoNames,
+           "7 dynamic profiles: buttons, badge, default flat, two names");
+    check (fw.findValue (*profile, "delta")->label == "<>" && fw.findValue (*profile, "crescendo")->env == juce::Array<float> { 0.0f, 0.06f, 1.0f, 1.0f }
+           && fw.findValue (*profile, "resonance")->env.size() == 8 && fw.findValue (*profile, "flat")->env == juce::Array<float> { 0.0f, 1.0f, 1.0f, 1.0f },
+           "profile labels and envelopes");
+    check (fw.valueName (*profile, "resonance").contains (juce::String::fromUTF8 ("r\xc3\xa9sonance"))
+           && fw.valueName (*profile, "resonance").contains (juce::String::fromUTF8 ("attaque-r\xc3\xa9sonance"))
+           && fw.findValue (*profile, "decrescendo")->name2.fr.isEmpty(),
+           "Schaeffer's names, Vande Gorne's where she has one: " + fw.valueName (*profile, "resonance"));
+    check (fw.findValue (*energy, "rebond")->env.isEmpty(), "energies have no envelope of their own");
     check (level->property() == juce::Identifier ("fw.composition.level") && level->alongProperty() == juce::Identifier ("fw.composition.level.along"),
            "boxes store fw.<package>.<category>");
 
@@ -802,7 +817,7 @@ void testFramework()
 
     // == Packages that are broken or odd
     check (! fw.addPackage ("{ not json", "broken", error) && error.isNotEmpty(), "a broken package is refused");
-    check (fw.getPackages().size() == 3 && fw.getCategories().size() == 5, "and nothing changes");
+    check (fw.getPackages().size() == 3 && fw.getCategories().size() == 6, "and nothing changes");
     check (! fw.addPackage ("[ 1, 2 ]", "list", error), "a file that holds no package is refused");
     check (fw.addPackage (R"({ "categories": [ { "name": "no id" }, { "id": "a", "kind": "colour" },
                                               { "id": "b", "kind": "tags", "along": true }, { "id": "b" },
@@ -811,7 +826,7 @@ void testFramework()
     check (odd != nullptr && odd->categories.size() == 2 && odd->warnings.size() == 5,
            "its id from the folder; bad categories left out, with warnings: " + (odd != nullptr ? odd->warnings.joinIntoString (" | ") : juce::String()));
     fw.removePackage ("oddone");
-    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 5, "removed");
+    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 6, "removed");
 
     // == A new framework needs only a folder: the example package
     const juce::File example (juce::String (PROJET_SOURCE_DIR) + "/Examples/Frameworks/example");
@@ -830,7 +845,7 @@ void testFramework()
     check (motion->kind == Framework::Kind::choice && motion->control == "buttons" && motion->along && motion->folders
            && materials->kind == Framework::Kind::tags && density->kind == Framework::Kind::number && source->kind == Framework::Kind::text,
            "kinds and settings");
-    check (fw.getCategories().size() == 9 && fw.getCategories()[5].key() == "example.motion", "after the builtins (order 60)");
+    check (fw.getCategories().size() == 10 && fw.getCategories()[6].key() == "example.motion", "after the builtins (order 60)");
     check (fw.valuesOf (*energy).size() == 11 && fw.findValue (*energy, "example-pulsation") != nullptr
            && fw.findValue (*energy, "example-pulsation")->from == "example" && fw.valuesOf (*energy2).size() == 11,
            "it adds an energy, which the second energy shares");
@@ -881,7 +896,8 @@ void testFramework()
             const auto& y = converted.valuesOf (b)[k];
             if (x.id != y.id || x.label != y.label || x.name.fr != y.name.fr || x.name.en != y.name.en || x.name2.fr != y.name2.fr
                 || x.colours.colour != y.colours.colour || x.groups != y.groups || x.detailsFr != y.detailsFr || x.detailsEn != y.detailsEn
-                || x.row != y.row || x.col != y.col || x.weight != y.weight || x.glyph != y.glyph || x.fill != y.fill || x.about.en != y.about.en)
+                || x.row != y.row || x.col != y.col || x.weight != y.weight || x.glyph != y.glyph || x.fill != y.fill || x.about.en != y.about.en
+                || x.env != y.env)
                 differ ("value " + x.id);
         }
     }
@@ -968,8 +984,11 @@ void testFramework()
     auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetFrameworks").getNonexistentSibling();
     const auto lib = tmp.getChildFile ("Library");
     for (auto& b : Framework::builtins()) check (Framework::writeBuiltin (lib, b.id).wasOk(), "writes " + b.id);
-    check (Framework::packageFolders (lib).size() == 3 && Framework::folderVersion (lib.getChildFile ("composition")) == 2
+    check (Framework::packageFolders (lib).size() == 3 && Framework::folderVersion (lib.getChildFile ("composition")) == 3
            && lib.getChildFile ("schaeffer").getChildFile ("help.md").existsAsFile(), "the library: 3 packages with their help");
+    check (lib.getChildFile ("composition").getChildFile ("glyphs.js").existsAsFile()
+           && ! lib.getChildFile ("schaeffer").getChildFile ("glyphs.js").exists(),
+           "composition brings its glyphs.js; schaeffer has none");
     const auto proj = tmp.getChildFile ("Piece");
     check (Framework::copyPackage (lib.getChildFile ("schaeffer"), Framework::projectFolder (proj)).wasOk()
            && Framework::projectFolder (proj).getChildFile ("schaeffer").getChildFile ("framework.json").existsAsFile(), "a package copied into a project");
@@ -986,6 +1005,8 @@ void testFramework()
     check (Framework::ensureProject (piece4a, lang, naming, report4a).wasOk() && Framework::packageFolders (Framework::projectFolder (piece4a)).size() == 3
            && piece4a.getChildFile ("framework-4a.json").existsAsFile() && ! piece4a.getChildFile ("framework.json").exists() && lang == "en",
            "a 4a project folder gets packages; its old file is kept as framework-4a.json");
+    check (Framework::projectFolder (piece4a).getChildFile ("composition").getChildFile ("glyphs.js").existsAsFile(),
+           "its converted composition package gets the glyphs.js");
     Framework::Report again;
     check (Framework::ensureProject (piece4a, lang, naming, again).wasOk() && again.notes.isEmpty(), "and only once");
     Framework::setLibraryFolder (lib);      // not the real library
@@ -1001,6 +1022,98 @@ void testFramework()
     line();
 }
 
+
+void testGlyphs()
+{
+    line ("## 12. Energy glyphs (JavaScript)");
+    line();
+    const juce::Array<float> flat { 0.0f, 1.0f, 1.0f, 1.0f };
+
+    // == Projet's own script
+    Glyphs::Script script;
+    check (script.load (Glyphs::builtinSource(), "projet").wasOk(), "the built-in script loads");
+    auto fw = Framework::builtIn();
+    auto* energy = fw.findCategory ("composition.energy");
+    juce::String missing;
+    for (auto& v : fw.valuesOf (*energy))
+        if (! script.has (v.glyph)) missing = v.glyph;
+    check (missing.isEmpty(), "every energy has its shape " + missing);
+
+    juce::Array<Glyphs::Stroke> strokes;
+    check (script.run ("percussion-resonance", 240.0f, 28.0f, flat, 1, strokes).wasOk() && ! strokes.isEmpty(), "percussion-resonance draws");
+    bool filled = false, inBounds = true;
+    for (auto& st : strokes)
+    {
+        filled = filled || st.filled;
+        for (int i = 0; i + 1 < st.points.size(); i += 2)
+            inBounds = inBounds && st.points[i] > -4.0f && st.points[i] < 244.0f && st.points[i + 1] > -4.0f && st.points[i + 1] < 32.0f;
+    }
+    check (filled && inBounds, "a filled shape, inside the band");
+
+    // The profile is the envelope: a crescendo starts the shape small.
+    juce::Array<Glyphs::Stroke> plain, cres;
+    check (script.run ("oscillation", 240.0f, 28.0f, flat, 1, plain).wasOk()
+           && script.run ("oscillation", 240.0f, 28.0f, { 0.0f, 0.06f, 1.0f, 1.0f }, 1, cres).wasOk(), "oscillation draws with profiles");
+    auto spread = [] (const juce::Array<Glyphs::Stroke>& list, float x0, float x1)
+    {
+        float top = 14.0f, bottom = 14.0f;      // the centre of a 28-high band
+        for (auto& st : list)
+            for (int i = 0; i + 1 < st.points.size(); i += 2)
+                if (st.points[i] >= x0 && st.points[i] <= x1)
+                {
+                    top = juce::jmin (top, st.points[i + 1]);
+                    bottom = juce::jmax (bottom, st.points[i + 1]);
+                }
+        return bottom - top;
+    };
+    check (spread (cres, 0.0f, 48.0f) < spread (plain, 0.0f, 48.0f) * 0.4f
+           && spread (cres, 200.0f, 240.0f) > spread (plain, 200.0f, 240.0f) * 0.8f,
+           "a crescendo starts small and ends full");
+
+    // Seeds: the same seed repeats exactly, another differs.
+    juce::Array<Glyphs::Stroke> a, b, c;
+    script.run ("accumulation-corpuscules", 200.0f, 28.0f, flat, 3, a);
+    script.run ("accumulation-corpuscules", 200.0f, 28.0f, flat, 3, b);
+    script.run ("accumulation-corpuscules", 200.0f, 28.0f, flat, 4, c);
+    check (! a.isEmpty() && a.size() == b.size() && a[0].dots == b[0].dots, "the same seed repeats the shape exactly");
+    check (! c.isEmpty() && a[0].dots != c[0].dots, "another seed varies it");
+    check (script.run ("nothing", 100.0f, 20.0f, flat, 1, a).failed(), "an unknown glyph is refused");
+
+    // == Broken scripts fail politely
+    Glyphs::Script broken;
+    check (broken.load ("var glyphs = {", "p").failed(), "a syntax error is reported");
+    const auto noObject = broken.load ("var x = 1;", "p");
+    check (noObject.failed() && noObject.getErrorMessage().contains ("glyphs object"), "a script without glyphs is reported");
+    Glyphs::Script endless;
+    check (endless.load ("var glyphs = { x: function (w, h, rand) { while (true) {} } };", "p").wasOk(), "an endless glyph still loads");
+    check (endless.run ("x", 100.0f, 20.0f, flat, 1, a).failed(), "but is stopped when it runs");
+
+    // == The set: the value's own package first, then the built-in shapes
+    auto full = Framework::builtIn();
+    const juce::File example (juce::String (PROJET_SOURCE_DIR) + "/Examples/Frameworks/example");
+    juce::String error;
+    check (full.addPackage (example.getChildFile ("framework.json").loadFileAsString(), "example", error,
+                            example.getChildFile ("glyphs.js").loadFileAsString()), "the example package loads with its script");
+    Glyphs::Set set;
+    set.rebuild (full);
+    check (set.getProblems().isEmpty(), "no script problems: " + set.getProblems().joinIntoString ("; "));
+    check (set.find ("example-pulse", { "example", "composition" }).owner == "example", "the example draws its added energy");
+    check (set.find ("rebond", { "example", "composition" }).owner == "composition", "composition draws the others");
+    check (set.find ("nothing", {}).script == nullptr, "an unknown glyph finds no script");
+    Framework plainFw;
+    check (plainFw.addPackage (Framework::builtins()[0].json, "composition", error), "composition without its script");
+    Glyphs::Set fallback;
+    fallback.rebuild (plainFw);
+    check (fallback.find ("rebond", { "composition" }).owner == "projet", "the built-in shapes step in");
+    juce::String badError;
+    check (full.addPackage (R"({ "id": "bad" })", "bad", badError, "var glyphs = ("), "a package with a broken script still loads");
+    Glyphs::Set reported;
+    reported.rebuild (full);
+    check (reported.getProblems().size() == 1 && reported.getProblems()[0].startsWith ("bad"),
+           "the broken script is one problem: " + reported.getProblems().joinIntoString ("; "));
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -1012,7 +1125,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -1040,6 +1153,7 @@ int main (int argc, char** argv)
     std::cout << "Proportions..." << std::endl;      testProportions();
     std::cout << "Marks..." << std::endl;            testMarks();
     std::cout << "Framework packages..." << std::endl; testFramework();
+    std::cout << "Energy glyphs..." << std::endl;      testGlyphs();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

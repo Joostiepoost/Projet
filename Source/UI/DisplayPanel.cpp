@@ -59,7 +59,7 @@ public:
         // Marks
         if (fw.getCategories().isEmpty())
             y = note ("This project uses no framework packages with categories.", y, w);
-        static const char* markNames[] = { "Not shown", "Strip", "Badge", "Label" };
+        static const char* markNames[] = { "Not shown", "Strip", "Badge", "Label", "Glyph" };
         for (auto& p : fw.getPackages())
         {
             if (p.categories.isEmpty()) continue;
@@ -100,6 +100,26 @@ public:
             y += 4;
         }
 
+        // Fills and weight
+        heading ("Drawing", y, w);
+        auto addToggle = [&] (const juce::Identifier& id, const juce::String& text, const juce::String& tip)
+        {
+            auto* b = place (std::make_unique<juce::ToggleButton> (text), 0, y, w, 22);
+            b->setTooltip (tip);
+            b->setToggleState (state[id].toString() != "off", juce::dontSendNotification);
+            b->onClick = [this, b, id]
+            {
+                const bool on = b->getToggleState();
+                later ([id, on] (DisplayPanel& panel) { if (panel.setView) panel.setView (id, on ? juce::String() : juce::String ("off")); });
+            };
+            y += 26;
+        };
+        addToggle (IDs::fwFills, "Fill patterns",
+                   "Values with a fill texture their boxes: hatched, dotted, or veiled with an outline (the semiotic levels)");
+        addToggle (IDs::fwWeight, "Figure and ground weight",
+                   "Weighted values set boxes forward or back: the ground fainter, the figure with a stronger edge (the roles)");
+        y += 4;
+
         // Presets, for all projects
         y += 6;
         heading ("Presets (for all projects)", y, w);
@@ -117,11 +137,14 @@ public:
                 const auto preset = list2[i];
                 if (! preset.isObject()) return;
                 const auto presetMode = preset.getProperty ("colourMode", "own").toString(), presetMarks = preset["display"].toString();
-                later ([presetMode, presetMarks] (DisplayPanel& panel)
+                const auto presetFills = preset.getProperty ("fills", "").toString(), presetWeight = preset.getProperty ("weight", "").toString();
+                later ([presetMode, presetMarks, presetFills, presetWeight] (DisplayPanel& panel)
                 {
                     if (! panel.setView) return;
                     panel.setView (IDs::colourMode, presetMode);
                     panel.setView (IDs::fwDisplay, presetMarks);
+                    panel.setView (IDs::fwFills, presetFills);
+                    panel.setView (IDs::fwWeight, presetWeight);
                 });
             };
             y += 30;
@@ -146,11 +169,20 @@ public:
                 });
             };
             auto* reset = place (std::make_unique<juce::TextButton> ("Defaults"), 2 * (bw + 4), y, w - 2 * (bw + 4), 24);
-            reset->setTooltip ("Every category gets its package's mark again");
-            reset->onClick = [this] { later ([] (DisplayPanel& panel) { if (panel.setView) panel.setView (IDs::fwDisplay, {}); }); };
+            reset->setTooltip ("Every category gets its package's mark again; fills and weight come back on");
+            reset->onClick = [this]
+            {
+                later ([] (DisplayPanel& panel)
+                {
+                    if (! panel.setView) return;
+                    panel.setView (IDs::fwDisplay, {});
+                    panel.setView (IDs::fwFills, {});
+                    panel.setView (IDs::fwWeight, {});
+                });
+            };
             y += 30;
         }
-        y = note ("Strips run along the bottom of the boxes, badges sit at the bottom right, labels at the bottom left.", y, w);
+        y = note ("Strips run along the bottom of the boxes, badges sit at the bottom right, labels at the bottom left. A glyph draws its value's shape in the band above the strips, shaped by the dynamic profile.", y, w);
         setSize (w, y + 8);
     }
 
@@ -181,6 +213,8 @@ private:
             item->setProperty ("name", name);
             item->setProperty ("colourMode", safe->project.getState().getProperty (IDs::colourMode, "own").toString());
             item->setProperty ("display", safe->project.getState()[IDs::fwDisplay].toString());
+            item->setProperty ("fills", safe->project.getState()[IDs::fwFills].toString());
+            item->setProperty ("weight", safe->project.getState()[IDs::fwWeight].toString());
             auto* a = list.getArray();
             for (int i = a->size(); --i >= 0;)
                 if ((*a)[i]["name"].toString() == name) a->remove (i);     // same name: replaced

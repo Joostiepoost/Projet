@@ -83,6 +83,8 @@ private:
     /** Reads the project's packages (made the first time from its 4a
         framework file, else copied from the library). */
     void loadFramework (bool announce);
+    /** Puts any glyph-script problem in the status bar (never a dialog). */
+    void showGlyphProblems();
     /** A view setting of the project (colour mode, display, language): it
         does not mark the project as changed. */
     void setViewSetting (const juce::Identifier&, const juce::String&);

@@ -213,6 +213,7 @@ void MainComponent::afterProjectLoaded()
     markClean();
     rememberProject();
     transport.setStatus ({});
+    showGlyphProblems();
 
     // A device at another rate than the project still plays correctly (through
     // the sinc kernel), but the timer reminds once.
@@ -1072,9 +1073,17 @@ void MainComponent::loadFramework (bool announce)
                              + juce::String (framework.getCategories().size()) + " categories"
                              + (report.notes.isEmpty() ? juce::String() : " (" + juce::String (report.notes.size()) + " notes: Framework > Frameworks...)"));
 
-    timeline.repaint();
+    timeline.frameworkReloaded();
+    showGlyphProblems();
     inspector.frameworkChanged();
     inspector.refresh();
+}
+
+void MainComponent::showGlyphProblems()
+{
+    if (! timeline.glyphProblems().isEmpty())
+        transport.setStatus ("A glyph script could not be read: " + timeline.glyphProblems().joinIntoString ("; ")
+                             + ". Its package draws with Projet's shapes meanwhile.", true);
 }
 
 void MainComponent::showPackages()
@@ -1106,8 +1115,11 @@ void MainComponent::refreshPackages()
         e.projectVersion = Framework::folderVersion (pf);
         e.libraryVersion = Framework::folderVersion (lf);
         juce::String builtinJson, builtinHelp;
+        bool builtinGlyphs = false;
         for (auto& b : Framework::builtins())
-            if (b.id == id) { e.builtin = true; e.builtinVersion = b.version; builtinJson = b.json; builtinHelp = b.help; }
+            if (b.id == id) { e.builtin = true; e.builtinVersion = b.version; builtinJson = b.json; builtinHelp = b.help; builtinGlyphs = b.glyphs.isNotEmpty(); }
+        e.hasScript = e.inProject ? pf.getChildFile ("glyphs.js").existsAsFile()
+                    : e.inLibrary ? lf.getChildFile ("glyphs.js").existsAsFile() : builtinGlyphs;
 
         // Its name, description and categories: as this project reads it, else as the library's or Projet's file says.
         Framework reader;
@@ -1125,8 +1137,14 @@ void MainComponent::refreshPackages()
                 if (auto* c = reader.findCategory (key))
                     e.categories.add (reader.text (c->name));
             if (e.inProject)
+            {
                 if (auto* loaded = framework.findPackage (p.id))
                     for (auto& w : loaded->warnings) e.problems.add (w);
+                for (auto& gp : timeline.glyphProblems())
+                    if (gp.startsWith (p.id + ":"))
+                        e.problems.add ("Its glyphs.js could not be read (" + gp.fromFirstOccurrenceOf (":", false, false).trim()
+                                        + "); Projet's shapes are drawn meanwhile.");
+            }
         }
         else
         {

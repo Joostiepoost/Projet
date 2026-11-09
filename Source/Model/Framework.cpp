@@ -89,6 +89,19 @@ namespace
         const auto& d = v["details"];
         if (d.isArray()) x.detailsFr = x.detailsEn = readStrings (d);
         else { x.detailsFr = readStrings (d["fr"]); x.detailsEn = readStrings (d["en"]); }
+
+        if (auto* env = v["env"].getArray())                // [[t, a], ...]
+        {
+            juce::Array<float> pairs;
+            for (auto& p : *env)
+                if (auto* pa = p.getArray(); pa != nullptr && pa->size() >= 2)
+                    pairs.addArray ({ juce::jlimit (0.0f, 1.0f, (float) (double) pa->getUnchecked (0)),
+                                      juce::jlimit (0.0f, 1.0f, (float) (double) pa->getUnchecked (1)) });
+            for (int i = 2; i < pairs.size(); i += 2)       // keep t ascending
+                if (pairs[i] < pairs[i - 2])
+                    pairs.set (i, pairs[i - 2]);
+            if (pairs.size() >= 4) x.env = pairs;
+        }
         return x;
     }
 
@@ -188,7 +201,8 @@ namespace
 
 //== Packages ==================================================================
 
-bool Framework::addPackage (const juce::String& json, const juce::String& folderName, juce::String& error)
+bool Framework::addPackage (const juce::String& json, const juce::String& folderName, juce::String& error,
+                            const juce::String& script)
 {
     juce::var root;
     const auto parsed = juce::JSON::parse (json, root);
@@ -206,6 +220,7 @@ bool Framework::addPackage (const juce::String& json, const juce::String& folder
     if (p.name.isEmpty()) p.name = { p.id, p.id };
     p.about = readName (root["about"]);
     p.status = root["status"].toString();
+    p.script = script;
     p.json = root;
     raw.additions = root["additions"];
 
@@ -516,6 +531,7 @@ juce::String Framework::markName (Mark m)
         case Mark::strip: return "strip";
         case Mark::badge: return "badge";
         case Mark::label: return "label";
+        case Mark::glyph: return "glyph";
     }
     return {};
 }
@@ -526,6 +542,7 @@ Framework::Mark Framework::markFromName (const juce::String& s, Mark fallback)
     if (n == "strip") return Mark::strip;
     if (n == "badge") return Mark::badge;
     if (n == "label") return Mark::label;
+    if (n == "glyph") return Mark::glyph;
     if (n == "none") return Mark::none;
     return fallback;
 }
@@ -534,6 +551,7 @@ juce::Array<Framework::Mark> Framework::marksFor (const Category& c)
 {
     juce::Array<Mark> out { Mark::none };
     if (c.kind == Kind::choice || c.kind == Kind::number) out.add (Mark::strip);
+    if (c.kind == Kind::choice) out.add (Mark::glyph);
     out.add (Mark::badge);
     out.add (Mark::label);
     return out;
@@ -595,7 +613,8 @@ void Framework::loadFolder (const juce::File& parent, Report& report)
     for (auto& folder : packageFolders (parent))
     {
         juce::String error;
-        if (! addPackage (folder.getChildFile ("framework.json").loadFileAsString(), folder.getFileName(), error))
+        if (! addPackage (folder.getChildFile ("framework.json").loadFileAsString(), folder.getFileName(), error,
+                          folder.getChildFile ("glyphs.js").loadFileAsString()))
             report.errors.add (folder.getFileName() + ": " + error);
     }
     rebuild();
@@ -609,14 +628,15 @@ Framework Framework::builtIn()
     for (auto& b : builtins())
     {
         juce::String error;
-        const bool ok = f.addPackage (b.json, b.id, error);
+        const bool ok = f.addPackage (b.json, b.id, error, b.glyphs);
         jassertquiet (ok);
         juce::ignoreUnused (ok);
     }
     return f;
 }
 
-juce::Result Framework::writePackage (const juce::File& packageFolder, const juce::String& json, const juce::String& help)
+juce::Result Framework::writePackage (const juce::File& packageFolder, const juce::String& json, const juce::String& help,
+                                      const juce::String& script)
 {
     if (! packageFolder.createDirectory())
         return juce::Result::fail ("Could not make " + packageFolder.getFullPathName());
@@ -624,13 +644,15 @@ juce::Result Framework::writePackage (const juce::File& packageFolder, const juc
         return juce::Result::fail ("Could not write " + packageFolder.getChildFile ("framework.json").getFullPathName());
     if (help.isNotEmpty() && ! packageFolder.getChildFile ("help.md").replaceWithText (help))
         return juce::Result::fail ("Could not write " + packageFolder.getChildFile ("help.md").getFullPathName());
+    if (script.isNotEmpty() && ! packageFolder.getChildFile ("glyphs.js").replaceWithText (script))
+        return juce::Result::fail ("Could not write " + packageFolder.getChildFile ("glyphs.js").getFullPathName());
     return juce::Result::ok();
 }
 
 juce::Result Framework::writeBuiltin (const juce::File& parent, const juce::String& id)
 {
     for (auto& b : builtins())
-        if (b.id == id) return writePackage (parent.getChildFile (b.id), b.json, b.help);
+        if (b.id == id) return writePackage (parent.getChildFile (b.id), b.json, b.help, b.glyphs);
     return juce::Result::fail ("Projet has no package " + id);
 }
 
@@ -652,12 +674,18 @@ namespace
         return {};
     }
 
-    /** Writes converted 4a packages (each with the builtin's help) into `parent`. */
+    juce::String glyphsFor (const juce::String& id)
+    {
+        for (auto& b : Framework::builtins()) if (b.id == id) return b.glyphs;
+        return {};
+    }
+
+    /** Writes converted 4a packages (each with the builtin's help and glyphs) into `parent`. */
     juce::Result writeConverted (const juce::File& parent, const juce::StringArray& ids, const juce::StringArray& jsons)
     {
         for (int i = 0; i < ids.size(); ++i)
         {
-            const auto r = Framework::writePackage (parent.getChildFile (ids[i]), jsons[i], helpFor (ids[i]));
+            const auto r = Framework::writePackage (parent.getChildFile (ids[i]), jsons[i], helpFor (ids[i]), glyphsFor (ids[i]));
             if (r.failed()) return r;
         }
         return juce::Result::ok();
@@ -695,7 +723,7 @@ juce::Result Framework::ensureLibrary (juce::String& language, juce::String& nam
     }
     for (auto& b : builtins())
     {
-        const auto r = writePackage (lib.getChildFile (b.id), b.json, b.help);
+        const auto r = writePackage (lib.getChildFile (b.id), b.json, b.help, b.glyphs);
         if (r.failed()) return r;
     }
     return juce::Result::ok();
@@ -730,7 +758,7 @@ juce::Result Framework::ensureProject (const juce::File& project, juce::String& 
     {
         for (auto& b : builtins())
         {
-            const auto r = writePackage (dir.getChildFile (b.id), b.json, b.help);
+            const auto r = writePackage (dir.getChildFile (b.id), b.json, b.help, b.glyphs);
             if (r.failed()) return r;
         }
         return juce::Result::ok();

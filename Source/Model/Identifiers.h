@@ -62,6 +62,8 @@ namespace IDs
     PROJET_ID (fwLanguage)            // "fr" or "en": the language of the framework names (view state, stage 4b)
     PROJET_ID (fwNaming)              // "composition.role=first;...": which of two names show (view state)
     PROJET_ID (fwDisplay)             // "composition.level=strip;...": the mark of each category (view state)
+    PROJET_ID (fwFills)               // "off" hides the semiotic fill patterns (view state, stage 4b)
+    PROJET_ID (fwWeight)              // "off" stops roles weighting the drawing (view state, stage 4b)
 
     // Common
     PROJET_ID (id)

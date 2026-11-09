@@ -45,6 +45,8 @@ set(PROJET_CORE_SOURCES
     Source/Model/Framework.cpp
     Source/Model/FrameworkBuiltin.cpp
     Source/Model/FrameworkLegacy.cpp
+    Source/Model/Glyphs.cpp
+    Source/Model/GlyphsBuiltin.cpp
     Source/Model/ProjectFolder.cpp)
 
 set(PROJET_DEFINITIONS
@@ -95,6 +97,7 @@ target_link_libraries(Projet
         juce::juce_gui_extra
         juce::juce_audio_utils
         juce::juce_cryptography
+        juce::juce_javascript
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
@@ -119,6 +122,7 @@ if(PROJET_BUILD_TESTS)
             juce::juce_audio_formats
             juce::juce_data_structures
             juce::juce_cryptography
+            juce::juce_javascript
         PUBLIC
             juce::juce_recommended_config_flags
             juce::juce_recommended_lto_flags)

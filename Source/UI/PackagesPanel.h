@@ -23,6 +23,7 @@ public:
         int projectVersion = 0, libraryVersion = 0, builtinVersion = 0;
         int order = 50;                         // the package's place among the others
         bool unreadable = false;                // its framework.json could not be read
+        bool hasScript = false;                 // it draws glyphs (a glyphs.js)
     };
 
     PackagesPanel();

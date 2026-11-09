@@ -44,8 +44,8 @@ Other options:
 | 3a | Proportions and folders: proportion frames, typed proportions, divisions that follow the zoom, snapping with a readout, track folders | done |
 | 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci, harmonic, your own), ratio checking | done |
 | 4a | Framework file and box fields: energies, semiotic levels, roles, Schaeffer's type; changes along a box; colour modes, highlight, folder levels | done |
-| 4b.1 | Framework packages: the categories themselves as data (kinds, marks, groups, charts, two names, additions); library and project copies; Display and Frameworks panels; an example package | built, to test |
-| 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | |
+| 4b.1 | Framework packages: the categories themselves as data (kinds, marks, groups, charts, two names, additions); library and project copies; Display and Frameworks panels; an example package | done |
+| 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | built, to test |
 | 4c | Junction and demarcation signs, mixing relations on overlaps | |
 | 4d | Semiotic track template, overview lanes, writing types and nodes, accents and goals | |
 | 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
@@ -57,7 +57,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using Projet (stages 1–4b.1)
+## Using Projet (stages 1–4b.2)
 
 ### The project folder
 
@@ -173,10 +173,10 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 
 **Ratio checking**: select two or more boxes; the panel shows them in time order with their **lengths as a ratio** (*3 : 8 : 5*, or *≈ 8 : 13* when only close), what fraction one is of the other, the gaps or overlaps between them, and where they sit in the active layer's frame.
 
-### Frameworks: packages of categories (stages 4a, 4b.1)
+### Frameworks: packages of categories (stages 4a, 4b)
 
 Boxes can carry the vocabulary of composition frameworks. Projet ships three **packages**:
-- **Composition framework** (`composition`): **energy** (Vande Gorne's energy models, in families) and a **second energy**, the **semiotic level** (I-son, Di-son, métonymique, Mé-son) and the **role** (F / M / B: Thoresen's layer functions or Vande Gorne's figure and ground).
+- **Composition framework** (`composition`): **energy** (Vande Gorne's energy models, in families) and a **second energy**, the **semiotic level** (I-son, Di-son, métonymique, Mé-son), the **role** (F / M / B: Thoresen's layer functions or Vande Gorne's figure and ground) and the **dynamic profile** (the box's intensity envelope, with Schaeffer's names). It also ships a `glyphs.js`: the energies' shapes, drawn on the boxes.
 - **Schaeffer** (`schaeffer`): the **type**, from his typology (29 types in a chart).
 - **Structuring language (RK1)** (`rk1`): no categories yet; it carries the operations of your structuring language for stage 8.
 
@@ -198,9 +198,9 @@ Nothing about the categories is built into Projet: a package declares them (what
 - The same choices and tags are in the **right-click menu** of a box; a folder's right-click menu has *... for its boxes* for the categories folders can give (the semiotic level).
 - At the bottom: **Frameworks...** and **Display...**.
 
-**On the timeline**, each category has a **mark**: a **strip** along the bottom (in the value's colour; a number as a bar of its share of the range), a **badge** at the bottom right, a **label** at the bottom left, or none. By default: the level a strip, the role and the type badges (the role only when it is not M), the energies none. Folder headers show the values they give as pills.
+**On the timeline**, each category has a **mark**: a **strip** along the bottom (in the value's colour; a number as a bar of its share of the range), a **badge** at the bottom right, a **label** at the bottom left, a **glyph** (the value's shape, drawn in the band above the strips), or none. By default: the level a strip, the role, the profile and the type badges (the role only when it is not M, the profile only when it is not flat), the energies glyphs. Folder headers show the values they give as pills.
 
-**Display** (*View > Display...*, or *Display...* in the Framework tab): *Colour boxes by* (track colours, or any category with colours: energy family, level, type zone ...), and the mark of each category. Kept with the project as view settings (not a change to save). **Presets** keep a colour mode and marks for all projects: *Save as...*, choose one to apply it, *Delete*; *Defaults* gives every category its package's mark again.
+**Display** (*View > Display...*, or *Display...* in the Framework tab): *Colour boxes by* (track colours, or any category with colours: energy family, level, type zone ...), the mark of each category, and under *Drawing* the **Fill patterns** and **Figure and ground weight** switches. Kept with the project as view settings (not a change to save). **Presets** keep a colour mode, marks, fills and weight for all projects: *Save as...*, choose one to apply it, *Delete*; *Defaults* gives every category its package's mark again and turns fills and weight back on.
 
 **Highlight** (*View > Highlight*): tick values or groups (families, zones) of any category; the other boxes fade. Within one category any ticked value counts (energy A *or* B, main or second energy); across categories all must match. *Show all (clear)* ends it.
 
@@ -210,10 +210,23 @@ Nothing about the categories is built into Projet: a package declares them (what
 - *Framework > Role: names* chooses Thoresen's names, Vande Gorne's, or both (for any category whose values have two names).
 - A package that cannot be read is reported (the others stay in use); fix it, or take the library's copy.
 
+### Glyphs, profiles, fills and weight (stage 4b.2)
+
+**Energy glyphs.** Each energy draws its shape on the box, in the band above the strips: the percussion-résonance triangle, the rebond's sharpening peaks, the spiral climbing as it accelerates, and the rest, as in your mockups. The second energy is drawn lighter, on top. The shapes stretch with the box, and the random ones (grain clouds) keep their exact shape from one redraw to the next.
+
+**The profile is the envelope.** The *dynamic profile* category gives the box an intensity envelope, with Schaeffer's names (*Traité*, 31.4) and Vande Gorne's where she has one: flat, résonance (attaque-résonance), crescendo (son renversé), décrescendo, delta, en creux (delta inversé), mordant. The energy glyph is drawn inside it, so a rebond can live in a delta. The profile itself shows as a badge (its label: `|>`, `<>`, ...) when it is not flat.
+
+**Drawn by JavaScript.** The shapes come from a package's `glyphs.js`, run in a sandbox inside Projet: scripts can only compute shapes (no files, no network), and one that runs too long is stopped. The composition package's `glyphs.js` is in every project's `Frameworks/composition` folder: edit it and *Framework > Reload frameworks* to change the drawings; it is also the guide for writing your own. A package without a script still gets Projet's shapes for the glyph ids its values name; a script that cannot be read is reported in the status line and the Frameworks panel, and Projet's shapes stand in meanwhile.
+
+**Semiotic fills.** A value can name a `fill`, and the first filled value textures the whole box: the levels use *solid* (I-son), *hatched* (Di-son), *dotted* (métonymique) and *outline* (Mé-son, a veil with an edge), so the semiotic distance from the source shows as material, not just colour.
+
+**Figure and ground.** When a category's values carry different `weight`s (the roles: F 3, M 2, B 1), a box with the lightest value recedes (drawn fainter) and one with the heaviest comes forward (a stronger edge). Both this and the fills switch off in *Display*.
+
 **Writing a package.** A folder (named as the package's id) with a `framework.json` and, if you like, a `help.md`. Copy `Examples/Frameworks/example` and edit it. Names can be `{ "fr": ..., "en": ... }` or plain text; colours are `"#rrggbb"`.
 - The package: `id` (lower case letters, digits, `-`, `_`), `version` (raise it when you change it), `order` (its place: Projet's are 10, 20, 90), `name`, `about`, `categories`, and `additions` (values, or groups, for another package's category: `{ "category": "composition.energy", "values": [ ... ] }`; your additions survive an update of that package).
-- A category: `id`, `name`, `about`; `kind`: `choice`, `tags`, `number` or `text`; `control` (a choice): `menu`, `buttons` or `chart` (by default a chart if it has one, buttons up to 5 values, else a menu); `mark`: `none`, `strip` (choice, number), `badge`, `label`; `along`: true (a choice that can change along a box); `folders`: true (folders can give it); `default` (a value a box has when it has none) and `showDefault`: false; `valuesFrom` (another category whose values it uses, like the second energy); `groups`: `{ "name": ..., "list": [ { "id", "name", "colour" } ] }`; `details` (what the values' details are, such as *Variation factors*); `names`: `{ "first": ..., "second": ... }` (what the two names of the values are); `chart`: `{ "rows": [ { "id", "name" } ], "columns": [ ... ], "caption": ... }`; for a number `min`, `max`, `step`, `unit`, `colour`.
-- A value: `id`, `name`, `name2` (a second name), `label` (short, for badges), `about`, `colour` (else its first group's), `groups`, `row` and `col` (in the chart), `weight`, `details` (`{ "fr": [ ... ], "en": [ ... ] }`).
+- A category: `id`, `name`, `about`; `kind`: `choice`, `tags`, `number` or `text`; `control` (a choice): `menu`, `buttons` or `chart` (by default a chart if it has one, buttons up to 5 values, else a menu); `mark`: `none`, `strip` (choice, number), `badge`, `label`, `glyph` (choice); `along`: true (a choice that can change along a box); `folders`: true (folders can give it); `default` (a value a box has when it has none) and `showDefault`: false; `valuesFrom` (another category whose values it uses, like the second energy); `groups`: `{ "name": ..., "list": [ { "id", "name", "colour" } ] }`; `details` (what the values' details are, such as *Variation factors*); `names`: `{ "first": ..., "second": ... }` (what the two names of the values are); `chart`: `{ "rows": [ { "id", "name" } ], "columns": [ ... ], "caption": ... }`; for a number `min`, `max`, `step`, `unit`, `colour`.
+- A value: `id`, `name`, `name2` (a second name), `label` (short, for badges), `about`, `colour` (else its first group's), `groups`, `row` and `col` (in the chart), `weight` (differing weights set boxes forward or back), `fill` (`solid`, `hatched`, `dotted`, `outline`), `glyph` (the shape it draws, by default its id), `env` (an intensity envelope as `[[t, a], ...]`, both 0–1: the profiles), `details` (`{ "fr": [ ... ], "en": [ ... ] }`).
+- `glyphs.js` next to `framework.json` draws the shapes of `glyph`-marked values: one object `glyphs`, each entry a function `(w, h, rand)` returning strokes (`{ pts: [x,y, ...], close, fill, faint, width, alpha }` or `{ dots: [x,y,r, ...] }`) in a `w` by `h` band. `rand()` is seeded, so shapes repeat exactly; the profile is applied by Projet afterwards. The composition package's `glyphs.js` documents the format; an added value can bring its own shape (the example package's *Pulsation*).
 - Boxes store values under `fw.<package>.<category>` (ids, never names): renaming or translating breaks nothing, and an id no package knows is kept and shown with a question mark.
 
 ### Folders (stage 3a)
@@ -240,6 +253,17 @@ Nothing about the categories is built into Projet: a package declares them (what
 - Overlapping boxes simply add up; their fades make the crossfade. For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+
+**Worth testing in stage 4b.2**:
+- First, in a project from 4b.1: *Framework > Frameworks...*, composition says *Projet's v3* — *Library: take Projet's v3*, then *Take the library's (v3)*. The glyphs appear (a v2 copy has no glyphs or profile; fills and weight already work).
+- Boxes with each energy, at different widths and heights; a second energy on top (lighter); drag and stretch a box with a grain cloud (the cloud keeps its shape).
+- The dynamic profile (Framework tab buttons): a delta on a rebond, a crescendo on an oscillation; the badge shows the label; back to flat (the default: no badge).
+- Levels: I-son / Di-son / métonymique / Mé-son boxes side by side (solid, hatched, dotted, veiled); a level from a folder (fainter pattern).
+- Roles: an F box next to a B box (edge against faintness); *Display > Drawing*: both switches off and on; save a preset with them off, apply it.
+- Set every mark of the composition categories to *Glyph* and back (*Display*); glyphs on small boxes (they step aside when the box is too small).
+- Edit `Frameworks/composition/glyphs.js` in the project (change a shape; then break it: the status line and the Frameworks panel report it, Projet's shapes stand in; *Take the library's (v3)* repairs it).
+- The example package: *Pulsation (example)* draws its own pulse train from the package's `glyphs.js`.
+- Save, quit, reopen; a new project gets the v3 library.
 
 **Worth testing in stage 4b.1**:
 - Open a project from 4a: everything looks and works as before (strips, badges, folder pills, colour modes); it now has a `Frameworks` folder and a `framework-4a.json`.

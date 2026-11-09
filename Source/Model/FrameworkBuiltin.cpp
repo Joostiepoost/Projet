@@ -4,21 +4,24 @@
 // Thoresen's roles or Vande Gorne's figure and ground); schaeffer: his
 // typology; rk1: the operations of your structuring language (for stage 8).
 // They are written to the library the first time Projet runs, and copied into
-// new projects. Generated from the 4a framework file (FrameworkLegacy.cpp),
-// so they carry exactly what 4a had.
+// new projects. Generated from the 4a framework file (FrameworkLegacy.cpp)
+// plus what 4b added (the profile category; the glyph marks). The composition
+// package also ships a glyphs.js: Glyphs::builtinSource() (GlyphsBuiltin.cpp).
 
 #include "Framework.h"
+#include "Glyphs.h"
 
 namespace
 {
     juce::String utf8 (const char* s)     { return juce::String::fromUTF8 (s); }
 
-    Framework::Builtin make (const char* id, const char* json, const char* help)
+    Framework::Builtin make (const char* id, const char* json, const char* help, juce::String glyphs = {})
     {
         Framework::Builtin b;
         b.id = id;
         b.json = utf8 (json);
         b.help = utf8 (help);
+        b.glyphs = std::move (glyphs);
         b.version = (int) juce::JSON::parse (b.json).getProperty ("version", 1);
         return b;
     }
@@ -32,7 +35,7 @@ const juce::Array<Framework::Builtin>& Framework::builtins()
 R"PKG({
   "projet": "framework package",
   "id": "composition",
-  "version": 2,
+  "version": 3,
   "order": 10,
   "name": {"fr": "Cadre de composition", "en": "Composition framework"},
   "about": {
@@ -49,7 +52,7 @@ R"PKG({
       },
       "kind": "choice",
       "control": "menu",
-      "mark": "none",
+      "mark": "glyph",
       "groups": {
         "name": {"fr": "famille", "en": "family"},
         "list": [
@@ -196,7 +199,7 @@ R"PKG({
       "about": {"fr": "une deuxième énergie, dessinée plus claire", "en": "a second energy, drawn lighter"},
       "kind": "choice",
       "control": "menu",
-      "mark": "none",
+      "mark": "glyph",
       "valuesFrom": "energy"
     },
     {
@@ -346,6 +349,62 @@ R"PKG({
           }
         }
       ]
+    },
+    {
+      "id": "profile",
+      "name": {"fr": "Profil dynamique", "en": "Dynamic profile"},
+      "about": {
+        "fr": "l'enveloppe d'intensité de la boîte : le glyphe d'énergie est dessiné dedans (deltas de Vande Gorne ; noms de Schaeffer, Traité 31.4)",
+        "en": "the box's intensity envelope: the energy glyph is drawn inside it (Vande Gorne's deltas; Schaeffer's names, Treatise 31.4)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "mark": "badge",
+      "default": "flat",
+      "showDefault": false,
+      "names": {"first": {"fr": "Schaeffer", "en": "Schaeffer"}, "second": {"fr": "Vande Gorne", "en": "Vande Gorne"}},
+      "values": [
+        {"id": "flat", "label": "=", "name": {"fr": "plat", "en": "flat"}, "env": [[0, 1], [1, 1]]},
+        {
+          "id": "resonance",
+          "label": "|>",
+          "name": {"fr": "résonance", "en": "resonance"},
+          "name2": {"fr": "attaque-résonance", "en": "attack-resonance"},
+          "env": [[0, 1], [0.08, 0.55], [0.35, 0.22], [1, 0.06]]
+        },
+        {
+          "id": "crescendo",
+          "label": "<",
+          "name": {"fr": "crescendo", "en": "crescendo"},
+          "name2": {"fr": "son renversé", "en": "reversed sound"},
+          "env": [[0, 0.06], [1, 1]]
+        },
+        {
+          "id": "decrescendo",
+          "label": ">",
+          "name": {"fr": "décrescendo", "en": "decrescendo"},
+          "env": [[0, 1], [1, 0.08]]
+        },
+        {
+          "id": "delta",
+          "label": "<>",
+          "name": {"fr": "delta", "en": "delta"},
+          "env": [[0, 0.06], [0.5, 1], [1, 0.06]]
+        },
+        {
+          "id": "hollow",
+          "label": "><",
+          "name": {"fr": "en creux", "en": "hollow"},
+          "name2": {"fr": "delta inversé", "en": "reversed delta"},
+          "env": [[0, 1], [0.5, 0.15], [1, 1]]
+        },
+        {
+          "id": "mordent",
+          "label": "|=",
+          "name": {"fr": "mordant", "en": "mordent"},
+          "env": [[0, 1], [0.07, 1], [0.2, 0.4], [1, 0.35]]
+        }
+      ]
     }
   ]
 }
@@ -358,8 +417,13 @@ R"HELP(# Composition framework
 
 **Role.** Thoresen's layer functions (foreground, middleground, background) or Vande Gorne's figure and ground: F, M (the default) and B. In the Framework menu, *Role: names* chooses which names show. The role can change along a box.
 
+**Dynamic profile.** The box's intensity envelope, with Schaeffer's names (*Traité*, 31.4) and Vande Gorne's where she has one: flat, resonance (attack-resonance), crescendo (reversed sound), decrescendo, delta, hollow (reversed delta), mordent. The energy glyph is drawn inside the profile, so a bounce can live in a delta.
+
+**Glyphs.** The energies are drawn on the boxes by `glyphs.js`, this package's drawing script (JavaScript, sandboxed: no files or network). Edit it to change the shapes; each value's `glyph` field names the shape it uses.
+
 Edit `framework.json` to rename, translate or add values, then *Framework > Reload frameworks*.
-)HELP"),
+)HELP",
+Glyphs::builtinSource()),
 
         make ("schaeffer",
 R"PKG({

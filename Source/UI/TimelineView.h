@@ -24,16 +24,24 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <map>
 #include "../Model/Project.h"
 #include "../Engine/SoundData.h"
 #include "../Model/Proportion.h"
 #include "../Model/Framework.h"
+#include "../Model/Glyphs.h"
 
 class TimelineView : public juce::Component,
                      public juce::FileDragAndDropTarget
 {
 public:
     TimelineView (Project&, projet::SoundPool&, const Framework&);
+
+    /** After the framework's packages change: reloads the glyph scripts,
+        clears the drawing caches and repaints. */
+    void frameworkReloaded();
+    /** Glyph scripts that could not be loaded, one line each ("<package>: why"). */
+    const juce::StringArray& glyphProblems() const      { return glyphs.getProblems(); }
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -170,6 +178,13 @@ private:
     juce::Colour boxColour (const juce::ValueTree& box, const TrackRow& row);
     /** Each category's mark: strips along the bottom, badges at the bottom right, labels at the bottom left. */
     void paintFrameworkMarks (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha);
+    /** The fill pattern of the box's first filled value (hatched, dotted, outline). */
+    void paintFrameworkFill (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha);
+    /** The energy glyphs in the band above the strips, shaped by the profile. */
+    void paintGlyphs (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha, float bandBottom);
+    /** How a box's weighted value (the role) changes its drawing. */
+    struct Weight { float alphaFactor = 1.0f; bool emphasis = false; };
+    Weight weightFor (const juce::ValueTree& box) const;
     /** The framework submenus of the box menu (ids from boxMenuBase). */
     void addFrameworkMenus (juce::PopupMenu&, const juce::Array<juce::ValueTree>& boxes);
     void applyFrameworkMenu (int result, const juce::Array<juce::ValueTree>& boxes);
@@ -189,6 +204,14 @@ private:
     Highlight highlight;
     juce::String displayCache;                  // the project's fwDisplay, as last parsed
     juce::StringPairArray displayMarks;
+    Glyphs::Set glyphs;                         // the packages' drawing scripts (4b.2)
+    struct CachedGlyph                          // one glyph at one size, as paths
+    {
+        juce::Array<juce::Path> paths;
+        juce::Array<float> alphas, widths;
+        juce::Array<bool> fills;
+    };
+    std::map<juce::String, CachedGlyph> glyphCache;
 
     double viewStart = 0.0, pps = 20.0;
     int scrollY = 0;

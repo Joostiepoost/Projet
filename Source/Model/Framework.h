@@ -54,12 +54,13 @@ public:
         Colours colours;                        // its own (else its first group's)
         int order = 0, weight = 0, row = -1, col = -1;
         juce::StringArray detailsFr, detailsEn;
+        juce::Array<float> env;                 // intensity envelope, flat (t, a) pairs, t ascending
     };
 
     struct Axis { juce::String id; Name name; };
 
     enum class Kind { choice, tags, number, text };
-    enum class Mark { none, strip, badge, label };
+    enum class Mark { none, strip, badge, label, glyph };
 
     struct Category
     {
@@ -97,6 +98,7 @@ public:
         juce::String status;
         juce::StringArray categories;           // keys, in order
         juce::var json;                         // the whole file (operations and the like, for later stages)
+        juce::String script;                    // its glyphs.js, if it has one
         juce::StringArray warnings;             // about this package, from the last rebuild
     };
 
@@ -105,8 +107,10 @@ public:
 
     //== Packages ==============================================================
     /** Adds (or replaces) a package from its framework.json. `folderName` is
-        used when the file has no id. On failure (error set) nothing changes. */
-    bool addPackage (const juce::String& json, const juce::String& folderName, juce::String& error);
+        used when the file has no id. On failure (error set) nothing changes.
+        `script` is the package's glyphs.js, if it has one. */
+    bool addPackage (const juce::String& json, const juce::String& folderName, juce::String& error,
+                     const juce::String& script = {});
     void removePackage (const juce::String& id);
     void clear();
     bool isEmpty() const                        { return packages.isEmpty(); }
@@ -186,11 +190,12 @@ public:
     void loadFolder (const juce::File& parent, Report&);
 
     //== The packages Projet ships =============================================
-    struct Builtin { juce::String id, json, help; int version = 0; };
+    struct Builtin { juce::String id, json, help, glyphs; int version = 0; };
     static const juce::Array<Builtin>& builtins();
     /** All builtin packages, loaded. */
     static Framework builtIn();
-    static juce::Result writePackage (const juce::File& packageFolder, const juce::String& json, const juce::String& help);
+    static juce::Result writePackage (const juce::File& packageFolder, const juce::String& json, const juce::String& help,
+                                      const juce::String& script = {});
     static juce::Result writeBuiltin (const juce::File& parent, const juce::String& id);
     /** Copies a package folder into `parent` (replacing the one there). */
     static juce::Result copyPackage (const juce::File& packageFolder, const juce::File& parent);

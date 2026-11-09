@@ -6,6 +6,7 @@
 #include "TimeFormat.h"
 #include "../Engine/Arrangement.h"
 #include "Markdown.h"
+#include <limits>
 
 namespace
 {
@@ -24,6 +25,15 @@ TimelineView::TimelineView (Project& p, projet::SoundPool& sp, const Framework& 
     : project (p), pool (sp), framework (f)
 {
     setWantsKeyboardFocus (false);
+    glyphs.rebuild (framework);
+}
+
+void TimelineView::frameworkReloaded()
+{
+    glyphs.rebuild (framework);
+    glyphCache.clear();
+    displayCache = "\x01";      // reparse the display settings
+    repaint();
 }
 
 void TimelineView::resized() {}
@@ -622,6 +632,8 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
     float alpha = juce::jlimit (0.15f, 1.0f, (float) (double) box.getProperty (IDs::opacity, 1.0));
     if (project.effectiveMute (row.track)) alpha *= 0.45f;     // muted track (or folder): dimmed
     if (highlight.isActive() && ! matchesHighlight (box)) alpha *= 0.22f;
+    const auto wm = weightFor (box);                           // background roles recede (4b.2)
+    alpha *= wm.alphaFactor;
     const auto base = boxColour (box, row);
     const bool colourMode = project.getState().getProperty (IDs::colourMode, "own").toString() != "own";
     const bool missing = sound && pool.get (box[IDs::soundId].toString()) == nullptr;
@@ -631,6 +643,7 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
         // Text box: warm paper, dashed edge, the name and the first lines of the notes.
         g.setColour (juce::Colour (0xff2f2b25).withAlpha (alpha));
         g.fillRoundedRectangle (r, 4.0f);
+        paintFrameworkFill (g, box, r, alpha);
         {
             juce::Graphics::ScopedSaveState s (g);
             g.reduceClipRegion (r.toNearestInt());
@@ -669,7 +682,7 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
         {
             juce::Path dashed;
             const float dashes[] = { 4.0f, 3.0f };
-            juce::PathStrokeType (1.0f).createDashedStroke (dashed, outline, dashes, 2);
+            juce::PathStrokeType (wm.emphasis ? 1.6f : 1.0f).createDashedStroke (dashed, outline, dashes, 2);
             g.setColour ((colourMode ? base : juce::Colour (0xff9a8f78)).withAlpha (alpha));
             g.fillPath (dashed);
         }
@@ -678,6 +691,7 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
 
     g.setColour (base.darker (1.1f).withAlpha (alpha));
     g.fillRoundedRectangle (r, 4.0f);
+    paintFrameworkFill (g, box, r, alpha);
 
     {
         juce::Graphics::ScopedSaveState s (g);
@@ -731,8 +745,8 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
     }
 
     paintFrameworkMarks (g, box, r, alpha);
-    g.setColour (selected ? Theme::accent : base.withAlpha (alpha));
-    g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : 1.0f);
+    g.setColour (selected ? Theme::accent : (wm.emphasis ? base.brighter (0.25f) : base).withAlpha (alpha));
+    g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : (wm.emphasis ? 1.8f : 1.0f));
 }
 
 //== Framework on the boxes (stage 4a, 4b) =====================================
@@ -764,6 +778,172 @@ juce::Colour TimelineView::boxColour (const juce::ValueTree& box, const TrackRow
     const auto v = project.frameworkValue (box, *c);
     const auto first = c->kind == Framework::Kind::tags ? Tags::parse (v.value)[0] : v.value;
     return fromModel (framework.valueColours (*c, first).colour, none);
+}
+
+TimelineView::Weight TimelineView::weightFor (const juce::ValueTree& box) const
+{
+    if (project.getState()[IDs::fwWeight].toString() == "off") return {};
+    for (auto& c : framework.getCategories())
+    {
+        if (c.kind != Framework::Kind::choice) continue;
+        const auto& values = framework.valuesOf (c);
+        auto lightest = std::numeric_limits<int>::max(), heaviest = std::numeric_limits<int>::min();
+        for (auto& val : values) { lightest = juce::jmin (lightest, val.weight); heaviest = juce::jmax (heaviest, val.weight); }
+        if (values.isEmpty() || lightest == heaviest) continue;    // the first weighted category decides
+
+        const auto v = project.frameworkValue (box, c);
+        if (v.value.isEmpty() || v.isDefault()) return {};         // only a value the box (or its folder) states
+        auto* val = framework.findValue (c, v.value);
+        if (val == nullptr) return {};
+        Weight w;
+        if (val->weight == lightest) w.alphaFactor = 0.62f;        // the ground recedes
+        w.emphasis = val->weight == heaviest;                      // the figure comes forward
+        return w;
+    }
+    return {};
+}
+
+void TimelineView::paintFrameworkFill (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha)
+{
+    if (project.getState()[IDs::fwFills].toString() == "off") return;
+    for (auto& c : framework.getCategories())
+    {
+        if (c.kind != Framework::Kind::choice) continue;
+        const auto v = project.frameworkValue (box, c);
+        if (v.value.isEmpty() || v.isDefault()) continue;
+        auto* val = framework.findValue (c, v.value);
+        if (val == nullptr || val->fill.isEmpty()) continue;
+
+        // The first filled value decides; "solid" is the plain box itself.
+        const float strength = (v.fromFolder() ? 0.6f : 1.0f) * alpha;
+        const auto colour = fromModel (framework.valueColours (c, v.value).colour, Theme::accent);
+        juce::Graphics::ScopedSaveState state (g);
+        juce::Path clip;
+        clip.addRoundedRectangle (r, 4.0f);
+        g.reduceClipRegion (clip);
+        if (val->fill == "hatched")
+        {
+            g.setColour (colour.withAlpha (0.12f * strength));
+            for (float x = r.getX() - r.getHeight(); x < r.getRight(); x += 7.0f)
+                g.drawLine (x, r.getBottom(), x + r.getHeight(), r.getY(), 1.0f);
+        }
+        else if (val->fill == "dotted")
+        {
+            g.setColour (colour.withAlpha (0.16f * strength));
+            for (float y = r.getY() + 4.5f; y < r.getBottom() - 1.0f; y += 9.0f)
+                for (float x = r.getX() + 4.5f; x < r.getRight() - 1.0f; x += 9.0f)
+                    g.fillEllipse (x - 1.1f, y - 1.1f, 2.2f, 2.2f);
+        }
+        else if (val->fill == "outline")
+        {
+            g.setColour (Theme::background.withAlpha (0.32f * strength));
+            g.fillRoundedRectangle (r, 4.0f);
+            g.setColour (colour.withAlpha (0.4f * strength));
+            g.drawRoundedRectangle (r.reduced (2.0f), 3.0f, 1.0f);
+        }
+        return;
+    }
+}
+
+void TimelineView::paintGlyphs (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha, float bandBottom)
+{
+    const float bandH = juce::jmin (30.0f, (r.getHeight() - 16.0f) * 0.55f);
+    if (bandH < 8.0f || r.getWidth() < 26.0f) return;
+
+    // The profile: the first choice category whose effective value has an
+    // envelope (a flat one changes nothing and is left out of the cache key).
+    juce::Array<float> env;
+    juce::String envKey;
+    for (auto& c : framework.getCategories())
+    {
+        if (c.kind != Framework::Kind::choice) continue;
+        const auto v = project.frameworkValue (box, c);
+        if (v.value.isEmpty()) continue;
+        auto* val = framework.findValue (c, v.value);
+        if (val == nullptr || val->env.isEmpty()) continue;
+        bool flat = true;
+        for (int i = 1; i < val->env.size(); i += 2) flat = flat && std::abs (val->env[i] - 1.0f) < 1.0e-6f;
+        if (! flat) { env = val->env; envKey = c.key() + "=" + v.value; }
+        break;
+    }
+
+    // Shapes are built at a bucketed size and stretched the last few pixels,
+    // so dragging a box does not rebuild them at every width.
+    const int seed = (box[IDs::id].toString().hashCode() & 0x7fffffff) % 7;
+    const int wB = juce::jmin (2048, (((int) r.getWidth() + 11) / 12) * 12);
+    const int hB = juce::jmax (3, (((int) bandH + 2) / 3) * 3);
+    const juce::Rectangle<float> band (r.getX(), bandBottom - bandH, r.getWidth(), bandH);
+
+    for (auto& c : framework.getCategories())
+    {
+        if (c.kind != Framework::Kind::choice || markFor (c) != Framework::Mark::glyph) continue;
+        const auto v = project.frameworkValue (box, c);
+        if (v.value.isEmpty()) continue;
+        if (! c.showDefault && v.isDefault()) continue;
+        auto* val = framework.findValue (c, v.value);
+        if (val == nullptr || val->glyph.isEmpty()) continue;
+        const auto found = glyphs.find (val->glyph, { val->from, c.package });
+        if (found.script == nullptr) continue;
+
+        const auto key = found.owner + "|" + val->glyph + "|" + juce::String (wB) + "x" + juce::String (hB)
+                         + "|" + envKey + "|" + juce::String (seed);
+        auto it = glyphCache.find (key);
+        if (it == glyphCache.end())
+        {
+            if (glyphCache.size() > 400) glyphCache.clear();
+            CachedGlyph built;
+            juce::Array<Glyphs::Stroke> strokes;
+            if (found.script->run (val->glyph, (float) wB, (float) hB, env, seed, strokes).wasOk())
+                for (auto& stroke : strokes)
+                {
+                    if (stroke.points.size() >= 4)
+                    {
+                        juce::Path path;
+                        path.startNewSubPath (stroke.points[0], stroke.points[1]);
+                        for (int i = 2; i + 1 < stroke.points.size(); i += 2)
+                            path.lineTo (stroke.points[i], stroke.points[i + 1]);
+                        if (stroke.closed || stroke.filled) path.closeSubPath();
+                        built.paths.add (std::move (path));
+                        built.alphas.add (stroke.alpha);
+                        built.widths.add (stroke.width);
+                        built.fills.add (stroke.filled);
+                    }
+                    if (stroke.dots.size() >= 3)
+                    {
+                        juce::Path path;
+                        for (int i = 0; i + 2 < stroke.dots.size(); i += 3)
+                        {
+                            const float radius = juce::jmax (0.3f, stroke.dots[i + 2]);
+                            path.addEllipse (stroke.dots[i] - radius, stroke.dots[i + 1] - radius, radius * 2.0f, radius * 2.0f);
+                        }
+                        built.paths.add (std::move (path));
+                        built.alphas.add (stroke.alpha);
+                        built.widths.add (stroke.width);
+                        built.fills.add (true);                    // dots are always filled
+                    }
+                }
+            it = glyphCache.emplace (key, std::move (built)).first;
+        }
+
+        const auto& cached = it->second;
+        if (cached.paths.isEmpty()) continue;
+        const auto xform = juce::AffineTransform::scale (r.getWidth() / (float) wB, bandH / (float) hB)
+                               .translated (band.getX(), band.getY());
+        const auto colours = framework.valueColours (c, v.value);
+        const auto colour = colours.light != 0 ? juce::Colour (colours.light)
+                                               : fromModel (colours.colour, fromModel (c.colour, Theme::accent));
+        // The second energy (a category sharing another's values) is drawn lighter, on top.
+        const float strength = alpha * (v.fromFolder() ? 0.6f : 1.0f) * (c.valuesFrom.isEmpty() ? 0.9f : 0.5f);
+        for (int i = 0; i < cached.paths.size(); ++i)
+        {
+            g.setColour (colour.withMultipliedAlpha (cached.alphas[i] * strength));
+            if (cached.fills[i])
+                g.fillPath (cached.paths[i], xform);
+            else
+                g.strokePath (cached.paths[i], juce::PathStrokeType (cached.widths[i] * 1.1f, juce::PathStrokeType::curved,
+                                                                     juce::PathStrokeType::rounded), xform);
+        }
+    }
 }
 
 void TimelineView::paintFrameworkMarks (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha)
@@ -825,6 +1005,9 @@ void TimelineView::paintFrameworkMarks (juce::Graphics& g, const juce::ValueTree
         g.fillRect (juce::Rectangle<float>::leftTopRightBottom (xAt (from), strip.getY(), xAt (1.0), strip.getBottom()));
         bottom -= 5.0f;
     }
+
+    // The energy glyphs, in the band above the strips (4b.2).
+    paintGlyphs (g, box, r, alpha, bottom);
 
     // Badges at the bottom right (the last category rightmost), then labels at
     // the bottom left in the room that is left.

@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "example",
-  "version": 1,
+  "version": 2,
   "order": 60,
   "name": { "fr": "Exemple", "en": "Example" },
   "about": {
@@ -63,6 +63,7 @@
       "values": [
         { "id": "example-pulsation",
           "name": { "fr": "Pulsation (exemple)", "en": "Pulsation (example)" },
+          "glyph": "example-pulse",
           "groups": [ "loi" ],
           "details": { "fr": [ "tempo", "régularité" ], "en": [ "tempo", "regularity" ] } }
       ]

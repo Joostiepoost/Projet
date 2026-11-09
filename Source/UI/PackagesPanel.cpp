@@ -104,6 +104,7 @@ private:
         if (e.about.isNotEmpty()) y = note (e.about, y, w - 16, Theme::text.withAlpha (0.85f), 8);
         if (! e.categories.isEmpty()) y = note ("Categories: " + e.categories.joinIntoString (", "), y, w - 16, Theme::textMuted, 8);
         else if (! e.unreadable) y = note ("No categories (it carries other things, for later stages).", y, w - 16, Theme::textMuted, 8);
+        if (e.hasScript) y = note ("Draws glyphs with JavaScript (sandboxed: no files or network, time-limited).", y, w - 16, Theme::textMuted, 8);
         for (auto& p : e.problems) y = note (p, y, w - 16, juce::Colour (0xffe0a060), 8);
 
         // Actions
