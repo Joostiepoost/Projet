@@ -5,12 +5,13 @@
   "sampleRate": 96000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 0.108336129691534,
-  "pixelsPerSecond": 5.408514238678686,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 5.273084488204565,
   "playhead": 0.0,
-  "frameLength": 150.517991222882642,
-  "denominators": "2,3,4,5,6,8",
-  "rulerFrame": "1c3dad9af7d0486b9266939e80d308dd",
+  "frameLength": 194.044288521725548,
+  "activeLayer": "5473a037da044fc4a2007c2f10b8227f",
+  "spanStart": 41.474487710107113,
+  "spanEnd": 88.320004005231851,
   "children": [
     {
       "type": "SOUNDS",
@@ -95,11 +96,11 @@
               "kind": "text",
               "name": "Text",
               "start": 0.0,
-              "length": 175.456113044672293,
+              "length": 184.342074095639248,
               "opacity": 1.0,
               "notes": "",
               "propStart": "0",
-              "propLength": "1.165682",
+              "propLength": "0.95",
               "propFrame": "piece",
               "propLock": true
             }
@@ -142,10 +143,14 @@
               "id": "2382f4db28974087af7e5216be1a33fc",
               "kind": "text",
               "name": "Climax",
-              "start": 72.888660906598872,
-              "length": 48.065571714263029,
+              "start": 64.897245857669475,
+              "length": 131.167445626349263,
               "opacity": 1.0,
-              "notes": ""
+              "notes": "",
+              "propStart": "1/2",
+              "propLength": "2.8",
+              "propFrame": "span",
+              "propLock": true
             }
           ]
         },
@@ -666,6 +671,46 @@
           "folderId": "a9722930522948988efd5893f671b2c3"
         }
       ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "id": "e2fc50d5084142b5ae17a3887d590826",
+          "kind": "time",
+          "name": "Time",
+          "height": 30,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "445846e5800e42778c242872a62aed64",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 36,
+          "visible": true,
+          "snap": true,
+          "frame": "piece",
+          "denominators": "2,3,4,5,6,8",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "5473a037da044fc4a2007c2f10b8227f",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 36,
+          "visible": true,
+          "snap": true,
+          "frame": "span",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        }
+      ]
+    },
+    {
+      "type": "MARKS"
     }
   ]
 }
