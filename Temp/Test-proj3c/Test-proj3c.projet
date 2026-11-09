@@ -5,10 +5,10 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 1.599029575693828,
-  "pixelsPerSecond": 1.832165923965973,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 2.300592056697722,
   "playhead": 159.781932500322085,
-  "activeLayer": "947881196e8d483f87c0746531c53004",
+  "activeLayer": "95d9a8a4b22b4c73ae7cb8117493f2bc",
   "spanStart": 284.682966530954957,
   "spanEnd": 367.580734890112069,
   "frameLength": 655.987760695793895,
@@ -51,9 +51,10 @@
               "notes": "",
               "energy": "percussion-resonance",
               "level": "metonymic",
-              "typology": "Ax",
+              "typology": "X'",
               "energy2": "flux",
-              "roleAlong": "0.3:B:0.4"
+              "roleAlong": "0.3:B:0.4;0.65:M:0;0.825:F:0.1",
+              "role": "F"
             }
           ]
         },
@@ -170,7 +171,7 @@
               "kind": "text",
               "name": "Text",
               "start": 418.296760594560794,
-              "length": 49.246994351356086,
+              "length": 57.736471911249055,
               "opacity": 1.0,
               "notes": "",
               "propStart": "1.61179",
@@ -185,11 +186,11 @@
               "id": "1a57ee6444ea43e18f0716bdd8b5d586",
               "kind": "text",
               "name": "Text",
-              "start": 59.775982378993525,
-              "length": 268.217894342333125,
+              "start": 11.677033648757634,
+              "length": 314.454823624460516,
               "opacity": 1.0,
               "notes": "",
-              "propStart": "-7.280054",
+              "propStart": "-7.042684",
               "propLength": "5.446381",
               "propFrame": "e3d92b0476b24a3c8bbf1f829a641f52",
               "propLock": true
@@ -274,7 +275,7 @@
           "id": "687e7342152942689c49303958eae1e1",
           "name": "a3",
           "frame": "span",
-          "expr": "2.205859"
+          "expr": "2.308268"
         },
         {
           "type": "MARK",
