@@ -1,14 +1,13 @@
-// FrameworkDefault.cpp — the framework Projet ships with (stage 4a).
+// FrameworkLegacy.cpp — the framework.json Projet 4a shipped.
 //
-// Written to the app's framework.json on first start; every new project gets a
-// copy. Built from Vande Gorne (energies and families), Bayle / Peirce and
-// Thoresen (semiotic levels, layer functions), Vande Gorne (figure and ground)
-// and Schaeffer (typology). The operations section holds the structuring
-// language for stage 8 (RK1 research, provisional).
+// Kept to recognise 4a framework files that were never edited (they become
+// the builtin packages as they are) and to check, in the tests, that the
+// builtin packages carry everything 4a had. Stage 4b reads packages instead
+// (FrameworkBuiltin.cpp).
 
 #include "Framework.h"
 
-juce::String Framework::defaultJson()
+juce::String Framework::legacyDefaultJson()
 {
     // UTF-8 (accents, primes); juce::String would read a plain char* as ASCII.
     return juce::String::fromUTF8 (R"FRAMEWORK({

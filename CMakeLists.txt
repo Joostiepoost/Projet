@@ -43,7 +43,8 @@ set(PROJET_CORE_SOURCES
     Source/Model/Project.cpp
     Source/Model/Proportion.cpp
     Source/Model/Framework.cpp
-    Source/Model/FrameworkDefault.cpp
+    Source/Model/FrameworkBuiltin.cpp
+    Source/Model/FrameworkLegacy.cpp
     Source/Model/ProjectFolder.cpp)
 
 set(PROJET_DEFINITIONS
@@ -74,6 +75,8 @@ target_sources(Projet PRIVATE
     Source/UI/Inspector.cpp
     Source/UI/RulerPanel.cpp
     Source/UI/FrameworkPanel.cpp
+    Source/UI/DisplayPanel.cpp
+    Source/UI/PackagesPanel.cpp
     Source/UI/TransportBar.cpp
     Source/UI/ImportPanel.cpp
     Source/UI/StartPanel.cpp
@@ -108,7 +111,8 @@ if(PROJET_BUILD_TESTS)
     juce_generate_juce_header(ProjetTests)
     target_sources(ProjetTests PRIVATE Tests/EngineTests.cpp ${PROJET_CORE_SOURCES})
     target_compile_definitions(ProjetTests PRIVATE
-        ${PROJET_DEFINITIONS} JUCE_STANDALONE_APPLICATION=1)
+        ${PROJET_DEFINITIONS} JUCE_STANDALONE_APPLICATION=1
+        PROJET_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(ProjetTests
         PRIVATE
             juce::juce_audio_devices

@@ -42,9 +42,10 @@ Other options:
 | 1.1 | Start window, import progress panel with Cancel, faster rate conversion, playhead trace fixed | done |
 | 2 | Editing: text boxes, rich-text notes editor, type switching, multi-selection, split/copy/paste, undo everywhere | done |
 | 3a | Proportions and folders: proportion frames, typed proportions, divisions that follow the zoom, snapping with a readout, track folders | done |
-| 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci, harmonic, your own), ratio checking | built, to test |
-| 4a | Framework file and box fields: energies, semiotic levels, roles, Schaeffer's type; changes along a box; colour modes, highlight, folder levels | built, to test |
-| 4b | Energy glyphs, profiles with Schaeffer's names, semiotic fills, figure/ground weight | |
+| 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci, harmonic, your own), ratio checking | done |
+| 4a | Framework file and box fields: energies, semiotic levels, roles, Schaeffer's type; changes along a box; colour modes, highlight, folder levels | done |
+| 4b.1 | Framework packages: the categories themselves as data (kinds, marks, groups, charts, two names, additions); library and project copies; Display and Frameworks panels; an example package | built, to test |
+| 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | |
 | 4c | Junction and demarcation signs, mixing relations on overlaps | |
 | 4d | Semiotic track template, overview lanes, writing types and nodes, accents and goals | |
 | 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
@@ -56,7 +57,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using Projet (stages 1–4a)
+## Using Projet (stages 1–4b.1)
 
 ### The project folder
 
@@ -172,32 +173,48 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 
 **Ratio checking**: select two or more boxes; the panel shows them in time order with their **lengths as a ratio** (*3 : 8 : 5*, or *≈ 8 : 13* when only close), what fraction one is of the other, the gaps or overlaps between them, and where they sit in the active layer's frame.
 
-### The framework (stage 4a)
+### Frameworks: packages of categories (stages 4a, 4b.1)
 
-Boxes can now carry the vocabulary of the framework: **energy** (Vande Gorne's energy models, grouped in families), a **second energy** (drawn lighter), a **semiotic level** (i-son, di-son, métonymique, mé-son), a **role** (F / M / B: foreground or figure, middle ground, background or ground) and a **type** from Schaeffer's typology (the 29 types of the chart).
+Boxes can carry the vocabulary of composition frameworks. Projet ships three **packages**:
+- **Composition framework** (`composition`): **energy** (Vande Gorne's energy models, in families) and a **second energy**, the **semiotic level** (I-son, Di-son, métonymique, Mé-son) and the **role** (F / M / B: Thoresen's layer functions or Vande Gorne's figure and ground).
+- **Schaeffer** (`schaeffer`): the **type**, from his typology (29 types in a chart).
+- **Structuring language (RK1)** (`rk1`): no categories yet; it carries the operations of your structuring language for stage 8.
 
-**The framework file.** All names, colours and lists come from a JSON file, so you can rename, translate or extend them without a new build.
-- Each project has its own copy, `framework.json` in the project folder. New projects get a copy of the app's file (`~/Library/Application Support/Projet/framework.json`, made the first time Projet runs).
-- In the file: `"language": "fr"` or `"en"`; `"roleNames": "both"`, `"thoresen"` (premier plan / plan moyen / arrière-plan) or `"vandegorne"` (figure / entre les deux / fond). The letters F, M, B stay the same; a box without a role counts as M.
-- **Framework** menu: *Show the project's framework file* (in Finder), *Reload the framework file* (after editing it), *Replace it with the app's framework file...*, *Use this project's framework for new projects...*, *Show the app's framework file*.
-- Boxes store ids, not names. If you remove something from the file, boxes that use it show `id?` until you put it back or choose something else. A broken file is refused with a message, and Projet uses the built-in framework until it is fixed and reloaded.
+Nothing about the categories is built into Projet: a package declares them (what kind of value, how it is chosen, how it shows on the boxes), and the Framework tab, the menus, the colour modes, the highlight and the marks follow whatever the project's packages declare. **A new framework needs only a folder**: see `Examples/Frameworks/example` (a choice, tags, a number, a text, and an energy added to the composition framework).
 
-**The Framework tab.** Select boxes and click **Framework** at the top of the panel on the right (**Box** goes back).
-- **Energy** and **Second energy**: menus grouped by family; the family pills and the variation factors show below.
-- **Semiotic level** and **Role**: click a button; click the box's own level again to remove it (it then uses the folder's level, if any).
-- **Type**: opens Schaeffer's chart (masses down, sustainments across, the balanced zone in the middle). Click a cell; **x** removes the type.
-- With **several boxes** selected, a choice is given to all of them; *(different ...)* shows when they differ.
-- Everything is also in the **right-click menu** of a box: *Energy*, *Second energy*, *Semiotic level*, *Role*, *Type (Schaeffer)*.
+**Where packages live.**
+- Each project keeps **its own copies** in `Frameworks/` inside the project folder, so a piece stays readable whatever happens elsewhere.
+- The **library** (`~/Library/Application Support/Projet/Frameworks`) holds packages for new projects: a new project gets a copy of each.
+- Projet's own packages are written to the library the first time it runs.
+- **Projects from stage 4a** convert by themselves when opened: their `framework.json` becomes packages (kept as `framework-4a.json`), and their boxes, folders and colour mode keep their values. The app's 4a `framework.json` became the library the same way.
 
-**Changes along a box** (one box selected): under the level and the role, **+ Change along the box** adds a change: *at* (% of the box), what it *becomes*, and *over* (% of the box; 0 = sudden, more = gradual). The strip above shows the result; **x** removes a change. On the timeline the level strip and the role weight change at the same places. Splitting a box keeps the changes in the right part.
+**The Framework tab** (select boxes, then **Framework** at the top of the panel on the right) shows the categories package by package:
+- a **choice** as a menu (grouped by family, with the family pills and the variation factors), as buttons, or as a **chart** (Schaeffer's typology: click the button, then a cell; **x** removes it);
+- **tags** as toggles (several at once; lighter when only some of the selected boxes have one);
+- a **number** as a slider (**x**: not set), a **text** as a field.
+- Categories that **change along a box** (level, role) get *+ Change along the box* when one box is selected: *at* (% of the box), what it *becomes*, *over* (% of the box; 0 = sudden).
+- A value given by a **folder** shows fainter; a **default** (the role M) shows fainter too, and clicking it removes the box's own.
+- With **several boxes** selected, a choice is given to all of them.
+- The same choices and tags are in the **right-click menu** of a box; a folder's right-click menu has *... for its boxes* for the categories folders can give (the semiotic level).
+- At the bottom: **Frameworks...** and **Display...**.
 
-**Folder levels.** Right-click a folder > **Semiotic level for its boxes**: every box inside without its own level takes it (drawn paler; the folder header shows the level as a pill). A box's own level always wins; a folder inside a folder wins over the outer one.
+**On the timeline**, each category has a **mark**: a **strip** along the bottom (in the value's colour; a number as a bar of its share of the range), a **badge** at the bottom right, a **label** at the bottom left, or none. By default: the level a strip, the role and the type badges (the role only when it is not M), the energies none. Folder headers show the values they give as pills.
 
-**On the timeline**: a thin strip along the bottom of each box in its level colour, the role as a letter badge (F, M, B), and the type label (K, N, Y′ ...).
+**Display** (*View > Display...*, or *Display...* in the Framework tab): *Colour boxes by* (track colours, or any category with colours: energy family, level, type zone ...), and the mark of each category. Kept with the project as view settings (not a change to save). **Presets** keep a colour mode and marks for all projects: *Save as...*, choose one to apply it, *Delete*; *Defaults* gives every category its package's mark again.
 
-**Colour modes** (*View > Colour boxes by*): *Track colours* (as before), *Energy family*, *Semiotic level*, or *Type (balanced, redundant, eccentric)*. Boxes without a value stay grey. The mode is kept with the project but does not count as a change.
+**Highlight** (*View > Highlight*): tick values or groups (families, zones) of any category; the other boxes fade. Within one category any ticked value counts (energy A *or* B, main or second energy); across categories all must match. *Show all (clear)* ends it.
 
-**Highlight** (*View > Highlight*): tick families, energies, levels, roles or types; the other boxes fade. Within one kind any ticked value counts (energy A *or* B); across kinds all must match (a family *and* a level). *Show all (clear)* ends it.
+**Frameworks** (*Framework > Frameworks...*, or *Frameworks...* in the Framework tab): every package in this project, in the library or shipped with Projet, with its version in each place, its categories and any problem reading it.
+- *Use in this project*, *Remove from project* (its copy goes to the trash; the values on the boxes stay and come back if you use it again), *Take the library's* (when the versions differ), *Copy to the library* (for new projects and other projects), *Library: take Projet's* (when Projet ships a newer one), *Show folder*, *Help* (the package's `help.md`).
+- *Add a package folder...* copies a folder with a `framework.json` into the library and this project. *Reload* reads the project's packages again after you edit them. *Names in*: French or English.
+- *Framework > Role: names* chooses Thoresen's names, Vande Gorne's, or both (for any category whose values have two names).
+- A package that cannot be read is reported (the others stay in use); fix it, or take the library's copy.
+
+**Writing a package.** A folder (named as the package's id) with a `framework.json` and, if you like, a `help.md`. Copy `Examples/Frameworks/example` and edit it. Names can be `{ "fr": ..., "en": ... }` or plain text; colours are `"#rrggbb"`.
+- The package: `id` (lower case letters, digits, `-`, `_`), `version` (raise it when you change it), `order` (its place: Projet's are 10, 20, 90), `name`, `about`, `categories`, and `additions` (values, or groups, for another package's category: `{ "category": "composition.energy", "values": [ ... ] }`; your additions survive an update of that package).
+- A category: `id`, `name`, `about`; `kind`: `choice`, `tags`, `number` or `text`; `control` (a choice): `menu`, `buttons` or `chart` (by default a chart if it has one, buttons up to 5 values, else a menu); `mark`: `none`, `strip` (choice, number), `badge`, `label`; `along`: true (a choice that can change along a box); `folders`: true (folders can give it); `default` (a value a box has when it has none) and `showDefault`: false; `valuesFrom` (another category whose values it uses, like the second energy); `groups`: `{ "name": ..., "list": [ { "id", "name", "colour" } ] }`; `details` (what the values' details are, such as *Variation factors*); `names`: `{ "first": ..., "second": ... }` (what the two names of the values are); `chart`: `{ "rows": [ { "id", "name" } ], "columns": [ ... ], "caption": ... }`; for a number `min`, `max`, `step`, `unit`, `colour`.
+- A value: `id`, `name`, `name2` (a second name), `label` (short, for badges), `about`, `colour` (else its first group's), `groups`, `row` and `col` (in the chart), `weight`, `details` (`{ "fr": [ ... ], "en": [ ... ] }`).
+- Boxes store values under `fw.<package>.<category>` (ids, never names): renaming or translating breaks nothing, and an id no package knows is kept and shown with a question mark.
 
 ### Folders (stage 3a)
 
@@ -212,7 +229,8 @@ Boxes can now carry the vocabulary of the framework: **energy** (Vande Gorne's e
 
 - **Several boxes selected**: how many, and what you can do with them.
 - **A text box selected**: name, kind, opacity, times, notes.
-- **Box / Framework** (top of the panel, when boxes are selected): the box's own settings, or its framework fields (see above).
+- **Box / Framework** (top of the panel, when boxes are selected): the box's own settings, or its framework values (see above).
+- **Display** and **Frameworks**: the framework's display settings and packages (*Done* goes back).
 - **A sound box selected**: name, kind, sound, gain (−60 to +12 dB; double-click for 0), fade in and out with their shapes (linear, equal power, S-curve), **opacity** (visual only: overlapping boxes show through), start, end, length and offset into the sound, and the sound (copy, original, rates).
 - **Nothing selected**: the project: sample rate, number of tracks, boxes and sounds, size of the copies, length, folder; the format for new imports and the Vorbis quality.
 
@@ -223,13 +241,22 @@ Boxes can now carry the vocabulary of the framework: **energy** (Vande Gorne's e
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 
+**Worth testing in stage 4b.1**:
+- Open a project from 4a: everything looks and works as before (strips, badges, folder pills, colour modes); it now has a `Frameworks` folder and a `framework-4a.json`.
+- The Framework tab: each kind of control, several boxes at once, changes along a box, the type chart, the right-click menus (also tags), a folder's *... for its boxes*.
+- *Framework > Frameworks... > Add a package folder...* with `Examples/Frameworks/example`: Motion, Materials, Density and Source appear; *Pulsation (example)* is among the energies, in the family *law*. Give boxes values, then *Remove from project* and *Use in this project* again.
+- Display: change marks and the colour mode; save a preset, apply it, *Defaults*. Highlight values and families.
+- *Names in English*, and *Framework > Role: names*.
+- Edit a package's `framework.json` (rename a value, add one, break a bracket) and *Reload*; *Take the library's* to repair it.
+- Save, quit and reopen. A new project gets the library's packages.
+
 **Worth testing in stage 4a**:
 - Give boxes energies, levels, roles and types, one at a time and several at once; use the Framework tab and the right-click menu; undo it all.
 - Add changes along a box (sudden and gradual), split the box across a change, undo.
 - Give a folder a level; give one box inside its own level; nest folders with different levels.
 - Switch the colour modes; highlight combinations (two energies; a family and a level); clear.
-- Open the project's `framework.json`, rename something or set `"language": "en"` and `"roleNames": "thoresen"`, then *Reload*. Remove an energy that a box uses and reload (the box shows `id?`). Break the file (delete a bracket) and reload.
-- Save, quit and reopen; open a project from before stage 4a (it gets a framework file).
+- Remove an energy that a box uses from the package and reload (the box shows `id?`). (Since 4b.1 the framework file is a set of packages, and language and role names are in the Framework menu.)
+- Save, quit and reopen; open a project from before stage 4a (it gets the library's packages).
 
 **Worth testing in stage 3b**:
 - Add, reorder, hide and size layers (in the panel and by dragging a layer's edge); try the presets; save your own.

@@ -79,9 +79,21 @@ private:
     void rememberProject();
     void updateTitle();
     void markClean();
-    /** Reads the project's framework file (made from the app's if missing). */
+    //== Framework packages (stage 4b) =========================================
+    /** Reads the project's packages (made the first time from its 4a
+        framework file, else copied from the library). */
     void loadFramework (bool announce);
-    void frameworkFileCommand (int which);
+    /** A view setting of the project (colour mode, display, language): it
+        does not mark the project as changed. */
+    void setViewSetting (const juce::Identifier&, const juce::String&);
+    void setFrameworkLanguage (const juce::String&);
+    void showPackages();
+    /** Gives the Frameworks panel what is in the project, the library and Projet. */
+    void refreshPackages();
+    void packagesAction (const juce::String& action, const juce::String& id);
+    void addPackageFolder();
+    juce::StringArray namingKeys;           // the categories of the Framework menu's name submenus
+    static constexpr int highlightBase = 40000;
 
     //== Sounds =================================================================
     void importDialog();
@@ -133,7 +145,7 @@ private:
     juce::ApplicationCommandManager commandManager;
 
     TransportBar transport;
-    Framework framework;            // the open project's framework file (stage 4a)
+    Framework framework;            // the open project's framework packages (stage 4a, 4b)
     TimelineView timeline { project, pool, framework };
     Inspector inspector { project, pool, folder, framework };
     ImportPanel importPanel;

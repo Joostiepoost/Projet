@@ -46,7 +46,7 @@ namespace
         juce::Colour fillColour, edgeColour, ink;
     };
 
-    //== A strip showing a field along the box (0 .. 1) =========================
+    //== A strip showing a value along the box (0 .. 1) =========================
     class AlongPreview : public juce::Component
     {
     public:
@@ -76,7 +76,7 @@ namespace
                         mixAmount = (float) ((p - (c.at - c.width / 2.0)) / c.width);
                     }
                 auto colour = colourFor ? colourFor (a).interpolatedWith (colourFor (b), mixAmount) : Theme::lineStrong;
-                // A folder's level (not the box's own) is drawn fainter.
+                // A folder's value (not the box's own) is drawn fainter.
                 const float alphaA = baseInherited && a == base ? 0.45f : 0.95f, alphaB = baseInherited && b == base ? 0.45f : 0.95f;
                 float h = r.getHeight();
                 if (heightFor) h = r.getHeight() * juce::jmap (mixAmount, heightFor (a), heightFor (b));
@@ -94,72 +94,72 @@ namespace
         }
     };
 
-    //== Schaeffer's typology chart =============================================
-    class TypologyChart : public juce::Component
+    //== Values in rows and columns (Schaeffer's typology) ======================
+    class ChartPicker : public juce::Component
     {
     public:
-        TypologyChart (const Framework& f, const juce::String& current, std::function<void (const juce::String&)> pick)
-            : framework (f), onPick (std::move (pick))
+        ChartPicker (const Framework& fw, const Framework::Category& c, const juce::String& current,
+                     std::function<void (const juce::String&)> pick)
+            : onPick (std::move (pick))
         {
-            for (auto& t : framework.getTypes())
+            // Everything is copied: the framework may be reloaded while this is open.
+            for (auto& r : c.rows) rowNames.add (fw.text (r.name));
+            for (auto& x : c.columns) colNames.add (fw.text (x.name));
+            caption = fw.text (c.chartCaption);
+            for (auto& v : fw.valuesOf (c))
             {
-                auto* b = buttons.add (new juce::TextButton (t.label));
-                b->setTooltip (framework.text (t.name));
-                auto* z = framework.findZone (t.zone);
-                const auto fill = col (z != nullptr ? z->dark : 0u, Theme::panel2);
-                b->setColour (juce::TextButton::buttonColourId, fill);
+                if (! juce::isPositiveAndBelow (v.row, rowNames.size()) || ! juce::isPositiveAndBelow (v.col, colNames.size())) continue;
+                const auto colours = fw.valueColours (c, v.id);
+                auto* b = buttons.add (new juce::TextButton (v.label.isNotEmpty() ? v.label : fw.text (v.name)));
+                b->setTooltip (fw.text (v.name));
+                b->setColour (juce::TextButton::buttonColourId, col (colours.dark, Theme::panel2));
                 b->setColour (juce::TextButton::buttonOnColourId, Theme::accent);
-                b->setColour (juce::TextButton::textColourOffId, col (z != nullptr ? z->light : 0u, Theme::text));
+                b->setColour (juce::TextButton::textColourOffId, col (colours.light, Theme::text));
                 b->setColour (juce::TextButton::textColourOnId, Theme::background);
-                b->setToggleState (t.id == current, juce::dontSendNotification);
-                const auto id = t.id;
+                b->setToggleState (v.id == current, juce::dontSendNotification);
+                const auto id = v.id;
                 b->onClick = [this, id] { choose (id); };
                 addAndMakeVisible (b);
-                ids.add (t.id);
+                rows.add (v.row);
+                cols.add (v.col);
             }
-            none.setButtonText ("No type");
+            none.setButtonText ("None");
             none.onClick = [this] { choose ({}); };
             addAndMakeVisible (none);
-            setSize (headerW + cols * cellW + 8, headerH + rows * cellH + 40);
+            setSize (headerW + juce::jmax (1, colNames.size()) * cellW + 8, headerH + juce::jmax (1, rowNames.size()) * cellH + 40);
         }
 
         void paint (juce::Graphics& g) override
         {
             g.fillAll (Theme::panel);
             g.setFont (Theme::font (10.5f));
-            const auto& sus = framework.getSustainments();
-            for (int c = 0; c < cols && c < sus.size(); ++c)
+            for (int c = 0; c < colNames.size(); ++c)
             {
                 g.setColour (Theme::textMuted);
-                g.drawFittedText (framework.text (sus[c].name), headerW + c * cellW + 2, 4, cellW - 4, headerH - 6,
-                                  juce::Justification::centredBottom, 3, 0.9f);
+                g.drawFittedText (colNames[c], headerW + c * cellW + 2, 4, cellW - 4, headerH - 6, juce::Justification::centredBottom, 3, 0.9f);
             }
-            const auto& masses = framework.getMasses();
-            for (int r = 0; r < rows && r < masses.size(); ++r)
+            for (int r = 0; r < rowNames.size(); ++r)
             {
                 g.setColour (Theme::text);
-                g.drawFittedText (framework.text (masses[r].name), 6, headerH + r * cellH, headerW - 10, cellH,
-                                  juce::Justification::centredLeft, 2, 0.9f);
+                g.drawFittedText (rowNames[r], 6, headerH + r * cellH, headerW - 10, cellH, juce::Justification::centredLeft, 2, 0.9f);
             }
             g.setColour (Theme::textMuted);
-            g.drawText ("Mass down, sustainment across (Schaeffer, Treatise fig. 34)", 6, getHeight() - 32, getWidth() - 110, 28,
-                        juce::Justification::centredLeft, true);
+            g.drawFittedText (caption, 6, getHeight() - 34, getWidth() - 110, 30, juce::Justification::centredLeft, 2, 0.9f);
         }
 
         void resized() override
         {
-            // Cells; two types in one cell (the wefts Tn, Tx) share it.
-            const auto& types = framework.getTypes();
-            for (int i = 0; i < types.size(); ++i)
+            // Cells; values in the same cell (Schaeffer's wefts Tn, Tx) share it.
+            for (int i = 0; i < buttons.size(); ++i)
             {
                 int same = 0, index = 0;
-                for (int j = 0; j < types.size(); ++j)
-                    if (types[j].row == types[i].row && types[j].col == types[i].col)
+                for (int j = 0; j < buttons.size(); ++j)
+                    if (rows[j] == rows[i] && cols[j] == cols[i])
                     {
                         if (j < i) ++index;
                         ++same;
                     }
-                const int x = headerW + types[i].col * cellW, y = headerH + types[i].row * cellH;
+                const int x = headerW + cols[i] * cellW, y = headerH + rows[i] * cellH;
                 const int w = (cellW - 4) / juce::jmax (1, same);
                 buttons[i]->setBounds (x + 2 + index * w, y + 2, w - (same > 1 ? 2 : 0), cellH - 4);
             }
@@ -174,19 +174,20 @@ namespace
             if (pick) pick (id);
         }
 
-        static constexpr int cols = 7, rows = 4, cellW = 66, cellH = 34, headerW = 104, headerH = 46;
-        const Framework& framework;
+        static constexpr int cellW = 66, cellH = 34, headerW = 104, headerH = 46;
         std::function<void (const juce::String&)> onPick;
+        juce::StringArray rowNames, colNames;
+        juce::String caption;
         juce::OwnedArray<juce::TextButton> buttons;
-        juce::StringArray ids;
+        juce::Array<int> rows, cols;
         juce::TextButton none;
     };
 }
 
-void FrameworkPanel::showTypologyChart (const Framework& f, const juce::String& current, juce::Component& near,
-                                        std::function<void (const juce::String&)> onPick)
+void FrameworkPanel::showChart (const Framework& f, const Framework::Category& c, const juce::String& current, juce::Component& near,
+                                std::function<void (const juce::String&)> onPick)
 {
-    auto chart = std::make_unique<TypologyChart> (f, current, std::move (onPick));
+    auto chart = std::make_unique<ChartPicker> (f, c, current, std::move (onPick));
     juce::CallOutBox::launchAsynchronously (std::move (chart), near.getScreenBounds(), nullptr);
 }
 
@@ -200,8 +201,12 @@ public:
     bool isEditing() const
     {
         for (auto* c : getChildren())
+        {
             if (auto* t = dynamic_cast<juce::TextEditor*> (c))
                 if (t->hasKeyboardFocus (false)) return true;
+            if (auto* s = dynamic_cast<juce::Slider*> (c))
+                if (s->isMouseButtonDown()) return true;
+        }
         return false;
     }
 
@@ -209,281 +214,418 @@ public:
     {
         removeAllChildren();
         owned.clear();
-        auto& sel = owner.boxes;
         auto& fw = owner.framework;
         int y = 0;
-        if (sel.isEmpty()) { setSize (w, 10); return; }
-        const bool single = sel.size() == 1;
-        auto first = sel.getFirst();
+        if (owner.boxes.isEmpty()) { setSize (w, 10); return; }
 
-        auto common = [&sel] (const juce::Identifier& id, bool& mixed) -> juce::String
+        if (fw.getCategories().isEmpty())
         {
-            mixed = false;
-            const auto v = sel.getFirst()[id].toString();
-            for (auto b : sel) if (b[id].toString() != v) mixed = true;
-            return mixed ? juce::String() : v;
-        };
-
-        // == Energies
-        for (int which = 0; which < 2; ++which)
-        {
-            const juce::Identifier id = which == 0 ? IDs::energy : IDs::energy2;
-            heading (which == 0 ? "Energy" : "Second energy (drawn lighter)", y, w);
-            bool mixed = false;
-            const auto current = common (id, mixed);
-            auto* combo = place (std::make_unique<juce::ComboBox>(), 0, y, w, 24);
-            combo->addItem (which == 0 ? "None" : "None", 1);
-            juce::StringArray comboIds { {} };
-            for (auto& family : fw.getFamilies())
-            {
-                bool any = false;
-                for (auto& e : fw.getEnergies())
-                    if (e.families.size() > 0 && e.families[0] == family.id)
-                    {
-                        if (! any) combo->addSectionHeading (fw.text (family.name));
-                        any = true;
-                        comboIds.add (e.id);
-                        combo->addItem (fw.text (e.name), comboIds.size());
-                    }
-            }
-            for (auto& e : fw.getEnergies())          // energies whose family the file does not list
-                if (! comboIds.contains (e.id))
-                {
-                    comboIds.add (e.id);
-                    combo->addItem (fw.text (e.name), comboIds.size());
-                }
-            if (current.isNotEmpty() && ! comboIds.contains (current))
-            {
-                comboIds.add (current);
-                combo->addItem (current + " (not in the framework file)", comboIds.size());
-            }
-            if (mixed) combo->setText ("(different energies)", juce::dontSendNotification);
-            else combo->setSelectedId (comboIds.indexOf (current) + 1, juce::dontSendNotification);
-            combo->onChange = [this, combo, comboIds, id]
-            {
-                const int i = combo->getSelectedId() - 1;
-                if (i < 0) return;
-                owner.setField (id, comboIds[i], "Energy");
-            };
-            y += 28;
-
-            // Families of the chosen energy
-            if (auto* e = fw.findEnergy (current))
-            {
-                int x = 0;
-                for (auto& famId : e->families)
-                {
-                    auto* f = fw.findFamily (famId);
-                    const auto name = fw.familyName (famId);
-                    const int pw = Pill::widthFor (name);
-                    place (std::make_unique<Pill> (name, col (f != nullptr ? f->dark : 0u, Theme::panel2),
-                                                   col (f != nullptr ? f->colour : 0u), col (f != nullptr ? f->light : 0u, Theme::text)),
-                           x, y, pw, 18);
-                    x += pw + 4;
-                }
-                y += 22;
-                if (which == 0)
-                {
-                    const auto factors = fw.getLanguage() == "en" ? e->factorsEn : e->factorsFr;
-                    if (factors.size() > 0)
-                        y = note ("Variation factors: " + factors.joinIntoString (", "), y, w);
-                }
-            }
-            y += 6;
+            y = note ("This project uses no framework packages, or none with categories.", y, w);
+            y = frameworksButton (y + 4, w);
+            setSize (w, y + 8);
+            return;
         }
 
-        // == Semiotic level
-        heading ("Semiotic level", y, w);
+        for (auto& p : fw.getPackages())
         {
-            bool mixed = false;
-            const auto own = common (IDs::level, mixed);
-            bool inherited = false;
-            const auto effective = single ? owner.project.effectiveLevel (first, &inherited) : own;
-            const auto& levels = fw.getLevels();
-            const int n = juce::jmax (1, levels.size());
-            const int bw = (w - (n - 1) * 4) / n;
-            for (int i = 0; i < levels.size(); ++i)
-            {
-                const auto& l = levels.getReference (i);
-                auto* b = place (std::make_unique<juce::TextButton> (fw.text (l.name)), i * (bw + 4), y, bw, 24);
-                const bool on = ! mixed && effective == l.id;
-                b->setToggleState (on && ! inherited, juce::dontSendNotification);
-                if (on && inherited)
-                {
-                    b->setColour (juce::TextButton::buttonColourId, juce::Colour (l.colour).withAlpha (0.25f));
-                    b->setColour (juce::TextButton::textColourOffId, juce::Colour (l.colour).brighter (0.4f));
-                }
-                b->setColour (juce::TextButton::buttonOnColourId, juce::Colour (l.colour));
-                b->setTooltip (fw.text (l.about) + ". Click again to remove the box's own level.");
-                const auto levelId = l.id;
-                b->onClick = [this, levelId, own, mixed] { owner.setField (IDs::level, (! mixed && own == levelId) ? juce::String() : levelId, "Semiotic level"); };
-            }
-            y += 28;
-            if (mixed) y = note ("The selected boxes have different levels; a click gives them all one.", y, w);
-            else if (inherited)
-                y = note ("From the folder " + owner.project.folderOf (first.getParent()).getProperty (IDs::name).toString().quoted()
-                          + " (or one around it). Click a level to give the box its own.", y, w);
-            else if (effective.isEmpty()) y = note ("None yet.", y, w);
-            if (single) y = alongEditor (IDs::level, IDs::levelAlong, y, w);
-            else y = note ("Changes along a box: select one box.", y, w);
-            y += 6;
+            if (p.categories.isEmpty()) continue;
+            packageHeading (fw.text (p.name), y, w);
+            for (auto& key : p.categories)
+                if (auto* c = fw.findCategory (key))
+                    y = category (*c, y, w) + 6;
+            y += 4;
         }
 
-        // == Role
-        heading ("Role", y, w);
-        {
-            bool mixed = false;
-            const auto own = common (IDs::role, mixed);
-            const auto current = own.isEmpty() ? fw.defaultRole() : own;
-            const auto& roles = fw.getRoles();
-            const int n = juce::jmax (1, roles.size());
-            const int bw = (w - (n - 1) * 4) / n;
-            for (int i = 0; i < roles.size(); ++i)
-            {
-                const auto& r = roles.getReference (i);
-                const auto label = fw.getRoleNames() == "vandegorne" ? fw.text (r.vandeGorne) : r.letter;
-                auto* b = place (std::make_unique<juce::TextButton> (label), i * (bw + 4), y, bw, 24);
-                b->setToggleState (! mixed && current == r.id, juce::dontSendNotification);
-                b->setTooltip (fw.roleName (r.id));
-                const auto roleId = r.id;
-                const auto def = fw.defaultRole();
-                b->onClick = [this, roleId, def] { owner.setField (IDs::role, roleId == def ? juce::String() : roleId, "Role"); };
-            }
-            y += 28;
-            y = note (mixed ? juce::String ("The selected boxes have different roles.") : fw.roleName (current)
-                      + (own.isEmpty() ? " (the default)" : ""), y, w);
-            if (single) y = alongEditor (IDs::role, IDs::roleAlong, y, w);
-            y += 6;
-        }
-
-        // == Type
-        heading ("Type (Schaeffer's typology)", y, w);
-        {
-            bool mixed = false;
-            const auto current = common (IDs::typology, mixed);
-            auto text = mixed ? juce::String ("(different types)")
-                              : current.isEmpty() ? juce::String ("Choose a type...")
-                                                  : fw.typeLabel (current) + "   " + fw.typeName (current);
-            auto* b = place (std::make_unique<juce::TextButton> (text), 0, y, w - 30, 26);
-            if (auto* t = fw.findType (current))
-                if (auto* z = fw.findZone (t->zone))
-                {
-                    b->setColour (juce::TextButton::buttonColourId, juce::Colour (z->dark));
-                    b->setColour (juce::TextButton::textColourOffId, juce::Colour (z->light));
-                }
-            b->onClick = [this, b, current]
-            {
-                juce::Component::SafePointer<FrameworkPanel> safe (&owner);
-                FrameworkPanel::showTypologyChart (owner.framework, current, *b, [safe] (const juce::String& id)
-                {
-                    if (safe != nullptr) safe->setField (IDs::typology, id, "Type");
-                });
-            };
-            auto* clear = place (std::make_unique<juce::TextButton> ("x"), w - 26, y, 26, 26);
-            clear->setTooltip ("No type");
-            clear->setEnabled (mixed || current.isNotEmpty());
-            clear->onClick = [this] { owner.setField (IDs::typology, {}, "Type"); };
-            y += 30;
-            if (auto* t = fw.findType (current))
-            {
-                // Where it sits in the chart: zone, mass, sustainment.
-                juce::StringArray parts;
-                if (auto* z = fw.findZone (t->zone)) parts.add (fw.text (z->name));
-                if (juce::isPositiveAndBelow (t->row, fw.getMasses().size())) parts.add (fw.text (fw.getMasses()[t->row].name));
-                if (juce::isPositiveAndBelow (t->col, fw.getSustainments().size())) parts.add (fw.text (fw.getSustainments()[t->col].name));
-                y = note (parts.joinIntoString (juce::String::fromUTF8 (" \xc2\xb7 ")), y, w);
-            }
-        }
-
-        y += 10;
-        y = note ("The names, colours and lists come from the project's framework file (Framework menu).", y, w);
+        y += 6;
+        y = note ("The names, colours and lists come from the project's framework packages.", y, w);
+        y = frameworksButton (y + 2, w);
         setSize (w, y + 8);
     }
 
 private:
-    template <typename C>
-    C* place (std::unique_ptr<C> c, int x, int y, int w, int h)
+    //== One category ===========================================================
+    int category (const Framework::Category& c, int y, int w)
     {
-        c->setBounds (x, y, w, h);
-        addAndMakeVisible (*c);
-        auto* raw = c.get();
-        owned.push_back (std::unique_ptr<juce::Component> (c.release()));
-        return raw;
+        auto& fw = owner.framework;
+        heading (fw.text (c.name), fw.text (c.about), y, w);
+        switch (c.kind)
+        {
+            case Framework::Kind::choice:
+                if (c.control == "chart") return chart (c, y, w);
+                if (c.control == "buttons") return buttons (c, y, w);
+                return menu (c, y, w);
+            case Framework::Kind::tags:   return tags (c, y, w);
+            case Framework::Kind::number: return number (c, y, w);
+            case Framework::Kind::text:   return text (c, y, w);
+        }
+        return y;
     }
 
-    void heading (const juce::String& text, int& y, int w)
+    /** The own value all selected boxes share ("" and `mixed` when they differ). */
+    juce::String commonOwn (const Framework::Category& c, bool& mixed) const
     {
-        auto* l = place (std::make_unique<juce::Label> (juce::String(), text), 0, y, w, 18);
-        l->setFont (Theme::font (12.0f));
-        l->setColour (juce::Label::textColourId, Theme::textMuted);
-        l->setBorderSize ({ 0, 0, 0, 0 });
-        y += 20;
+        mixed = false;
+        const auto v = owner.boxes.getFirst()[c.property()].toString();
+        for (auto b : owner.boxes) if (b[c.property()].toString() != v) mixed = true;
+        return mixed ? juce::String() : v;
     }
 
-    int note (const juce::String& text, int y, int w)
+    /** What the first box has (own, folder's, default), and whether the others differ. */
+    Project::FrameworkValue commonEffective (const Framework::Category& c, bool& mixed) const
     {
-        auto f = Theme::font (11.0f);
-        juce::GlyphArrangement ga;
-        ga.addJustifiedText (f, text, 0.0f, 0.0f, (float) w, juce::Justification::topLeft);
-        const int h = juce::jmax (15, (int) std::ceil (ga.getBoundingBox (0, -1, true).getHeight()) + 3);
-        auto* l = place (std::make_unique<juce::Label> (juce::String(), text), 0, y, w, h);
-        l->setFont (f);
-        l->setColour (juce::Label::textColourId, Theme::textMuted);
-        l->setJustificationType (juce::Justification::topLeft);
-        l->setBorderSize ({ 0, 0, 0, 0 });
-        l->setMinimumHorizontalScale (1.0f);
-        return y + h + 3;
+        auto v = owner.project.frameworkValue (owner.boxes.getFirst(), c);
+        mixed = false;
+        for (auto b : owner.boxes) if (owner.project.frameworkValue (b, c).value != v.value) mixed = true;
+        return v;
     }
 
-    /** The changes of a field along the (one) selected box. */
-    int alongEditor (const juce::Identifier& baseId, const juce::Identifier& alongId, int y, int w)
+    juce::String folderName() const
+    {
+        return owner.project.folderOf (owner.boxes.getFirst().getParent()).getProperty (IDs::name).toString().quoted();
+    }
+
+    /** The groups (families, zones), details and description of the value shown. */
+    int describe (const Framework::Category& c, const Project::FrameworkValue& v, bool mixed, int y, int w, bool aboutToo)
+    {
+        auto& fw = owner.framework;
+        if (mixed) return note ("The selected boxes have different values; a choice gives them all one.", y, w);
+        if (v.fromFolder())
+            y = note ("From the folder " + folderName() + " (or one around it). Choosing gives the box its own.", y, w);
+        auto* value = fw.findValue (c, v.value);
+        if (value == nullptr)
+        {
+            if (v.value.isNotEmpty()) return note (v.value + " is not in the framework packages (kept as it is).", y, w);
+            return y;
+        }
+        if (value->groups.size() > 0)
+        {
+            int x = 0;
+            for (auto& gid : value->groups)
+            {
+                auto* g = fw.findGroup (c, gid);
+                const auto name = g != nullptr ? fw.text (g->name) : gid + "?";
+                const int pw = Pill::widthFor (name);
+                if (x > 0 && x + pw > w) { x = 0; y += 22; }
+                place (std::make_unique<Pill> (name, col (g != nullptr ? g->colours.dark : 0u, Theme::panel2),
+                                               col (g != nullptr ? g->colours.colour : 0u), col (g != nullptr ? g->colours.light : 0u, Theme::text)),
+                       x, y, pw, 18);
+                x += pw + 4;
+            }
+            y += 22;
+        }
+        juce::String line;
+        if (c.hasTwoNames) line = fw.valueName (c, v.value);
+        else if (aboutToo) line = fw.text (value->about);
+        if (v.isDefault()) line = (line.isEmpty() ? fw.valueName (c, v.value) : line) + " (the default)";
+        if (line.isNotEmpty()) y = note (line, y, w);
+        const auto details = fw.valueDetails (*value);
+        if (! details.isEmpty())
+            y = note ((c.detailsLabel.isEmpty() ? juce::String ("Details") : fw.text (c.detailsLabel)) + ": " + details.joinIntoString (", "), y, w);
+        return y;
+    }
+
+    //== A choice as a menu (grouped) ============================================
+    int menu (const Framework::Category& c, int y, int w)
+    {
+        auto& fw = owner.framework;
+        const auto& values = fw.valuesOf (c);
+        bool mixed = false, effMixed = false;
+        const auto own = commonOwn (c, mixed);
+        const auto eff = commonEffective (c, effMixed);
+
+        auto* combo = place (std::make_unique<juce::ComboBox>(), 0, y, w, 24);
+        juce::StringArray ids { juce::String() };
+        combo->addItem (c.folders ? "None (or the folder's)" : c.defaultValue.isNotEmpty() ? "None (the default)" : "None", 1);
+        juce::Array<int> listed;
+        for (auto& g : fw.groupsOf (c))
+        {
+            bool heading = false;
+            for (int i = 0; i < values.size(); ++i)
+                if (values[i].groups.size() > 0 && values[i].groups[0] == g.id)
+                {
+                    if (! heading) { combo->addSectionHeading (fw.text (g.name)); heading = true; }
+                    ids.add (values[i].id);
+                    combo->addItem (fw.valueName (c, values[i].id), ids.size());
+                    listed.add (i);
+                }
+        }
+        for (int i = 0; i < values.size(); ++i)
+            if (! listed.contains (i))
+            {
+                ids.add (values[i].id);
+                combo->addItem (fw.valueName (c, values[i].id), ids.size());
+            }
+        if (own.isNotEmpty() && ! ids.contains (own))
+        {
+            ids.add (own);
+            combo->addItem (own + " (not in the framework)", ids.size());
+        }
+        if (mixed) combo->setText ("(different)", juce::dontSendNotification);
+        else combo->setSelectedId (ids.indexOf (own) + 1, juce::dontSendNotification);
+        const auto key = c.key();
+        const auto undo = fw.text (c.name);
+        combo->onChange = [this, combo, ids, key, undo]
+        {
+            const int i = combo->getSelectedId() - 1;
+            if (i >= 0) owner.setValue (key, ids[i], undo);
+        };
+        y += 28;
+        y = describe (c, eff, effMixed, y, w, true);
+        return alongOrHint (c, y, w);
+    }
+
+    //== A choice as buttons ======================================================
+    int buttons (const Framework::Category& c, int y, int w)
+    {
+        auto& fw = owner.framework;
+        const auto& values = fw.valuesOf (c);
+        bool mixed = false, effMixed = false;
+        const auto own = commonOwn (c, mixed);
+        const auto eff = commonEffective (c, effMixed);
+        const bool second = c.hasTwoNames && fw.getNaming (fw.source (c).key()) == "second";
+
+        const int n = juce::jmax (1, values.size());
+        const int perRow = juce::jlimit (1, n, (w + 4) / 64);
+        const int rowsNeeded = (n + perRow - 1) / perRow;
+        const int bw = (w - (perRow - 1) * 4) / perRow;
+        const auto key = c.key();
+        const auto undo = fw.text (c.name);
+        for (int i = 0; i < values.size(); ++i)
+        {
+            const auto& v = values.getReference (i);
+            const auto label = second && ! v.name2.isEmpty() ? fw.text (v.name2) : v.label.isNotEmpty() ? v.label : fw.text (v.name);
+            auto* b = place (std::make_unique<juce::TextButton> (label), (i % perRow) * (bw + 4), y + (i / perRow) * 28, bw, 24);
+            const bool on = ! effMixed && eff.value == v.id;
+            const auto colour = col (fw.valueColours (c, v.id).colour, Theme::accent);
+            b->setToggleState (on && eff.isOwn(), juce::dontSendNotification);
+            b->setColour (juce::TextButton::buttonOnColourId, colour);
+            b->setColour (juce::TextButton::textColourOnId, Theme::background);
+            if (on && ! eff.isOwn())
+            {
+                // The folder's value, or the default: shown, but not the box's own.
+                b->setColour (juce::TextButton::buttonColourId, colour.withAlpha (0.25f));
+                b->setColour (juce::TextButton::textColourOffId, colour.brighter (0.4f));
+            }
+            auto tip = fw.valueName (c, v.id);
+            if (! v.about.isEmpty()) tip << ": " << fw.text (v.about);
+            b->setTooltip (tip + (c.defaultValue.isEmpty() ? ". Click again to remove the box's own." : juce::String()));
+            const auto id = v.id;
+            const auto def = c.defaultValue;
+            b->onClick = [this, key, undo, id, own, mixed, def]
+            {
+                juce::String value = id;
+                if (def.isNotEmpty()) { if (id == def) value = {}; }
+                else if (! mixed && own == id) value = {};
+                owner.setValue (key, value, undo);
+            };
+        }
+        y += rowsNeeded * 28;
+        if (! effMixed && eff.value.isEmpty() && ! mixed) y = note ("None yet.", y, w);
+        y = describe (c, eff, effMixed || mixed, y, w, true);
+        return alongOrHint (c, y, w);
+    }
+
+    //== A choice from a chart ======================================================
+    int chart (const Framework::Category& c, int y, int w)
+    {
+        auto& fw = owner.framework;
+        bool mixed = false;
+        const auto current = commonOwn (c, mixed);
+        auto* value = fw.findValue (c, current);
+        const auto label = mixed ? juce::String ("(different)")
+                         : current.isEmpty() ? juce::String ("Choose...")
+                         : value != nullptr ? (value->label.isNotEmpty() ? value->label + "   " : juce::String()) + fw.text (value->name)
+                         : current + "?";
+        auto* b = place (std::make_unique<juce::TextButton> (label), 0, y, w - 30, 26);
+        const auto colours = fw.valueColours (c, current);
+        if (colours.colour != 0)
+        {
+            b->setColour (juce::TextButton::buttonColourId, col (colours.dark));
+            b->setColour (juce::TextButton::textColourOffId, col (colours.light, Theme::text));
+        }
+        const auto key = c.key();
+        const auto undo = fw.text (c.name);
+        b->onClick = [this, b, current, key, undo]
+        {
+            auto* cat = owner.framework.findCategory (key);
+            if (cat == nullptr) return;
+            juce::Component::SafePointer<FrameworkPanel> safe (&owner);
+            FrameworkPanel::showChart (owner.framework, *cat, current, *b, [safe, key, undo] (const juce::String& id)
+            {
+                if (safe != nullptr) safe->setValue (key, id, undo);
+            });
+        };
+        auto* clear = place (std::make_unique<juce::TextButton> ("x"), w - 26, y, 26, 26);
+        clear->setTooltip ("None");
+        clear->setEnabled (mixed || current.isNotEmpty());
+        clear->onClick = [this, key, undo] { owner.setValue (key, {}, undo); };
+        y += 30;
+        if (value != nullptr)
+        {
+            // Where it sits: its group, its row, its column.
+            juce::StringArray parts;
+            for (auto& gid : value->groups) if (auto* g = fw.findGroup (c, gid)) parts.add (fw.text (g->name));
+            if (juce::isPositiveAndBelow (value->row, c.rows.size())) parts.add (fw.text (c.rows[value->row].name));
+            if (juce::isPositiveAndBelow (value->col, c.columns.size())) parts.add (fw.text (c.columns[value->col].name));
+            y = note (parts.joinIntoString (juce::String::fromUTF8 (" \xc2\xb7 ")), y, w);
+        }
+        else if (current.isNotEmpty())
+            y = note (current + " is not in the framework packages (kept as it is).", y, w);
+        return alongOrHint (c, y, w);
+    }
+
+    //== Tags ======================================================================
+    int tags (const Framework::Category& c, int y, int w)
+    {
+        auto& fw = owner.framework;
+        const auto key = c.key();
+        bool some = false;
+        int x = 0;
+        for (auto& v : fw.valuesOf (c))
+        {
+            int count = 0;
+            for (auto b : owner.boxes) if (Tags::parse (b[c.property()].toString()).contains (v.id)) ++count;
+            const bool all = count == owner.boxes.size();
+            some = some || (count > 0 && ! all);
+            const auto label = v.label.isNotEmpty() ? v.label : fw.text (v.name);
+            const int bw = juce::jmin (w, juce::GlyphArrangement::getStringWidthInt (Theme::font (12.0f), label) + 20);
+            if (x > 0 && x + bw > w) { x = 0; y += 26; }
+            auto* b = place (std::make_unique<juce::TextButton> (label), x, y, bw, 22);
+            const auto colour = col (fw.valueColours (c, v.id).colour, col (c.colour, Theme::accent));
+            b->setToggleState (all, juce::dontSendNotification);
+            b->setColour (juce::TextButton::buttonOnColourId, colour);
+            b->setColour (juce::TextButton::textColourOnId, Theme::background);
+            if (count > 0 && ! all) b->setColour (juce::TextButton::buttonColourId, colour.withAlpha (0.3f));
+            b->setTooltip (fw.text (v.name) + (v.about.isEmpty() ? juce::String() : ": " + fw.text (v.about)));
+            const auto id = v.id;
+            b->onClick = [this, key, id, all] { owner.setTag (key, id, ! all); };
+            x += bw + 4;
+        }
+        y += 26;
+        if (fw.valuesOf (c).isEmpty()) y = note ("No values in the package.", y, w);
+        if (some) y = note ("Lighter: some of the selected boxes have it. A click gives it to all of them.", y, w);
+        return y;
+    }
+
+    //== A number ===================================================================
+    int number (const Framework::Category& c, int y, int w)
+    {
+        auto& fw = owner.framework;
+        bool mixed = false, effMixed = false;
+        const auto own = commonOwn (c, mixed);
+        const auto eff = commonEffective (c, effMixed);
+        const auto key = c.key();
+        const auto undo = fw.text (c.name);
+        auto* s = place (std::make_unique<juce::Slider> (juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight), 0, y, w - 30, 24);
+        s->setRange (c.minimum, c.maximum, c.step > 0.0 ? c.step : 0.0);
+        s->setTextBoxStyle (juce::Slider::TextBoxRight, false, 64, 22);
+        const auto fwRef = &fw;
+        s->textFromValueFunction = [fwRef, key] (double v)
+        {
+            auto* cat = fwRef->findCategory (key);
+            return cat != nullptr ? fwRef->formatNumber (*cat, v) : juce::String (v);
+        };
+        s->valueFromTextFunction = [] (const juce::String& t) { return t.retainCharacters ("-0123456789.").getDoubleValue(); };
+        s->setValue (eff.value.isNotEmpty() ? eff.value.getDoubleValue() : c.minimum, juce::dontSendNotification);
+        s->updateText();
+        if (eff.value.isEmpty() || ! eff.isOwn()) s->setAlpha (0.6f);
+        s->onDragStart = [this, undo] { owner.project.getUndoManager().beginNewTransaction (undo); };
+        s->onValueChange = [this, s, key, undo] { owner.setValue (key, s->getValue(), undo, ! s->isMouseButtonDown()); };
+        s->onDragEnd = [this]
+        {
+            // The panel waited while dragging: show the new state now.
+            juce::Component::SafePointer<FrameworkPanel> safe (&owner);
+            juce::MessageManager::callAsync ([safe] { if (safe != nullptr) safe->rebuildNow(); });
+        };
+        auto* clear = place (std::make_unique<juce::TextButton> ("x"), w - 26, y, 26, 24);
+        clear->setTooltip ("Not set");
+        clear->setEnabled (mixed || own.isNotEmpty());
+        clear->onClick = [this, key, undo] { owner.setValue (key, {}, undo); };
+        y += 28;
+        if (mixed || effMixed) y = note ("The selected boxes have different values; moving the slider gives them all one.", y, w);
+        else if (eff.fromFolder()) y = note ("From the folder " + folderName() + ".", y, w);
+        else if (eff.value.isEmpty()) y = note ("Not set (drag to set).", y, w);
+        return y;
+    }
+
+    //== A text =====================================================================
+    int text (const Framework::Category& c, int y, int w)
+    {
+        bool mixed = false;
+        const auto own = commonOwn (c, mixed);
+        const auto key = c.key();
+        const auto undo = owner.framework.text (c.name);
+        auto* e = place (std::make_unique<juce::TextEditor>(), 0, y, w, 24);
+        e->setFont (Theme::font (12.5f));
+        e->setText (own, false);
+        if (mixed) e->setTextToShowWhenEmpty ("(different)", Theme::textMuted);
+        auto commit = [this, e, key, undo, own]
+        {
+            const auto t = e->getText().trim();
+            if (t != own) owner.setValue (key, t, undo);
+        };
+        e->onReturnKey = commit;
+        e->onFocusLost = commit;
+        return y + 28;
+    }
+
+    //== Changes along a box ==========================================================
+    int alongOrHint (const Framework::Category& c, int y, int w)
+    {
+        if (! c.along) return y;
+        if (owner.boxes.size() == 1) return alongEditor (c, y, w);
+        return note ("Changes along a box: select one box.", y, w);
+    }
+
+    int alongEditor (const Framework::Category& c, int y, int w)
     {
         auto& fw = owner.framework;
         auto box = owner.boxes.getFirst();
-        const bool isLevel = baseId == IDs::level;
-        auto changes = Project::changesAlong (box, alongId);
+        const auto changes = Project::changesAlong (box, c);
+        const auto key = c.key();
+        const auto& values = fw.valuesOf (c);
 
         juce::StringArray choiceIds, choiceNames;
-        if (isLevel) for (auto& l : fw.getLevels()) { choiceIds.add (l.id); choiceNames.add (fw.text (l.name)); }
-        else for (auto& r : fw.getRoles()) { choiceIds.add (r.id); choiceNames.add (fw.roleName (r.id, true)); }
+        for (auto& v : values) { choiceIds.add (v.id); choiceNames.add (fw.valueLabel (c, v.id)); }
 
-        bool inherited = false;
-        auto base = isLevel ? owner.project.effectiveLevel (box, &inherited) : box[IDs::role].toString();
-        if (! isLevel && base.isEmpty()) base = fw.defaultRole();
+        const auto eff = owner.project.frameworkValue (box, c);
+        const auto base = eff.value;
 
         if (changes.isEmpty())
         {
             auto* add = place (std::make_unique<juce::TextButton> ("+ Change along the box"), 0, y, w, 22);
             add->setColour (juce::TextButton::buttonColourId, Theme::background);
             add->setColour (juce::TextButton::textColourOffId, Theme::textMuted);
-            add->setTooltip ("From a point in the box on, another " + juce::String (isLevel ? "level" : "role")
-                             + " (suddenly, or gradually over a width)");
-            add->onClick = [this, alongId, base, choiceIds]
+            add->setTooltip ("From a point in the box on, another value (suddenly, or gradually over a width)");
+            add->onClick = [this, key, base, choiceIds]
             {
                 auto next = choiceIds.isEmpty() ? juce::String() : choiceIds[(choiceIds.indexOf (base) + 1) % choiceIds.size()];
-                owner.setAlong (alongId, { { 0.5, next, 0.0 } });
+                owner.setAlong (key, { { 0.5, next, 0.0 } });
             };
             return y + 26;
         }
 
-        auto* preview = place (std::make_unique<AlongPreview>(), 0, y, w, isLevel ? 12 : 16);
+        // Weights (roles) draw as heights; colours as colours.
+        int maxWeight = 0;
+        for (auto& v : values) maxWeight = juce::jmax (maxWeight, v.weight);
+        auto* preview = place (std::make_unique<AlongPreview>(), 0, y, w, maxWeight > 0 ? 16 : 12);
         preview->base = base;
-        preview->baseInherited = inherited;
+        preview->baseInherited = eff.fromFolder();
         preview->changes = changes;
-        if (isLevel)
-            preview->colourFor = [&fw] (const juce::String& id) { return col (fw.levelColour (id)); };
-        else
+        const auto fallback = col (c.colour, Theme::accent).withAlpha (0.8f);
+        preview->colourFor = [&fw, key, fallback] (const juce::String& id)
         {
-            preview->colourFor = [] (const juce::String&) { return Theme::accent.withAlpha (0.8f); };
-            preview->heightFor = [&fw] (const juce::String& id)
+            auto* cat = fw.findCategory (key);
+            return cat != nullptr ? col (fw.valueColours (*cat, id).colour, fallback) : fallback;
+        };
+        if (maxWeight > 0)
+            preview->heightFor = [&fw, key, maxWeight] (const juce::String& id)
             {
-                auto* r = fw.findRole (id);
-                int maxW = 1;
-                for (auto& x : fw.getRoles()) maxW = juce::jmax (maxW, x.weight);
-                return r == nullptr ? 0.3f : 0.25f + 0.75f * (float) r->weight / (float) maxW;
+                auto* cat = fw.findCategory (key);
+                auto* v = cat != nullptr ? fw.findValue (*cat, id) : nullptr;
+                return v == nullptr ? 0.3f : 0.25f + 0.75f * (float) v->weight / (float) maxWeight;
             };
-        }
-        y += isLevel ? 16 : 20;
+        y += maxWeight > 0 ? 20 : 16;
 
         auto* header = place (std::make_unique<juce::Label> (juce::String(), "at %          becomes                 over %"), 0, y, w, 15);
         header->setFont (Theme::font (10.5f));
@@ -508,25 +650,25 @@ private:
             auto* del = place (std::make_unique<juce::TextButton> ("x"), w - 24, y, 24, 24);
             del->setTooltip ("Remove this change");
 
-            auto commit = [this, alongId, changes, i, at, width, value, choiceIds]
+            auto commit = [this, key, changes, i, at, width, value, choiceIds]
             {
-                auto c = changes;
-                c.getReference (i).at = juce::jlimit (0.0, 100.0, at->getText().retainCharacters ("0123456789.").getDoubleValue()) / 100.0;
-                c.getReference (i).width = juce::jlimit (0.0, 100.0, width->getText().retainCharacters ("0123456789.").getDoubleValue()) / 100.0;
+                auto c2 = changes;
+                c2.getReference (i).at = juce::jlimit (0.0, 100.0, at->getText().retainCharacters ("0123456789.").getDoubleValue()) / 100.0;
+                c2.getReference (i).width = juce::jlimit (0.0, 100.0, width->getText().retainCharacters ("0123456789.").getDoubleValue()) / 100.0;
                 const int k = value->getSelectedId() - 1;
-                if (k >= 0) c.getReference (i).to = choiceIds[k];
-                owner.setAlong (alongId, c);
+                if (k >= 0) c2.getReference (i).to = choiceIds[k];
+                owner.setAlong (key, c2);
             };
             at->onReturnKey = commit;
             at->onFocusLost = commit;
             width->onReturnKey = commit;
             width->onFocusLost = commit;
             value->onChange = commit;
-            del->onClick = [this, alongId, changes, i]
+            del->onClick = [this, key, changes, i]
             {
-                auto c = changes;
-                c.remove (i);
-                owner.setAlong (alongId, c);
+                auto c2 = changes;
+                c2.remove (i);
+                owner.setAlong (key, c2);
             };
             y += 28;
         }
@@ -534,14 +676,71 @@ private:
         auto* add = place (std::make_unique<juce::TextButton> ("+ Change"), 0, y, 90, 22);
         add->setColour (juce::TextButton::buttonColourId, Theme::background);
         add->setColour (juce::TextButton::textColourOffId, Theme::textMuted);
-        add->onClick = [this, alongId, changes, base, choiceIds]
+        add->onClick = [this, key, changes, base, choiceIds]
         {
-            auto c = changes;
-            const double last = c.isEmpty() ? 0.0 : c.getLast().at;
-            const auto from = Along::valueAt (base, c, last);
-            c.add ({ (last + 1.0) / 2.0, choiceIds.isEmpty() ? juce::String() : choiceIds[(choiceIds.indexOf (from) + 1) % choiceIds.size()], 0.0 });
-            owner.setAlong (alongId, c);
+            auto c2 = changes;
+            const double last = c2.isEmpty() ? 0.0 : c2.getLast().at;
+            const auto from = Along::valueAt (base, c2, last);
+            c2.add ({ (last + 1.0) / 2.0, choiceIds.isEmpty() ? juce::String() : choiceIds[(choiceIds.indexOf (from) + 1) % choiceIds.size()], 0.0 });
+            owner.setAlong (key, c2);
         };
+        return y + 26;
+    }
+
+    //== Layout helpers ===============================================================
+    template <typename C>
+    C* place (std::unique_ptr<C> c, int x, int y, int w, int h)
+    {
+        c->setBounds (x, y, w, h);
+        addAndMakeVisible (*c);
+        auto* raw = c.get();
+        owned.push_back (std::unique_ptr<juce::Component> (c.release()));
+        return raw;
+    }
+
+    void packageHeading (const juce::String& text, int& y, int w)
+    {
+        auto* l = place (std::make_unique<juce::Label> (juce::String(), text.toUpperCase()), 0, y, w, 16);
+        l->setFont (Theme::font (10.5f, true));
+        l->setColour (juce::Label::textColourId, Theme::accent.withAlpha (0.85f));
+        l->setBorderSize ({ 0, 0, 0, 0 });
+        y += 20;
+    }
+
+    void heading (const juce::String& text, const juce::String& tip, int& y, int w)
+    {
+        auto* l = place (std::make_unique<juce::Label> (juce::String(), text), 0, y, w, 18);
+        l->setFont (Theme::font (12.0f));
+        l->setColour (juce::Label::textColourId, Theme::textMuted);
+        l->setBorderSize ({ 0, 0, 0, 0 });
+        if (tip.isNotEmpty()) l->setTooltip (tip);
+        y += 20;
+    }
+
+    int note (const juce::String& text, int y, int w)
+    {
+        auto f = Theme::font (11.0f);
+        juce::GlyphArrangement ga;
+        ga.addJustifiedText (f, text, 0.0f, 0.0f, (float) w, juce::Justification::topLeft);
+        const int h = juce::jmax (15, (int) std::ceil (ga.getBoundingBox (0, -1, true).getHeight()) + 3);
+        auto* l = place (std::make_unique<juce::Label> (juce::String(), text), 0, y, w, h);
+        l->setFont (f);
+        l->setColour (juce::Label::textColourId, Theme::textMuted);
+        l->setJustificationType (juce::Justification::topLeft);
+        l->setBorderSize ({ 0, 0, 0, 0 });
+        l->setMinimumHorizontalScale (1.0f);
+        return y + h + 3;
+    }
+
+    int frameworksButton (int y, int w)
+    {
+        const int bw = juce::jmin (120, (w - 4) / 2);
+        auto* b = place (std::make_unique<juce::TextButton> ("Frameworks..."), 0, y, bw, 22);
+        b->setTooltip ("The framework packages of this project (also in the Framework menu)");
+        b->onClick = [this] { if (owner.onShowFrameworks) owner.onShowFrameworks(); };
+        auto* d = place (std::make_unique<juce::TextButton> ("Display..."), bw + 4, y, bw, 22);
+        d->setTooltip ("How each category shows on the boxes, and the colour mode (also View > Display...)");
+        d->onClick = [this] { if (owner.onShowDisplay) owner.onShowDisplay(); };
         return y + 26;
     }
 
@@ -596,19 +795,31 @@ void FrameworkPanel::resized()
     rebuild();
 }
 
-void FrameworkPanel::setField (const juce::Identifier& id, const juce::String& value, const juce::String& undoName)
+void FrameworkPanel::setValue (const juce::String& key, const juce::var& value, const juce::String& undoName, bool newTransaction)
 {
-    project.getUndoManager().beginNewTransaction (undoName);
+    auto* c = framework.findCategory (key);
+    if (c == nullptr) return;
+    if (newTransaction) project.getUndoManager().beginNewTransaction (undoName);
+    for (auto b : boxes) project.setFrameworkValue (b, *c, value);
+}
+
+void FrameworkPanel::setTag (const juce::String& key, const juce::String& tag, bool on)
+{
+    auto* c = framework.findCategory (key);
+    if (c == nullptr) return;
+    project.getUndoManager().beginNewTransaction (framework.text (c->name));
     for (auto b : boxes)
     {
-        if (value.isEmpty()) b.removeProperty (id, project.um());
-        else b.setProperty (id, value, project.um());
+        auto tags = Tags::parse (b[c->property()].toString());
+        if (on) tags.addIfNotAlreadyThere (tag); else tags.removeString (tag);
+        project.setFrameworkValue (b, *c, Tags::format (tags));
     }
 }
 
-void FrameworkPanel::setAlong (const juce::Identifier& alongId, const juce::Array<Along::Change>& changes)
+void FrameworkPanel::setAlong (const juce::String& key, const juce::Array<Along::Change>& changes)
 {
-    if (boxes.size() != 1) return;
+    auto* c = framework.findCategory (key);
+    if (c == nullptr || boxes.size() != 1) return;
     project.getUndoManager().beginNewTransaction ("Change along the box");
-    project.setChangesAlong (boxes.getFirst(), alongId, changes);
+    project.setChangesAlong (boxes.getFirst(), *c, changes);
 }

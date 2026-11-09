@@ -1,16 +1,26 @@
-// Framework.h — the composition framework, read from framework.json (stage 4a).
+// Framework.h — the frameworks a project uses: packages of categories (stage 4b).
 //
-// Energies and their families (Vande Gorne), semiotic levels (Peirce / Bayle,
-// with Thoresen's metonymic level), roles (Thoresen's layer functions, or
-// Vande Gorne's figure and ground), Schaeffer's typology, and the operations
-// of the structuring language (kept for stage 8). Nothing of it is hard-coded:
-// the app keeps one file, each project a copy of it (see ensureProjectFile).
-// Boxes store ids, never names, so renaming in the file breaks nothing; an id
-// the file does not know is kept and shown as unknown.
+// A package is a folder with a framework.json (and a help.md): its categories,
+// each with a kind (one choice from a list, several tags, a number, a text),
+// its values, groups of values (Vande Gorne's families, Schaeffer's zones), a
+// chart for values that sit in rows and columns (Schaeffer's typology), and
+// the mark it gets on the boxes by default (a strip, a badge, a label). A
+// category can change along a box, be given by folders to the boxes inside,
+// have a default value, share the values of another category, and give its
+// values two names (Thoresen's and Vande Gorne's). A package can also add
+// values to another package's category, so your additions survive an update
+// of the original.
 //
-// Changes along a box (Along): a semiotic level or a role can change at
-// proportions of the box, suddenly or over a width. Stored on the box as text,
-// e.g. "0.7:meson:0.08;0.9:ison:0" (at : value : width).
+// Projet ships some packages (builtins), keeps a library of them (Application
+// Support/Projet/Frameworks) and each project keeps copies of the ones it uses
+// (<project>/Frameworks), so a piece stays readable whatever happens to the
+// library. Nothing about the categories is hard-coded: the inspector, the
+// menus, the colour modes, the highlight and the marks list whatever the
+// loaded packages declare.
+//
+// Boxes store ids, never names, under fw.<package>.<category>; changes along a
+// box under fw.<package>.<category>.along. An id no package knows is kept and
+// shown as unknown ("id?").
 
 #pragma once
 
@@ -19,92 +29,199 @@
 class Framework
 {
 public:
-    struct Name   { juce::String fr, en; };
-    struct Family { juce::String id; Name name; juce::uint32 colour = 0, dark = 0, light = 0; };   // colours: 0xAARRGGBB
-    struct Energy { juce::String id, glyph; Name name; juce::StringArray families, factorsFr, factorsEn; };
-    struct Level  { juce::String id, fill; Name name, about; int order = 0; juce::uint32 colour = 0; };
-    struct Role   { juce::String id, letter; Name thoresen, vandeGorne; int weight = 0; bool isDefault = false; };
-    struct Zone   { juce::String id; Name name; juce::uint32 colour = 0, dark = 0, light = 0; };
-    struct Type   { juce::String id, label, zone; Name name; int row = 0, col = 0; };
-    struct Axis   { juce::String id; Name name; };
+    struct Name
+    {
+        juce::String fr, en;
+        bool isEmpty() const                    { return fr.isEmpty() && en.isEmpty(); }
+    };
 
-    /** The built-in default. */
-    Framework();
+    /** Colours as 0xAARRGGBB (0 = none): the model has no graphics module. */
+    struct Colours { juce::uint32 colour = 0, dark = 0, light = 0; };
 
-    /** Replaces everything from a framework.json text; on failure (error set)
-        nothing changes. */
-    bool load (const juce::String& json, juce::String& error);
-    /** The default framework.json text. */
-    static juce::String defaultJson();
+    struct Group
+    {
+        juce::String id;
+        Name name, about;
+        Colours colours;
+    };
 
-    int getVersion() const                                  { return version; }
-    juce::String getLanguage() const                        { return language; }
-    /** "thoresen", "vandegorne" or "both". */
-    juce::String getRoleNames() const                       { return roleNames; }
-    /** A name in the file's language (or the other one if missing). */
+    struct Value
+    {
+        juce::String id, label, glyph, fill;
+        juce::String from;                      // the package that defined it (another one for additions)
+        Name name, name2, about;
+        juce::StringArray groups;
+        Colours colours;                        // its own (else its first group's)
+        int order = 0, weight = 0, row = -1, col = -1;
+        juce::StringArray detailsFr, detailsEn;
+    };
+
+    struct Axis { juce::String id; Name name; };
+
+    enum class Kind { choice, tags, number, text };
+    enum class Mark { none, strip, badge, label };
+
+    struct Category
+    {
+        juce::String id, package;
+        /** "composition.level": how menus, settings and other packages refer to it. */
+        juce::String key() const                { return package + "." + id; }
+        /** The box (or folder) property: fw.composition.level */
+        juce::Identifier property() const       { return "fw." + key(); }
+        /** Changes along a box: fw.composition.level.along */
+        juce::Identifier alongProperty() const  { return "fw." + key() + ".along"; }
+
+        Name name, about, groupsName, detailsLabel, chartCaption;
+        Name firstNames, secondNames;           // what the two names are (e.g. Thoresen, Vande Gorne)
+        Kind kind = Kind::choice;
+        juce::String control;                   // choice: "menu", "buttons" or "chart"
+        bool along = false, folders = false, showDefault = true;
+        juce::String defaultValue;
+        juce::String valuesFrom;                // the key of the category whose values (and groups) it uses
+        Mark mark = Mark::none;                 // the package's choice; the project's display settings can change it
+        juce::uint32 colour = 0;                // for categories whose values have no colours
+        double minimum = 0.0, maximum = 1.0, step = 0.0;
+        juce::String unit;
+        juce::Array<Group> groups;
+        juce::Array<Value> values;
+        juce::Array<Axis> rows, columns;        // chart
+        bool hasTwoNames = false;               // some value has a second name
+        int index = 0;                          // position in getCategories()
+    };
+
+    struct Package
+    {
+        juce::String id;
+        int version = 0, order = 50;
+        Name name, about;
+        juce::String status;
+        juce::StringArray categories;           // keys, in order
+        juce::var json;                         // the whole file (operations and the like, for later stages)
+        juce::StringArray warnings;             // about this package, from the last rebuild
+    };
+
+    /** No packages (Builtin() for the ones Projet ships). */
+    Framework() = default;
+
+    //== Packages ==============================================================
+    /** Adds (or replaces) a package from its framework.json. `folderName` is
+        used when the file has no id. On failure (error set) nothing changes. */
+    bool addPackage (const juce::String& json, const juce::String& folderName, juce::String& error);
+    void removePackage (const juce::String& id);
+    void clear();
+    bool isEmpty() const                        { return packages.isEmpty(); }
+
+    /** In order (their "order", then id). */
+    const juce::Array<Package>& getPackages() const     { return packages; }
+    const Package* findPackage (const juce::String& id) const;
+
+    //== Categories ============================================================
+    /** All categories of all packages, package by package, in order. */
+    const juce::Array<Category>& getCategories() const  { return categories; }
+    const Category* findCategory (const juce::String& key) const;
+    /** The category whose values and groups `c` uses (itself, or its valuesFrom). */
+    const Category& source (const Category& c) const;
+    const juce::Array<Value>& valuesOf (const Category& c) const        { return source (c).values; }
+    const juce::Array<Group>& groupsOf (const Category& c) const        { return source (c).groups; }
+    const Value* findValue (const Category&, const juce::String& id) const;
+    const Group* findGroup (const Category&, const juce::String& id) const;
+    /** Categories that share `c`'s values (c's source and every category using it). */
+    juce::Array<const Category*> sharing (const Category& c) const;
+
+    //== Names =================================================================
+    /** "fr" or "en"; names fall back to the other language when missing. */
+    void setLanguage (const juce::String& lang)         { language = lang == "en" ? "en" : "fr"; }
+    juce::String getLanguage() const                    { return language; }
     juce::String text (const Name&) const;
+    /** For categories with two names per value: "both", "first" or "second". */
+    void setNaming (const juce::String& categoryKey, const juce::String& naming);
+    juce::String getNaming (const juce::String& categoryKey) const;
+    /** All namings as "key=first;key=second" (for the project file). */
+    juce::String namingsToString() const;
+    void namingsFromString (const juce::String&);
 
-    const juce::Array<Family>& getFamilies() const          { return families; }
-    const juce::Array<Energy>& getEnergies() const          { return energies; }
-    const juce::Array<Level>& getLevels() const             { return levels; }     // concrete to abstract
-    const juce::Array<Role>& getRoles() const               { return roles; }      // strongest first
-    const juce::Array<Zone>& getZones() const               { return zones; }
-    const juce::Array<Type>& getTypes() const               { return types; }
-    const juce::Array<Axis>& getMasses() const              { return masses; }     // typology rows
-    const juce::Array<Axis>& getSustainments() const        { return sustainments; } // typology columns
-    juce::StringArray figureTraits (bool figure) const;
-    const juce::var& getOperations() const                  { return operations; }
+    /** The name of a value, as the naming asks ("" for "", "id?" when unknown). */
+    juce::String valueName (const Category&, const juce::String& id) const;
+    /** Short: the value's label (F, N″), else its name. */
+    juce::String valueLabel (const Category&, const juce::String& id) const;
+    /** The details of a value (variation factors, traits), in the language. */
+    juce::StringArray valueDetails (const Value&) const;
+    /** A value's colours: its own, else its first group's, else none (0). */
+    Colours valueColours (const Category&, const juce::String& id) const;
+    /** Whether any value (or group) of the category has a colour. */
+    bool hasColours (const Category&) const;
+    /** Names for a number ("0.5 s", "6") with the category's step. */
+    juce::String formatNumber (const Category&, double) const;
 
-    const Family* findFamily (const juce::String& id) const;
-    const Energy* findEnergy (const juce::String& id) const;
-    const Level*  findLevel (const juce::String& id) const;
-    const Role*   findRole (const juce::String& id) const;
-    const Zone*   findZone (const juce::String& id) const;
-    const Type*   findType (const juce::String& id) const;
+    /** "key=value;key=value" (display settings, namings) and back. */
+    static juce::StringPairArray parsePairs (const juce::String&);
+    static juce::String formatPairs (const juce::StringPairArray&);
 
-    /** Names for display; unknown ids come back as "id?" and empty ids as "". */
-    juce::String energyName (const juce::String& id) const;
-    juce::String familyName (const juce::String& id) const;
-    juce::String levelName (const juce::String& id) const;
-    /** "F", "F · figure" or "figure", as roleNames asks; short = letter only (for badges). */
-    juce::String roleName (const juce::String& id, bool shortForm = false) const;
-    juce::String typeLabel (const juce::String& id) const;
-    juce::String typeName (const juce::String& id) const;
-    /** The role used when a box has none. */
-    juce::String defaultRole() const;
+    static juce::String kindName (Kind);
+    static juce::String markName (Mark);
+    static Mark markFromName (const juce::String&, Mark fallback = Mark::none);
+    /** The marks that suit a category (none first). */
+    static juce::Array<Mark> marksFor (const Category&);
+    /** The mark a category gets: the project's display setting for it
+        ("key=strip;..."), if it suits the category, else the package's. */
+    static Mark chosenMark (const Category&, const juce::StringPairArray& display);
 
-    /** Colours for the colour modes (0xAARRGGBB; 0 when the id is empty or
-        unknown). The model has no graphics: the UI makes juce::Colours of them. */
-    juce::uint32 energyColour (const juce::String& energyId) const;   // its first family
-    juce::uint32 levelColour (const juce::String& levelId) const;
-    juce::uint32 typeColour (const juce::String& typeId) const;       // its zone
-
-    //== Files ================================================================
+    //== Files =================================================================
     /** ~/Library/Application Support/Projet (macOS). */
     static juce::File appFolder();
-    static juce::File appFile()                             { return appFolder().getChildFile ("framework.json"); }
-    /** Writes the default to the app file if there is none yet. */
-    static juce::Result ensureAppFile();
-    static juce::File projectFile (const juce::File& projectFolder) { return projectFolder.getChildFile ("framework.json"); }
-    /** The project's copy, made from the app file (or the default) if missing. */
-    static juce::Result ensureProjectFile (const juce::File& projectFolder);
-    /** Replaces the project's copy with the app file. */
-    static juce::Result copyAppToProject (const juce::File& projectFolder);
-    /** Makes the project's copy the app file (for new projects). */
-    static juce::Result copyProjectToApp (const juce::File& projectFolder);
+    /** The library: appFolder()/Frameworks. */
+    static juce::File libraryFolder();
+    /** For the tests: another library folder (an empty File = the real one). */
+    static void setLibraryFolder (const juce::File&);
+    /** A project's packages: <project>/Frameworks. */
+    static juce::File projectFolder (const juce::File& project) { return project.getChildFile ("Frameworks"); }
+    /** The package folders (with a framework.json) inside `parent`. */
+    static juce::Array<juce::File> packageFolders (const juce::File& parent);
+    /** The version a package folder holds (0 if none or unreadable). */
+    static int folderVersion (const juce::File& packageFolder);
+
+    struct Report { juce::StringArray errors, notes; };
+    /** Replaces everything with the packages inside `parent`; packages that
+        cannot be read are reported and left out. */
+    void loadFolder (const juce::File& parent, Report&);
+
+    //== The packages Projet ships =============================================
+    struct Builtin { juce::String id, json, help; int version = 0; };
+    static const juce::Array<Builtin>& builtins();
+    /** All builtin packages, loaded. */
+    static Framework builtIn();
+    static juce::Result writePackage (const juce::File& packageFolder, const juce::String& json, const juce::String& help);
+    static juce::Result writeBuiltin (const juce::File& parent, const juce::String& id);
+    /** Copies a package folder into `parent` (replacing the one there). */
+    static juce::Result copyPackage (const juce::File& packageFolder, const juce::File& parent);
+
+    /** Makes the library the first time: from the 4a framework.json of the
+        app if there is one (kept as framework-4a.json), else the builtins.
+        `language` and `naming` get the 4a file's settings, if any. */
+    static juce::Result ensureLibrary (juce::String& language, juce::String& naming, Report&);
+    /** Gives a project its Frameworks folder the first time: from its 4a
+        framework.json (kept as framework-4a.json), else copies of the library. */
+    static juce::Result ensureProject (const juce::File& project, juce::String& language, juce::String& naming, Report&);
+
+    //== Stage 4a ==============================================================
+    /** The framework.json Projet 4a shipped. */
+    static juce::String legacyDefaultJson();
+    /** Turns a 4a framework.json into packages (id, json): the builtins when it
+        is the 4a default, else packages carrying its content. `language` and
+        `naming` (the role naming) get its settings. */
+    static bool convertLegacy (const juce::String& json, juce::StringArray& ids, juce::StringArray& jsons,
+                               juce::String& language, juce::String& naming, juce::String& error);
+    /** Old box and folder fields (energy, level, typology ...) and their new keys. */
+    static juce::StringPairArray legacyFields();
 
 private:
-    int version = 1;
-    juce::String language { "fr" }, roleNames { "both" };
-    juce::Array<Family> families;
-    juce::Array<Energy> energies;
-    juce::Array<Level> levels;
-    juce::Array<Role> roles;
-    juce::Array<Zone> zones;
-    juce::Array<Type> types;
-    juce::Array<Axis> masses, sustainments;
-    juce::StringArray figureFr, figureEn, groundFr, groundEn;
-    juce::var operations;
+    struct Raw { Package package; juce::Array<Category> categories; juce::var additions; };
+    juce::Array<Raw> raws;
+    juce::Array<Package> packages;
+    juce::Array<Category> categories;
+    juce::String language { "fr" };
+    juce::StringPairArray namings;
+    void rebuild();
 };
 
 //== Changes along a box =======================================================
@@ -125,4 +242,17 @@ namespace Along
         at `from`, and its changes are those inside, rescaled. */
     void section (const juce::String& base, const juce::Array<Change>& changes, double from, double to,
                   juce::String& newBase, juce::Array<Change>& newChanges);
+}
+
+//== Tags (several values in one field) ========================================
+namespace Tags
+{
+    inline juce::StringArray parse (const juce::String& s)
+    {
+        juce::StringArray out;
+        for (auto t : juce::StringArray::fromTokens (s, ",", {}))
+            if (t.trim().isNotEmpty()) out.addIfNotAlreadyThere (t.trim());
+        return out;
+    }
+    inline juce::String format (const juce::StringArray& a) { return a.joinIntoString (","); }
 }

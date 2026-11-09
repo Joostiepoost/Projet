@@ -57,6 +57,10 @@ MainComponent::MainComponent()
     inspector.getRulerPanel().getPlayhead = [this] { return engine.getPositionSeconds(); };
     inspector.getRulerPanel().setProperties (properties.getUserSettings());
     inspector.getRulerPanel().onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
+    inspector.getDisplayPanel().setProperties (properties.getUserSettings());
+    inspector.getDisplayPanel().setView = [this] (const juce::Identifier& id, const juce::String& v) { setViewSetting (id, v); };
+    inspector.getPackagesPanel().onAction = [this] (const juce::String& a, const juce::String& id) { packagesAction (a, id); };
+    inspector.onShowFrameworks = [this] { showPackages(); };
     timeline.onFilesDropped = [this] (const juce::StringArray& files, juce::ValueTree track, double t) { importFiles (files, track, t); };
     timeline.onRevealOriginal = [this] (juce::ValueTree box)
     {
@@ -99,6 +103,17 @@ MainComponent::MainComponent()
    #if JUCE_MAC
     juce::MenuBarModel::setMacMainMenu (this);
    #endif
+
+    // The framework library, the first time: from the 4a framework file, else Projet's packages.
+    {
+        juce::String lang, naming;
+        Framework::Report report;
+        const auto made = Framework::ensureLibrary (lang, naming, report);
+        if (lang.isNotEmpty() && settings->getValue ("frameworkLanguage").isEmpty()) settings->setValue ("frameworkLanguage", lang);
+        if (naming == "first" || naming == "second") settings->setValue ("frameworkNaming", "composition.role=" + naming);
+        if (made.failed()) transport.setStatus (made.getErrorMessage(), true);
+        else if (! report.errors.isEmpty()) transport.setStatus (report.errors.joinIntoString (" "), true);
+    }
 
     openLastOrShowStart();
 
@@ -843,55 +858,104 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
         {
             add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit });
             m.addSeparator();
-            // Colour modes (stage 4a): ids 6000-6003
+            // Colour modes (stage 4a, 4b): 6000 = track colours, 6001 + category index
             const auto mode = project.getState().getProperty (IDs::colourMode, "own").toString();
             juce::PopupMenu colours;
             colours.addItem (6000, "Track colours", hasProject(), mode == "own");
-            colours.addItem (6001, "Energy family", hasProject(), mode == "family");
-            colours.addItem (6002, "Semiotic level", hasProject(), mode == "level");
-            colours.addItem (6003, "Type (balanced, redundant, eccentric)", hasProject(), mode == "type");
+            for (auto& c : framework.getCategories())
+                if ((c.kind == Framework::Kind::choice || c.kind == Framework::Kind::tags) && framework.hasColours (c) && c.index < 98)
+                {
+                    bool ownColours = false;
+                    for (auto& v : framework.valuesOf (c)) ownColours = ownColours || v.colours.colour != 0;
+                    const auto& groupsName = framework.source (c).groupsName;
+                    colours.addItem (6001 + c.index, framework.text (c.name) + (! ownColours && ! groupsName.isEmpty() ? " (" + framework.text (groupsName) + ")" : juce::String()),
+                                     hasProject(), mode == c.key());
+                }
             m.addSubMenu ("Colour boxes by", colours, hasProject());
 
-            // Highlight: families 6110+, energies 6130+, levels 6150+, roles 6170+, types 6300+
+            // Highlight: 6100 clears; values at highlightBase + index * 500 + 1 + i, groups at + 251 + i
             const auto& h = timeline.getHighlight();
             juce::PopupMenu hl;
             hl.addItem (6100, "Show all (clear)", h.isActive());
-            hl.addSectionHeader ("Families");
-            for (int i = 0; i < framework.getFamilies().size(); ++i)
-                hl.addItem (6110 + i, framework.text (framework.getFamilies()[i].name), true, h.families.contains (framework.getFamilies()[i].id));
-            juce::PopupMenu energies, types;
-            for (int i = 0; i < framework.getEnergies().size(); ++i)
-                energies.addItem (6130 + i, framework.text (framework.getEnergies()[i].name), true, h.energies.contains (framework.getEnergies()[i].id));
-            hl.addSubMenu ("Energies", energies, true, juce::Image(), ! h.energies.isEmpty());
-            hl.addSectionHeader ("Semiotic levels");
-            for (int i = 0; i < framework.getLevels().size(); ++i)
-                hl.addItem (6150 + i, framework.text (framework.getLevels()[i].name), true, h.levels.contains (framework.getLevels()[i].id));
-            hl.addSectionHeader ("Roles");
-            for (int i = 0; i < framework.getRoles().size(); ++i)
-                hl.addItem (6170 + i, framework.roleName (framework.getRoles()[i].id), true, h.roles.contains (framework.getRoles()[i].id));
-            for (auto& zone : framework.getZones())
+            for (auto& c : framework.getCategories())
             {
-                types.addSectionHeader (framework.text (zone.name));
-                for (int i = 0; i < framework.getTypes().size(); ++i)
-                    if (framework.getTypes()[i].zone == zone.id)
-                        types.addItem (6300 + i, framework.getTypes()[i].label + "   " + framework.text (framework.getTypes()[i].name), true,
-                                       h.types.contains (framework.getTypes()[i].id));
+                if (c.valuesFrom.isNotEmpty() || (c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags)) continue;
+                const auto& values = framework.valuesOf (c);
+                const auto& groups = framework.groupsOf (c);
+                if (values.isEmpty() || values.size() > 249 || groups.size() > 248) continue;
+                const int base = highlightBase + c.index * 500;
+                const auto ticked = h.idsFor (c.key()), tickedGroups = h.idsFor (c.key() + "#groups");
+                if (! groups.isEmpty())
+                {
+                    juce::PopupMenu gm;
+                    for (int i = 0; i < groups.size(); ++i)
+                        gm.addItem (base + 251 + i, framework.text (groups[i].name), true, tickedGroups.contains (groups[i].id));
+                    hl.addSubMenu (framework.text (c.name) + ": " + framework.text (c.groupsName), gm, true, juce::Image(), ! tickedGroups.isEmpty());
+                }
+                auto valueItem = [&] (juce::PopupMenu& menu, int i)
+                {
+                    auto text = framework.valueName (c, values[i].id);
+                    if (values[i].label.isNotEmpty() && ! text.startsWith (values[i].label)) text = values[i].label + "   " + text;
+                    menu.addItem (base + 1 + i, text, true, ticked.contains (values[i].id));
+                };
+                if (groups.isEmpty() && values.size() <= 6)
+                {
+                    hl.addSectionHeader (framework.text (c.name));
+                    for (int i = 0; i < values.size(); ++i) valueItem (hl, i);
+                }
+                else
+                {
+                    juce::PopupMenu vm;
+                    juce::Array<int> listed;
+                    for (auto& g : groups)
+                    {
+                        bool heading = false;
+                        for (int i = 0; i < values.size(); ++i)
+                            if (values[i].groups.size() > 0 && values[i].groups[0] == g.id)
+                            {
+                                if (! heading) { vm.addSectionHeader (framework.text (g.name)); heading = true; }
+                                valueItem (vm, i);
+                                listed.add (i);
+                            }
+                    }
+                    for (int i = 0; i < values.size(); ++i) if (! listed.contains (i)) valueItem (vm, i);
+                    hl.addSubMenu (framework.text (c.name), vm, true, juce::Image(), ! ticked.isEmpty());
+                }
             }
-            hl.addSubMenu ("Types", types, true, juce::Image(), ! h.types.isEmpty());
             m.addSubMenu ("Highlight", hl, hasProject(), juce::Image(), h.isActive());
+            m.addItem (6099, "Display...", hasProject());
             break;
         }
         case 3: add ({ cmdPlayStop, cmdToStart }); break;
         case 4: add ({ cmdAddTrack }); break;
         case 5:
         {
-            // The framework file (stage 4a): ids 6200+
-            m.addItem (6200, "Show the project's framework file", hasProject());
-            m.addItem (6201, "Reload the framework file", hasProject());
+            // Framework packages (stage 4b): ids 6200+
+            m.addItem (6200, "Frameworks...", hasProject());
+            m.addItem (6201, "Reload frameworks", hasProject());
             m.addSeparator();
-            m.addItem (6202, "Replace it with the app's framework file...", hasProject());
-            m.addItem (6203, "Use this project's framework for new projects...", hasProject());
-            m.addItem (6204, "Show the app's framework file");
+            juce::PopupMenu lang;
+            lang.addItem (6210, juce::String::fromUTF8 ("Fran\xc3\xa7" "ais"), hasProject(), framework.getLanguage() == "fr");
+            lang.addItem (6211, "English", hasProject(), framework.getLanguage() == "en");
+            m.addSubMenu ("Names in", lang, hasProject());
+            namingKeys.clear();
+            for (auto& c : framework.getCategories())
+                if (c.valuesFrom.isEmpty() && c.hasTwoNames && namingKeys.size() < 20)
+                {
+                    const int base = 6220 + namingKeys.size() * 3;
+                    namingKeys.add (c.key());
+                    const auto naming = framework.getNaming (c.key());
+                    const auto first = c.firstNames.isEmpty() ? juce::String ("First names") : framework.text (c.firstNames);
+                    const auto second = c.secondNames.isEmpty() ? juce::String ("Second names") : framework.text (c.secondNames);
+                    juce::PopupMenu n;
+                    n.addItem (base, first + " and " + second, hasProject(), naming == "both");
+                    n.addItem (base + 1, first, hasProject(), naming == "first");
+                    n.addItem (base + 2, second, hasProject(), naming == "second");
+                    m.addSubMenu (framework.text (c.name) + ": names", n, hasProject());
+                }
+            m.addSeparator();
+            m.addItem (6202, "Show the project's frameworks folder", hasProject());
+            m.addItem (6203, "Show the library folder");
             break;
         }
         case 6: add ({ cmdAudioSettings }); break;
@@ -903,29 +967,46 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
 
 void MainComponent::menuItemSelected (int id, int)
 {
-    if (id >= 6000 && id <= 6003)
+    if (id >= 6000 && id < 6099)
     {
-        static const char* modes[] = { "own", "family", "level", "type" };
-        {
-            const juce::ScopedValueSetter<bool> svs (suppressDirty, true);   // a view setting
-            project.getState().setProperty (IDs::colourMode, modes[id - 6000], nullptr);
-        }
-        timeline.repaint();
+        const int index = id - 6001;
+        setViewSetting (IDs::colourMode, juce::isPositiveAndBelow (index, framework.getCategories().size())
+                                         ? framework.getCategories()[index].key() : juce::String ("own"));
         return;
     }
-    if (id == 6100 || (id >= 6110 && id < 6200) || (id >= 6300 && id < 6400))
+    if (id == 6099) { inspector.showDisplay(); return; }
+    if (id == 6100 || (id >= highlightBase && id < highlightBase + 500 * framework.getCategories().size()))
     {
         if (id == 6100) timeline.clearHighlight();
-        else if (id < 6130) timeline.toggleHighlight ("family", framework.getFamilies()[id - 6110].id);
-        else if (id < 6150) timeline.toggleHighlight ("energy", framework.getEnergies()[id - 6130].id);
-        else if (id < 6170) timeline.toggleHighlight ("level", framework.getLevels()[id - 6150].id);
-        else if (id < 6200) timeline.toggleHighlight ("role", framework.getRoles()[id - 6170].id);
-        else timeline.toggleHighlight ("type", framework.getTypes()[id - 6300].id);
+        else
+        {
+            const auto& c = framework.getCategories().getReference ((id - highlightBase) / 500);
+            const int item = (id - highlightBase) % 500;
+            if (item >= 251 && juce::isPositiveAndBelow (item - 251, framework.groupsOf (c).size()))
+                timeline.toggleHighlight (c.key() + "#groups", framework.groupsOf (c)[item - 251].id);
+            else if (item >= 1 && juce::isPositiveAndBelow (item - 1, framework.valuesOf (c).size()))
+                timeline.toggleHighlight (c.key(), framework.valuesOf (c)[item - 1].id);
+        }
         const auto& h = timeline.getHighlight();
         transport.setStatus (h.isActive() ? "Highlighting " + h.describe (framework) + " (View > Highlight > Show all to clear)" : juce::String());
         return;
     }
-    if (id >= 6200 && id < 6210) { frameworkFileCommand (id - 6200); return; }
+    if (id == 6200) { showPackages(); return; }
+    if (id == 6201) { loadFramework (true); refreshPackages(); return; }
+    if (id == 6202) { Framework::projectFolder (folder.getFolder()).revealToUser(); return; }
+    if (id == 6203) { Framework::libraryFolder().revealToUser(); return; }
+    if (id == 6210 || id == 6211) { setFrameworkLanguage (id == 6211 ? "en" : "fr"); return; }
+    if (id >= 6220 && id < 6280)
+    {
+        const auto key = namingKeys[(id - 6220) / 3];
+        if (key.isEmpty()) return;
+        static const char* namings[] = { "both", "first", "second" };
+        framework.setNaming (key, namings[(id - 6220) % 3]);
+        setViewSetting (IDs::fwNaming, framework.namingsToString());
+        properties.getUserSettings()->setValue ("frameworkNaming", framework.namingsToString());
+        inspector.frameworkChanged();
+        return;
+    }
     if (id >= 5000 && id < 5100)
     {
         const auto file = recentProjects.getFile (id - 5000);
@@ -934,77 +1015,245 @@ void MainComponent::menuItemSelected (int id, int)
     }
 }
 
-//== Framework file (stage 4a) =================================================
+//== Framework packages (stage 4b) =============================================
+
+void MainComponent::setViewSetting (const juce::Identifier& id, const juce::String& value)
+{
+    {
+        const juce::ScopedValueSetter<bool> svs (suppressDirty, true);   // a view setting
+        if (value.isEmpty()) project.getState().removeProperty (id, nullptr);
+        else project.getState().setProperty (id, value, nullptr);
+    }
+    timeline.repaint();
+    inspector.frameworkChanged();
+}
+
+void MainComponent::setFrameworkLanguage (const juce::String& lang)
+{
+    framework.setLanguage (lang);
+    setViewSetting (IDs::fwLanguage, framework.getLanguage());
+    properties.getUserSettings()->setValue ("frameworkLanguage", framework.getLanguage());   // for new projects
+    if (inspector.isShowingPackages()) refreshPackages();
+}
 
 void MainComponent::loadFramework (bool announce)
 {
-    Framework::ensureAppFile();
-    if (! folder.isValid()) { framework = Framework(); return; }
+    auto* settings = properties.getUserSettings();
+    framework.clear();
+    if (! folder.isValid()) return;
 
-    const auto made = Framework::ensureProjectFile (folder.getFolder());
-    const auto file = Framework::projectFile (folder.getFolder());
-    juce::String error;
-    if (made.failed() || ! file.existsAsFile())
+    // The first time: from the project's 4a framework file, else the library.
+    juce::String lang, naming;
+    Framework::Report report;
+    const auto made = Framework::ensureProject (folder.getFolder(), lang, naming, report);
+    if (made.failed()) report.errors.add (made.getErrorMessage());
     {
-        framework = Framework();
-        transport.setStatus ("No framework file in the project (" + made.getErrorMessage() + "); using the built-in one.", true);
+        const juce::ScopedValueSetter<bool> svs (suppressDirty, true);
+        auto& state = project.getState();
+        if (lang.isNotEmpty()) state.setProperty (IDs::fwLanguage, lang, nullptr);
+        if (naming == "first" || naming == "second") state.setProperty (IDs::fwNaming, "composition.role=" + naming, nullptr);
+        if (! state.hasProperty (IDs::fwLanguage))
+            state.setProperty (IDs::fwLanguage, settings->getValue ("frameworkLanguage", "fr"), nullptr);
+        if (! state.hasProperty (IDs::fwNaming) && settings->getValue ("frameworkNaming").isNotEmpty())
+            state.setProperty (IDs::fwNaming, settings->getValue ("frameworkNaming"), nullptr);
     }
-    else if (! framework.load (file.loadFileAsString(), error))
-    {
-        framework = Framework();
-        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "The framework file could not be read",
-                                                error + "\n\nProjet uses the built-in framework until the file is fixed "
-                                                "(then Framework > Reload the framework file).\n\n" + file.getFullPathName());
-    }
-    else if (announce)
-        transport.setStatus ("Framework reloaded: " + juce::String (framework.getEnergies().size()) + " energies, "
-                             + juce::String (framework.getLevels().size()) + " levels, " + juce::String (framework.getTypes().size()) + " types");
+    framework.setLanguage (project.getState()[IDs::fwLanguage].toString());
+    framework.namingsFromString (project.getState()[IDs::fwNaming].toString());
+
+    framework.loadFolder (Framework::projectFolder (folder.getFolder()), report);
+    if (! report.errors.isEmpty())
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "A framework package could not be read",
+                                                report.errors.joinIntoString ("\n\n") + "\n\nThe other packages are in use. Fix the file, then "
+                                                "Framework > Reload frameworks.\n\n" + Framework::projectFolder (folder.getFolder()).getFullPathName());
+    else if (! report.notes.isEmpty() && (announce || made.wasOk()))
+        transport.setStatus (report.notes.joinIntoString (" "), false);
+    if (announce && report.errors.isEmpty())
+        transport.setStatus ("Frameworks: " + juce::String (framework.getPackages().size()) + " packages, "
+                             + juce::String (framework.getCategories().size()) + " categories"
+                             + (report.notes.isEmpty() ? juce::String() : " (" + juce::String (report.notes.size()) + " notes: Framework > Frameworks...)"));
 
     timeline.repaint();
-    inspector.setSelection (timeline.getSelectedBoxes());
+    inspector.frameworkChanged();
+    inspector.refresh();
 }
 
-void MainComponent::frameworkFileCommand (int which)
+void MainComponent::showPackages()
 {
-    juce::Component::SafePointer<MainComponent> safe (this);
-    switch (which)
+    if (! hasProject()) return;
+    inspector.showPackages();
+    refreshPackages();
+}
+
+void MainComponent::refreshPackages()
+{
+    if (! inspector.isShowingPackages() || ! folder.isValid()) return;
+    const auto projectDir = Framework::projectFolder (folder.getFolder());
+    const auto libraryDir = Framework::libraryFolder();
+
+    juce::StringArray ids;
+    for (auto& f : Framework::packageFolders (projectDir)) ids.addIfNotAlreadyThere (f.getFileName());
+    for (auto& f : Framework::packageFolders (libraryDir)) ids.addIfNotAlreadyThere (f.getFileName());
+    for (auto& b : Framework::builtins()) ids.addIfNotAlreadyThere (b.id);
+
+    juce::Array<PackagesPanel::Entry> entries;
+    for (auto& id : ids)
     {
-        case 0:
-            Framework::ensureProjectFile (folder.getFolder());
-            Framework::projectFile (folder.getFolder()).revealToUser();
-            break;
-        case 1:
-            loadFramework (true);
-            break;
-        case 2:
-            juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Replace the project's framework?",
-                "The project's framework file is replaced by the app's (" + Framework::appFile().getFullPathName()
-                + "). Boxes keep their energies, levels and types: ids the new file does not know are shown with a question mark.",
-                "Replace", "Cancel", this, juce::ModalCallbackFunction::create ([safe] (int r)
-            {
-                if (safe == nullptr || r != 1) return;
-                const auto result = Framework::copyAppToProject (safe->folder.getFolder());
-                if (result.failed()) safe->transport.setStatus (result.getErrorMessage(), true);
-                else safe->loadFramework (true);
-            }));
-            break;
-        case 3:
-            juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Use this framework for new projects?",
-                "This project's framework file becomes the app's framework file, which every new project copies. "
-                "Other projects keep their own copy until you replace it there.",
-                "Use it", "Cancel", this, juce::ModalCallbackFunction::create ([safe] (int r)
-            {
-                if (safe == nullptr || r != 1) return;
-                const auto result = Framework::copyProjectToApp (safe->folder.getFolder());
-                safe->transport.setStatus (result.failed() ? result.getErrorMessage() : juce::String ("New projects will use this framework."), result.failed());
-            }));
-            break;
-        case 4:
-            Framework::ensureAppFile();
-            Framework::appFile().revealToUser();
-            break;
-        default: break;
+        PackagesPanel::Entry e;
+        e.id = id;
+        const auto pf = projectDir.getChildFile (id), lf = libraryDir.getChildFile (id);
+        e.inProject = pf.getChildFile ("framework.json").existsAsFile();
+        e.inLibrary = lf.getChildFile ("framework.json").existsAsFile();
+        e.projectVersion = Framework::folderVersion (pf);
+        e.libraryVersion = Framework::folderVersion (lf);
+        juce::String builtinJson, builtinHelp;
+        for (auto& b : Framework::builtins())
+            if (b.id == id) { e.builtin = true; e.builtinVersion = b.version; builtinJson = b.json; builtinHelp = b.help; }
+
+        // Its name, description and categories: as this project reads it, else as the library's or Projet's file says.
+        Framework reader;
+        reader.setLanguage (framework.getLanguage());
+        juce::String error;
+        const auto json = e.inProject ? pf.getChildFile ("framework.json").loadFileAsString()
+                        : e.inLibrary ? lf.getChildFile ("framework.json").loadFileAsString() : builtinJson;
+        if (reader.addPackage (json, id, error) && ! reader.getPackages().isEmpty())
+        {
+            const auto& p = reader.getPackages().getReference (0);
+            e.order = p.order;
+            e.name = reader.text (p.name);
+            e.about = reader.text (p.about);
+            for (auto& key : p.categories)
+                if (auto* c = reader.findCategory (key))
+                    e.categories.add (reader.text (c->name));
+            if (e.inProject)
+                if (auto* loaded = framework.findPackage (p.id))
+                    for (auto& w : loaded->warnings) e.problems.add (w);
+        }
+        else
+        {
+            e.problems.add ("Could not be read: " + error);
+            e.unreadable = true;
+        }
+
+        const auto helpFile = (e.inProject ? pf : lf).getChildFile ("help.md");
+        e.help = helpFile.existsAsFile() ? helpFile.loadFileAsString() : builtinHelp;
+        entries.add (e);
     }
+    // In the project first, then the library, then Projet's.
+    std::stable_sort (entries.begin(), entries.end(), [] (const PackagesPanel::Entry& a, const PackagesPanel::Entry& b)
+    {
+        auto rank = [] (const PackagesPanel::Entry& e) { return e.inProject ? 0 : e.inLibrary ? 1 : 2; };
+        if (rank (a) != rank (b)) return rank (a) < rank (b);
+        return a.order != b.order ? a.order < b.order : a.id < b.id;
+    });
+    inspector.getPackagesPanel().setEntries (entries, framework.getLanguage());
+}
+
+void MainComponent::packagesAction (const juce::String& action, const juce::String& id)
+{
+    if (! folder.isValid()) return;
+    const auto projectDir = Framework::projectFolder (folder.getFolder());
+    const auto libraryDir = Framework::libraryFolder();
+    juce::Component::SafePointer<MainComponent> safe (this);
+    auto done = [safe] (const juce::Result& r, const juce::String& message)
+    {
+        if (safe == nullptr) return;
+        safe->loadFramework (false);
+        safe->refreshPackages();
+        safe->transport.setStatus (r.failed() ? r.getErrorMessage() : message, r.failed());
+    };
+    auto confirm = [this] (const juce::String& title, const juce::String& text, const juce::String& button, std::function<void()> then)
+    {
+        juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, title, text, button, "Cancel", this,
+                                            juce::ModalCallbackFunction::create ([then] (int r) { if (r == 1) then(); }));
+    };
+
+    if (action == "reload")           { loadFramework (true); refreshPackages(); }
+    else if (action == "showProject") projectDir.revealToUser();
+    else if (action == "showLibrary") libraryDir.revealToUser();
+    else if (action == "language")    setFrameworkLanguage (id);
+    else if (action == "add")         addPackageFolder();
+    else if (action == "show")
+    {
+        const auto pf = projectDir.getChildFile (id);
+        (pf.isDirectory() ? pf : libraryDir.getChildFile (id)).revealToUser();
+    }
+    else if (action == "use" || action == "update")
+        done (Framework::copyPackage (libraryDir.getChildFile (id), projectDir),
+              action == "use" ? id + " is used in this project." : id + ": this project now has the library's version.");
+    else if (action == "useBuiltin")
+    {
+        auto r = Framework::writeBuiltin (libraryDir, id);
+        if (r.wasOk()) r = Framework::copyPackage (libraryDir.getChildFile (id), projectDir);
+        done (r, id + " is in the library and used in this project.");
+    }
+    else if (action == "remove")
+        confirm ("Remove " + id + " from this project?",
+                 "This project stops using the package: its copy goes to the trash. The values the boxes have for its categories stay "
+                 "(they come back if you use the package again).", "Remove", [safe, projectDir, id, done]
+        {
+            if (safe == nullptr) return;
+            auto dir = projectDir.getChildFile (id);
+            const bool ok = dir.moveToTrash() || dir.deleteRecursively();
+            done (ok ? juce::Result::ok() : juce::Result::fail ("Could not remove " + dir.getFullPathName()), id + " removed from this project.");
+        });
+    else if (action == "toLibrary")
+    {
+        auto copy = [projectDir, libraryDir, id, done]
+        {
+            done (Framework::copyPackage (projectDir.getChildFile (id), libraryDir), id + ": the library has this project's version.");
+        };
+        if (libraryDir.getChildFile (id).isDirectory())
+            confirm ("Replace the library's " + id + "?",
+                     "The library's copy (v" + juce::String (Framework::folderVersion (libraryDir.getChildFile (id))) + ") is replaced by this project's (v"
+                     + juce::String (Framework::folderVersion (projectDir.getChildFile (id))) + "). New projects get it; other projects keep their own copies.",
+                     "Replace", copy);
+        else copy();
+    }
+    else if (action == "install")
+    {
+        auto install = [libraryDir, id, done] { done (Framework::writeBuiltin (libraryDir, id), id + ": the library has Projet's version."); };
+        if (libraryDir.getChildFile (id).isDirectory())
+            confirm ("Replace the library's " + id + " with Projet's?",
+                     "Changes you made to the library's copy are lost (projects keep their own copies). This project is not changed: "
+                     "take the library's version here afterwards if you want it.", "Replace", install);
+        else install();
+    }
+}
+
+void MainComponent::addPackageFolder()
+{
+    chooser = std::make_unique<juce::FileChooser> ("Choose a framework package (a folder with a framework.json)",
+                                                   juce::File (juce::String (properties.getUserSettings()->getValue ("lastPackageParent"))), "", true);
+    juce::Component::SafePointer<MainComponent> safe (this);
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories, [safe] (const juce::FileChooser& fc)
+    {
+        if (safe == nullptr) return;
+        auto dir = fc.getResult();
+        if (dir == juce::File()) return;
+        if (dir.getFileName() == "framework.json") dir = dir.getParentDirectory();
+        safe->properties.getUserSettings()->setValue ("lastPackageParent", dir.getParentDirectory().getFullPathName());
+        const auto file = dir.getChildFile ("framework.json");
+        Framework probe;
+        juce::String error;
+        if (! file.existsAsFile() || ! probe.addPackage (file.loadFileAsString(), dir.getFileName(), error))
+        {
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Not a framework package",
+                                                    file.existsAsFile() ? "Its framework.json could not be read: " + error
+                                                                        : dir.getFullPathName() + " has no framework.json.");
+            return;
+        }
+        // Copied under its id, into the library and this project.
+        const auto id = probe.getPackages()[0].id;
+        const auto staging = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetPackage").getNonexistentSibling();
+        auto r = juce::Result::ok();
+        if (! dir.copyDirectoryTo (staging.getChildFile (id))) r = juce::Result::fail ("Could not copy " + dir.getFullPathName());
+        if (r.wasOk()) r = Framework::copyPackage (staging.getChildFile (id), Framework::libraryFolder());
+        if (r.wasOk()) r = Framework::copyPackage (staging.getChildFile (id), Framework::projectFolder (safe->folder.getFolder()));
+        staging.deleteRecursively();
+        safe->loadFramework (false);
+        safe->refreshPackages();
+        safe->transport.setStatus (r.failed() ? r.getErrorMessage() : id + " is in the library and used in this project.", r.failed());
+    });
 }
 
 void MainComponent::showShortcuts()

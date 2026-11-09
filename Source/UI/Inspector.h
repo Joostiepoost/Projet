@@ -4,7 +4,9 @@
 // available), for sound boxes the sound, gain, fades and opacity, the times,
 // and the box's notes (kept whatever the kind). Several boxes: how many.
 // Nothing selected: the project. With boxes selected, a Framework tab shows
-// their framework fields (stage 4a).
+// their framework values, built from the project's framework packages
+// (stage 4a, 4b). Side panels replace the rest when asked for: the ruler
+// layers (3b), Display and Frameworks (4b).
 
 #pragma once
 
@@ -15,6 +17,8 @@
 #include "NotesEditor.h"
 #include "RulerPanel.h"
 #include "FrameworkPanel.h"
+#include "DisplayPanel.h"
+#include "PackagesPanel.h"
 
 class Inspector : public juce::Component
 {
@@ -26,6 +30,15 @@ public:
     void showRuler (const juce::String& layerId);
     bool isShowingRuler() const                     { return mode == Mode::ruler; }
     RulerPanel& getRulerPanel()                     { return rulerPanel; }
+    /** How the framework shows on the boxes (stage 4b). */
+    void showDisplay();
+    DisplayPanel& getDisplayPanel()                 { return displayPanel; }
+    /** The framework packages (stage 4b); MainComponent fills in the entries. */
+    void showPackages();
+    bool isShowingPackages() const                  { return mode == Mode::packages; }
+    PackagesPanel& getPackagesPanel()               { return packagesPanel; }
+    /** After the framework was reloaded: rebuild what shows it. */
+    void frameworkChanged();
     /** Re-reads the model (after any change). */
     void refresh();
     /** Saves notes being typed. */
@@ -37,9 +50,12 @@ public:
 
     std::function<void (const juce::File&)> onReveal;
     std::function<void()> onExpandNotes;
+    /** The Framework tab's "Frameworks..." button. */
+    std::function<void()> onShowFrameworks;
 
 private:
-    enum class Mode { project, sound, text, several, ruler };
+    enum class Mode { project, sound, text, several, ruler, display, packages };
+    bool isSidePanel() const                        { return mode == Mode::ruler || mode == Mode::display || mode == Mode::packages; }
     juce::String ratioReport();
     juce::Array<juce::ValueTree> selection;
     void setMode (Mode);
@@ -61,6 +77,8 @@ private:
     // Box / Framework tabs (stage 4a)
     const Framework& framework;
     FrameworkPanel frameworkPanel { project, framework };
+    DisplayPanel displayPanel { project, framework };
+    PackagesPanel packagesPanel;
     juce::TextButton boxTab { "Box" }, frameworkTab { "Framework" };
     bool showFramework = false;
     bool isBoxMode() const                          { return mode == Mode::sound || mode == Mode::text || mode == Mode::several; }

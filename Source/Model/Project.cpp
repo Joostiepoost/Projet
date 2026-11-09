@@ -358,13 +358,20 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
     right.setProperty (IDs::fadeIn, cutFade, nullptr);
     right.setProperty (IDs::fadeOut, juce::jmin (fadeOut, end - t), nullptr);
 
-    // Changes along the box (stage 4a) are proportions of it: each part keeps its own.
+    // Changes along the box (stage 4a, 4b) are proportions of it: each part
+    // keeps its own. Every fw.<package>.<category>.along field, whatever the
+    // framework: the model needs no framework to split.
     const double cut = (t - start) / (end - start);
-    for (auto [baseId, alongId] : { std::pair<juce::Identifier, juce::Identifier> { IDs::level, IDs::levelAlong },
-                                    { IDs::role, IDs::roleAlong } })
+    juce::Array<juce::Identifier> alongFields;
+    for (int i = 0; i < box.getNumProperties(); ++i)
     {
-        const auto changes = changesAlong (box, alongId);
-        if (changes.isEmpty()) continue;
+        const auto name = box.getPropertyName (i).toString();
+        if (name.startsWith ("fw.") && name.endsWith (".along")) alongFields.add (box.getPropertyName (i));
+    }
+    for (auto& alongId : alongFields)
+    {
+        const auto changes = Along::parse (box[alongId].toString());
+        const juce::Identifier baseId (alongId.toString().dropLastCharacters (6));
         juce::String leftBase, rightBase;
         juce::Array<Along::Change> leftChanges, rightChanges;
         const auto base = box[baseId].toString();
@@ -372,7 +379,9 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
         Along::section (base, changes, cut, 1.0, rightBase, rightChanges);
         if (rightBase.isEmpty()) right.removeProperty (baseId, nullptr); else right.setProperty (baseId, rightBase, nullptr);
         if (rightChanges.isEmpty()) right.removeProperty (alongId, nullptr); else right.setProperty (alongId, Along::format (rightChanges), nullptr);
-        setChangesAlong (box, alongId, leftChanges);
+        const auto leftText = Along::format (leftChanges);
+        if (leftText.isEmpty()) box.removeProperty (alongId, &undoManager);
+        else if (leftText != box[alongId].toString()) box.setProperty (alongId, leftText, &undoManager);
     }
 
     rewriteProportions (right, t, end - t, nullptr);
@@ -862,33 +871,81 @@ juce::Array<juce::ValueTree> Project::cutBoxByRatio (juce::ValueTree box, const 
     return pieces;
 }
 
-//== Framework fields (stage 4a) ===============================================
+//== Framework values (stage 4b) ===============================================
 
-juce::String Project::folderLevel (const juce::ValueTree& track)
+juce::String Project::folderValue (const juce::ValueTree& track, const juce::Identifier& property)
 {
     int guard = 0;
     for (auto f = isFolder (track) ? track : folderOf (track); f.isValid() && guard < 64; f = folderOf (f), ++guard)
-        if (f[IDs::level].toString().isNotEmpty())
-            return f[IDs::level].toString();
+        if (f[property].toString().isNotEmpty())
+            return f[property].toString();
     return {};
 }
 
-juce::String Project::effectiveLevel (const juce::ValueTree& box, bool* inherited)
+Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, const Framework::Category& c)
 {
-    if (inherited != nullptr) *inherited = false;
-    const auto own = box[IDs::level].toString();
-    if (own.isNotEmpty()) return own;
-    const auto fromFolder = folderLevel (box.getParent());
-    if (fromFolder.isNotEmpty() && inherited != nullptr) *inherited = true;
-    return fromFolder;
+    FrameworkValue v;
+    const auto& own = box[c.property()];
+    if (! own.isVoid() && own.toString().isNotEmpty()) { v.value = own.toString(); v.from = FrameworkValue::From::own; return v; }
+    if (c.folders && box.getParent().isValid())
+    {
+        v.value = folderValue (box.getParent(), c.property());
+        if (v.value.isNotEmpty()) { v.from = FrameworkValue::From::folder; return v; }
+    }
+    if (c.defaultValue.isNotEmpty()) { v.value = c.defaultValue; v.from = FrameworkValue::From::defaultValue; }
+    return v;
 }
 
-void Project::setChangesAlong (juce::ValueTree box, const juce::Identifier& alongField, const juce::Array<Along::Change>& changes)
+void Project::setFrameworkValue (juce::ValueTree target, const Framework::Category& c, const juce::var& value)
+{
+    if (value.isVoid() || value.toString().isEmpty()) target.removeProperty (c.property(), &undoManager);
+    else if (! (target[c.property()] == value)) target.setProperty (c.property(), value, &undoManager);
+}
+
+void Project::setChangesAlong (juce::ValueTree box, const Framework::Category& c, const juce::Array<Along::Change>& changes)
 {
     const auto text = Along::format (changes);
-    if (text == box[alongField].toString()) return;
-    if (text.isEmpty()) box.removeProperty (alongField, &undoManager);
-    else box.setProperty (alongField, text, &undoManager);
+    if (text == box[c.alongProperty()].toString()) return;
+    if (text.isEmpty()) box.removeProperty (c.alongProperty(), &undoManager);
+    else box.setProperty (c.alongProperty(), text, &undoManager);
+}
+
+juce::StringArray Project::valuesShown (const juce::ValueTree& box, const Framework::Category& c)
+{
+    const auto v = frameworkValue (box, c);
+    if (c.kind == Framework::Kind::tags) return Tags::parse (v.value);
+    juce::StringArray out;
+    if (v.value.isNotEmpty()) out.add (v.value);
+    if (c.along)
+        for (auto& change : changesAlong (box, c)) out.addIfNotAlreadyThere (change.to);
+    return out;
+}
+
+bool Project::migrateFrameworkFields (juce::ValueTree tree)
+{
+    // 4a stored the framework in fixed fields; 4b in fw.<package>.<category>.
+    const auto fields = Framework::legacyFields();
+    bool changed = false;
+    std::function<void (juce::ValueTree)> walk = [&] (juce::ValueTree node)
+    {
+        if (node.hasType (IDs::TRACK) || node.hasType (IDs::BOX))
+            for (int i = 0; i < fields.size(); ++i)
+            {
+                const juce::Identifier from (fields.getAllKeys()[i]), to (fields.getAllValues()[i]);
+                if (! node.hasProperty (from)) continue;
+                if (! node.hasProperty (to)) node.setProperty (to, node[from], nullptr);
+                node.removeProperty (from, nullptr);
+                changed = true;
+            }
+        for (auto child : node) walk (child);
+    };
+    walk (tree);
+
+    const auto mode = tree[IDs::colourMode].toString();
+    const juce::String newMode = mode == "family" ? "composition.energy" : mode == "level" ? "composition.level"
+                               : mode == "type" ? "schaeffer.type" : juce::String();
+    if (newMode.isNotEmpty()) { tree.setProperty (IDs::colourMode, newMode, nullptr); changed = true; }
+    return changed;
 }
 
 //== Proportional boxes ========================================================
@@ -1109,6 +1166,7 @@ bool Project::fromJson (const juce::String& text, juce::String& error)
         return false;
     }
 
+    migrateFrameworkFields (tree);     // a 4a project: its framework fields get their 4b keys
     if (! tree.getChildWithName (IDs::SOUNDS).isValid()) tree.appendChild (juce::ValueTree (IDs::SOUNDS), nullptr);
     if (! tree.getChildWithName (IDs::TRACKS).isValid()) tree.appendChild (juce::ValueTree (IDs::TRACKS), nullptr);
 

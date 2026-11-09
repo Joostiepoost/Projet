@@ -1,10 +1,12 @@
-// FrameworkPanel.h — the framework fields of the selected boxes (stage 4a).
+// FrameworkPanel.h — the framework values of the selected boxes (stage 4a, 4b).
 //
-// Shown in the inspector's Framework tab: energy and second energy (with their
-// families), semiotic level (own or from the folder) and its changes along
-// the box, role (Thoresen's F / M / B, or figure and ground) and its changes,
-// and Schaeffer's type, picked from his typology chart. With several boxes
-// selected, a choice applies to all of them; changes along a box need one box.
+// Shown in the inspector's Framework tab, built from the categories of the
+// project's framework packages, package by package: a choice as a menu
+// (grouped, with its group pills and details), a row of buttons, or a chart
+// (Schaeffer's typology); tags as toggles; a number as a slider; a text as a
+// field. Categories that can change along a box get the along editor; values
+// a folder gives are shown fainter. With several boxes selected, a choice
+// applies to all of them; changes along a box need one box.
 
 #pragma once
 
@@ -19,14 +21,19 @@ public:
     ~FrameworkPanel() override;
 
     void setBoxes (const juce::Array<juce::ValueTree>&);
-    /** Re-reads the model (rebuilds unless a field is being typed in). */
+    /** Re-reads the model (rebuilds unless a field is being typed in or a slider dragged). */
     void refresh();
+    /** Rebuilds even while editing (after the framework was reloaded). */
+    void rebuildNow()                               { rebuild(); }
 
     void resized() override;
 
-    /** Shows Schaeffer's chart; `onPick` gets a type id ("" = none). */
-    static void showTypologyChart (const Framework&, const juce::String& current, juce::Component& near,
-                                   std::function<void (const juce::String&)> onPick);
+    /** Shows a chart category's values in rows and columns; `onPick` gets a value id ("" = none). */
+    static void showChart (const Framework&, const Framework::Category&, const juce::String& current, juce::Component& near,
+                           std::function<void (const juce::String&)> onPick);
+
+    /** "Frameworks..." and "Display..." at the bottom of the tab. */
+    std::function<void()> onShowFrameworks, onShowDisplay;
 
 private:
     class Content;
@@ -36,8 +43,10 @@ private:
     juce::Viewport viewport;
     std::unique_ptr<Content> content;
     void rebuild();
-    /** Sets a field on every selected box ("" removes it). Undoable. */
-    void setField (const juce::Identifier& id, const juce::String& value, const juce::String& undoName);
+    /** Sets a category's value on every selected box ("" removes it). Undoable. */
+    void setValue (const juce::String& categoryKey, const juce::var& value, const juce::String& undoName, bool newTransaction = true);
+    /** Adds a tag to every selected box, or takes it from all of them. Undoable. */
+    void setTag (const juce::String& categoryKey, const juce::String& tag, bool on);
     /** The changes along the (one) selected box. Undoable. */
-    void setAlong (const juce::Identifier& alongId, const juce::Array<Along::Change>& changes);
+    void setAlong (const juce::String& categoryKey, const juce::Array<Along::Change>& changes);
 };

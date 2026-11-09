@@ -230,16 +230,34 @@ public:
         times follow from the proportions). Runs after every change. */
     void applyProportions();
 
-    //== Framework fields (stage 4a) ==========================================
-    /** The box's semiotic level: its own, or the nearest folder's (then
-        `inherited` is set). "" if neither has one. */
-    juce::String effectiveLevel (const juce::ValueTree& box, bool* inherited = nullptr);
-    /** The level of the nearest folder around the track that has one. */
-    juce::String folderLevel (const juce::ValueTree& track);
-    /** Changes of a field along a box (IDs::levelAlong or IDs::roleAlong). */
-    static juce::Array<Along::Change> changesAlong (const juce::ValueTree& box, const juce::Identifier& alongField)
-                                                    { return Along::parse (box[alongField].toString()); }
-    void setChangesAlong (juce::ValueTree box, const juce::Identifier& alongField, const juce::Array<Along::Change>&);
+    //== Framework values (stage 4b) ===========================================
+    /** What a box has for a category: its own value, else its folder's (for
+        categories folders can give), else the category's default. */
+    struct FrameworkValue
+    {
+        enum class From { none, own, folder, defaultValue };
+        juce::String value;
+        From from = From::none;
+        bool isOwn() const noexcept                 { return from == From::own; }
+        bool fromFolder() const noexcept            { return from == From::folder; }
+        bool isDefault() const noexcept             { return from == From::defaultValue; }
+    };
+    FrameworkValue frameworkValue (const juce::ValueTree& box, const Framework::Category&);
+    /** The value of the nearest folder around `track` (or `track` itself, if a
+        folder) that has one; "" if none. */
+    juce::String folderValue (const juce::ValueTree& track, const juce::Identifier& property);
+    /** Sets a category's value on a box or folder ("" or void removes it). Undoable. */
+    void setFrameworkValue (juce::ValueTree target, const Framework::Category&, const juce::var& value);
+    /** Changes of a category along a box. */
+    static juce::Array<Along::Change> changesAlong (const juce::ValueTree& box, const Framework::Category& c)
+                                                    { return Along::parse (box[c.alongProperty()].toString()); }
+    void setChangesAlong (juce::ValueTree box, const Framework::Category&, const juce::Array<Along::Change>&);
+    /** Every value a box shows for a category: its value (own, folder's or
+        default), those it changes to along the box, or each of its tags. */
+    juce::StringArray valuesShown (const juce::ValueTree& box, const Framework::Category&);
+    /** Renames the 4a framework fields (energy, level, typology ...) of a
+        project tree to their stage 4b keys; true if anything changed. */
+    static bool migrateFrameworkFields (juce::ValueTree projectTree);
 
     /** Called after any change to the model (also undo/redo). */
     std::function<void()> onChanged;

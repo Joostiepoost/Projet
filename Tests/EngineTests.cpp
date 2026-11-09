@@ -744,86 +744,260 @@ void testMarks()
 
 void testFramework()
 {
-    line ("## 11. Framework");
+    line ("## 11. Framework packages");
     line();
     juce::String error;
 
-    Framework fw;
-    check (fw.getFamilies().size() == 5, "5 families");
-    check (fw.getEnergies().size() == 10, "10 energies");
-    check (fw.getLevels().size() == 4 && fw.getLevels()[0].id == "ison" && fw.getLevels()[3].id == "meson", "4 levels, concrete to abstract");
-    check (fw.getRoles().size() == 3 && fw.getRoles()[0].id == "F" && fw.defaultRole() == "M", "roles F M B, M by default");
-    check (fw.getTypes().size() == 29, "29 types, got " + juce::String (fw.getTypes().size()));
-    check (fw.getMasses().size() == 4 && fw.getSustainments().size() == 7, "typology 4 x 7");
-    check (fw.getOperations()["primitives"].size() == 10 && fw.getOperations()["macros"].size() == 16, "10 primitives, 16 macros");
-    check (fw.getLanguage() == "fr" && fw.energyName ("rebond") == "Rebond" && fw.energyName ("pression-deformation") == juce::String::fromUTF8 ("Pression-d\xc3\xa9" "formation"), "French by default, accents kept");
-    check (fw.energyName ("nothing") == "nothing?" && fw.energyName ({}).isEmpty(), "unknown ids shown as unknown");
-    check (fw.typeLabel ("X''") == juce::String::fromUTF8 ("X\xe2\x80\xb3"), "X'' shown as X double prime");
-    check (fw.energyColour ("rebond") == 0xffb9707eu, "rebond takes the gestural colour");
-    check (fw.findType ("Tx") != nullptr && fw.findType ("Tx")->zone == "redundant", "Tx is redundant");
-    check (fw.figureTraits (true).size() == 11 && fw.figureTraits (false).size() == 11, "11 figure / ground contrasts");
+    // == The packages Projet ships
+    auto fw = Framework::builtIn();
+    const auto& packages = fw.getPackages();
+    check (packages.size() == 3 && packages[0].id == "composition" && packages[1].id == "schaeffer" && packages[2].id == "rk1",
+           "3 packages in order: composition, schaeffer, rk1");
+    for (auto& p : packages) check (p.warnings.isEmpty(), p.id + " loads without warnings " + p.warnings.joinIntoString ("; "));
+    check (fw.getCategories().size() == 5, "5 categories, got " + juce::String (fw.getCategories().size()));
+    auto* energy = fw.findCategory ("composition.energy");
+    auto* energy2 = fw.findCategory ("composition.energy2");
+    auto* level = fw.findCategory ("composition.level");
+    auto* role = fw.findCategory ("composition.role");
+    auto* type = fw.findCategory ("schaeffer.type");
+    check (energy != nullptr && energy2 != nullptr && level != nullptr && role != nullptr && type != nullptr, "energy, second energy, level, role, type");
+    if (energy == nullptr || energy2 == nullptr || level == nullptr || role == nullptr || type == nullptr) return;
+    check (fw.groupsOf (*energy).size() == 5 && fw.valuesOf (*energy).size() == 10, "5 families, 10 energies");
+    check (&fw.source (*energy2) == energy && fw.valuesOf (*energy2).size() == 10, "the second energy shares them");
+    check (energy->control == "menu" && level->control == "buttons" && role->control == "buttons" && type->control == "chart", "controls: menu, buttons, chart");
+    check (level->along && level->folders && role->along && ! role->folders && role->defaultValue == "M" && ! role->showDefault,
+           "level: along, folders; role: along, default M");
+    check (fw.valuesOf (*level).size() == 4 && fw.valuesOf (*level)[0].id == "ison" && fw.valuesOf (*level)[3].id == "meson", "4 levels, concrete to abstract");
+    check (fw.valuesOf (*role).size() == 3 && fw.valuesOf (*role)[0].id == "F" && role->hasTwoNames, "roles F M B, with two names");
+    check (fw.valuesOf (*type).size() == 29 && type->rows.size() == 4 && type->columns.size() == 7 && fw.groupsOf (*type).size() == 3,
+           "29 types in a 4 x 7 chart, 3 zones");
+    check (fw.findPackage ("rk1")->json["operations"]["primitives"].size() == 10 && fw.findPackage ("rk1")->json["operations"]["macros"].size() == 16,
+           "rk1 carries 10 primitives and 16 macros");
+    check (level->mark == Framework::Mark::strip && role->mark == Framework::Mark::badge && type->mark == Framework::Mark::badge
+           && energy->mark == Framework::Mark::none, "marks as in 4a: level strip, role and type badges");
+    check (level->property() == juce::Identifier ("fw.composition.level") && level->alongProperty() == juce::Identifier ("fw.composition.level.along"),
+           "boxes store fw.<package>.<category>");
 
-    // English, and role names
-    auto json = Framework::defaultJson().replace ("\"language\": \"fr\"", "\"language\": \"en\"").replace ("\"roleNames\": \"both\"", "\"roleNames\": \"thoresen\"");
-    check (fw.load (json, error), "English file loads: " + error);
-    check (fw.energyName ("rebond") == "Bounce" && fw.roleName ("F") == "F foreground" && fw.roleName ("B", true) == "B", "English names, Thoresen roles: " + fw.roleName ("F"));
+    // == Names
+    check (fw.getLanguage() == "fr" && fw.valueName (*energy, "rebond") == "Rebond"
+           && fw.valueName (*energy, "pression-deformation") == juce::String::fromUTF8 ("Pression-d\xc3\xa9" "formation"), "French by default, accents kept");
+    check (fw.valueName (*energy, "nothing") == "nothing?" && fw.valueName (*energy, {}).isEmpty(), "unknown ids shown as unknown");
+    check (fw.valueLabel (*type, "X''") == juce::String::fromUTF8 ("X\xe2\x80\xb3"), "X'' shown as X double prime");
+    check (fw.valueColours (*energy, "rebond").colour == 0xffb9707eu, "rebond takes its first family's colour");
+    check (fw.valueColours (*type, "Tx").colour == 0xff7a7d85u && fw.valueColours (*level, "ison").colour == 0xff4c8fd6u, "zone colours, level colours");
+    check (fw.valueDetails (*fw.findValue (*role, "F")).size() == 11 && fw.valueDetails (*fw.findValue (*role, "B")).size() == 11
+           && fw.valueDetails (*fw.findValue (*energy, "rebond")).size() == 3, "figure and ground traits, variation factors");
+    check (fw.valueName (*role, "F") == "F premier plan / figure", "both names: " + fw.valueName (*role, "F"));
+    fw.setLanguage ("en");
+    fw.setNaming ("composition.role", "first");
+    check (fw.valueName (*energy, "rebond") == "Bounce" && fw.valueName (*role, "F") == "F foreground" && fw.valueLabel (*role, "B") == "B",
+           "English, Thoresen's names: " + fw.valueName (*role, "F"));
+    fw.setNaming ("composition.role", "second");
+    check (fw.valueName (*role, "B") == "ground" && fw.namingsToString() == "composition.role=second", "Vande Gorne's names");
+    Framework names;
+    names.namingsFromString (fw.namingsToString());
+    check (names.getNaming ("composition.role") == "second" && names.getNaming ("other.thing") == "both", "namings saved and read back");
+    fw.setLanguage ("fr");
+    fw.setNaming ("composition.role", "both");
 
-    // A broken file changes nothing
-    check (! fw.load ("{ not json", error) && error.isNotEmpty(), "broken file refused");
-    check (fw.energyName ("rebond") == "Bounce", "and nothing changed");
-    check (! fw.load ("{ \"framework\": \"Projet\" }", error), "empty framework refused");
+    // == Packages that are broken or odd
+    check (! fw.addPackage ("{ not json", "broken", error) && error.isNotEmpty(), "a broken package is refused");
+    check (fw.getPackages().size() == 3 && fw.getCategories().size() == 5, "and nothing changes");
+    check (! fw.addPackage ("[ 1, 2 ]", "list", error), "a file that holds no package is refused");
+    check (fw.addPackage (R"({ "categories": [ { "name": "no id" }, { "id": "a", "kind": "colour" },
+                                              { "id": "b", "kind": "tags", "along": true }, { "id": "b" },
+                                              { "id": "c", "valuesFrom": "nowhere" } ] })", "Odd One", error), "an odd package loads: " + error);
+    auto* odd = fw.findPackage ("oddone");
+    check (odd != nullptr && odd->categories.size() == 2 && odd->warnings.size() == 5,
+           "its id from the folder; bad categories left out, with warnings: " + (odd != nullptr ? odd->warnings.joinIntoString (" | ") : juce::String()));
+    fw.removePackage ("oddone");
+    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 5, "removed");
 
-    // Changes along a box
-    auto changes = Along::parse ("0.9:ison:0;0.7:meson:0.08");
-    check (changes.size() == 2 && changes[0].at == 0.7 && changes[0].to == "meson" && std::abs (changes[0].width - 0.08) < 1.0e-12, "parse, sorted");
-    check (Along::format (changes) == "0.7:meson:0.08;0.9:ison:0", "format: " + Along::format (changes));
-    check (Along::valueAt ("dison", changes, 0.5) == "dison" && Along::valueAt ("dison", changes, 0.8) == "meson"
-           && Along::valueAt ("dison", changes, 0.95) == "ison", "value along the box");
-    juce::String b;
-    juce::Array<Along::Change> part;
-    Along::section ("dison", changes, 0.5, 1.0, b, part);
-    check (b == "dison" && part.size() == 2 && std::abs (part[0].at - 0.4) < 1.0e-12 && std::abs (part[0].width - 0.16) < 1.0e-12, "right half rescaled");
-    Along::section ("dison", changes, 0.8, 1.0, b, part);
-    check (b == "meson" && part.size() == 1 && std::abs (part[0].at - 0.5) < 1.0e-12, "a section starting after a change takes it as its base");
+    // == A new framework needs only a folder: the example package
+    const juce::File example (juce::String (PROJET_SOURCE_DIR) + "/Examples/Frameworks/example");
+    check (fw.addPackage (example.getChildFile ("framework.json").loadFileAsString(), "example", error), "the example package loads: " + error);
+    check (fw.findPackage ("example") != nullptr && fw.findPackage ("example")->warnings.isEmpty(), "without warnings");
+    auto* motion = fw.findCategory ("example.motion");
+    auto* materials = fw.findCategory ("example.materials");
+    auto* density = fw.findCategory ("example.density");
+    auto* source = fw.findCategory ("example.source");
+    energy = fw.findCategory ("composition.energy");
+    energy2 = fw.findCategory ("composition.energy2");
+    level = fw.findCategory ("composition.level");
+    role = fw.findCategory ("composition.role");
+    check (motion != nullptr && materials != nullptr && density != nullptr && source != nullptr, "a choice, tags, a number, a text");
+    if (motion == nullptr || materials == nullptr || density == nullptr || source == nullptr) return;
+    check (motion->kind == Framework::Kind::choice && motion->control == "buttons" && motion->along && motion->folders
+           && materials->kind == Framework::Kind::tags && density->kind == Framework::Kind::number && source->kind == Framework::Kind::text,
+           "kinds and settings");
+    check (fw.getCategories().size() == 9 && fw.getCategories()[5].key() == "example.motion", "after the builtins (order 60)");
+    check (fw.valuesOf (*energy).size() == 11 && fw.findValue (*energy, "example-pulsation") != nullptr
+           && fw.findValue (*energy, "example-pulsation")->from == "example" && fw.valuesOf (*energy2).size() == 11,
+           "it adds an energy, which the second energy shares");
+    check (fw.valueColours (*energy, "example-pulsation").colour == fw.findGroup (*energy, "loi")->colours.colour, "in the family it names");
+    check (fw.formatNumber (*density, 6.0) == "6" && density->minimum == 0.0 && density->maximum == 10.0, "numbers");
+    check (Tags::format (Tags::parse (" metal, glass,metal ")) == "metal,glass", "tags");
+    check (Framework::marksFor (*materials).contains (Framework::Mark::label) && ! Framework::marksFor (*materials).contains (Framework::Mark::strip)
+           && Framework::marksFor (*density).contains (Framework::Mark::strip), "the marks that suit each kind");
+    check (fw.addPackage (R"({ "id": "clash", "additions": [ { "category": "composition.energy", "values": [ { "id": "rebond" } ] },
+                                                            { "category": "nobody.nothing", "values": [ { "id": "x" } ] } ] })", "clash", error)
+           && fw.findPackage ("clash")->warnings.size() == 2 && fw.valuesOf (*fw.findCategory ("composition.energy")).size() == 11,
+           "an addition never replaces a value, and one to a missing category is reported");
+    fw.removePackage ("clash");
+    fw.removePackage ("example");
+    check (fw.valuesOf (*fw.findCategory ("composition.energy")).size() == 10, "without the example, its addition goes");
 
-    // Splitting a box keeps each part's changes; folders give their level
+    // == Converting 4a framework files
+    juce::StringArray ids, jsons;
+    juce::String lang, naming;
+    check (Framework::convertLegacy (Framework::legacyDefaultJson(), ids, jsons, lang, naming, error) && ids.size() == 3
+           && jsons[0] == Framework::builtins()[0].json && lang == "fr" && naming == "both", "an unedited 4a file becomes the builtins");
+    auto edited = Framework::legacyDefaultJson().replace ("\"version\": 1,", "\"version\": 1, \"edited\": true,")
+                                                .replace ("\"language\": \"fr\"", "\"language\": \"en\"")
+                                                .replace ("\"roleNames\": \"both\"", "\"roleNames\": \"vandegorne\"");
+    check (Framework::convertLegacy (edited, ids, jsons, lang, naming, error) && ids.size() == 3 && jsons[0] != Framework::builtins()[0].json
+           && lang == "en" && naming == "second", "an edited one is converted, with its language and role names");
+    Framework converted;
+    for (int i = 0; i < ids.size(); ++i) check (converted.addPackage (jsons[i], ids[i], error), "converted " + ids[i] + " loads: " + error);
+    auto builtin = Framework::builtIn();
+    bool same = converted.getCategories().size() == builtin.getCategories().size();
+    juce::String difference;
+    for (int i = 0; same && i < builtin.getCategories().size(); ++i)
+    {
+        const auto& a = builtin.getCategories()[i];
+        const auto& b = converted.getCategories()[i];
+        auto differ = [&] (const juce::String& what) { same = false; difference = a.key() + ": " + what; };
+        if (a.key() != b.key() || a.defaultValue != b.defaultValue || a.rows.size() != b.rows.size() || a.columns.size() != b.columns.size()) { differ ("settings"); break; }
+        if (builtin.valuesOf (a).size() != converted.valuesOf (b).size() || builtin.groupsOf (a).size() != converted.groupsOf (b).size()) { differ ("sizes"); break; }
+        for (int k = 0; same && k < builtin.groupsOf (a).size(); ++k)
+        {
+            const auto& x = builtin.groupsOf (a)[k];
+            const auto& y = converted.groupsOf (b)[k];
+            if (x.id != y.id || x.name.fr != y.name.fr || x.colours.colour != y.colours.colour || x.colours.dark != y.colours.dark) differ ("group " + x.id);
+        }
+        for (int k = 0; same && k < builtin.valuesOf (a).size(); ++k)
+        {
+            const auto& x = builtin.valuesOf (a)[k];
+            const auto& y = converted.valuesOf (b)[k];
+            if (x.id != y.id || x.label != y.label || x.name.fr != y.name.fr || x.name.en != y.name.en || x.name2.fr != y.name2.fr
+                || x.colours.colour != y.colours.colour || x.groups != y.groups || x.detailsFr != y.detailsFr || x.detailsEn != y.detailsEn
+                || x.row != y.row || x.col != y.col || x.weight != y.weight || x.glyph != y.glyph || x.fill != y.fill || x.about.en != y.about.en)
+                differ ("value " + x.id);
+        }
+    }
+    check (same, "converting 4a gives exactly the builtin content " + difference);
+    auto renamed = Framework::legacyDefaultJson().replace ("\"fr\": \"Rebond\"", "\"fr\": \"Rebondi\"");
+    check (Framework::convertLegacy (renamed, ids, jsons, lang, naming, error), "a renamed energy converts");
+    Framework mine;
+    for (int i = 0; i < ids.size(); ++i) mine.addPackage (jsons[i], ids[i], error);
+    check (mine.valueName (*mine.findCategory ("composition.energy"), "rebond") == "Rebondi", "and keeps your name");
+    check (! Framework::convertLegacy ("{ broken", ids, jsons, lang, naming, error), "a broken 4a file is refused");
+
+    // == Values on boxes: own, the folder's, the default; along; split
+    // (categories from a framework that no longer changes: adding or removing
+    // packages rebuilds the list, so earlier pointers are stale)
+    energy = builtin.findCategory ("composition.energy");
+    energy2 = builtin.findCategory ("composition.energy2");
+    level = builtin.findCategory ("composition.level");
+    role = builtin.findCategory ("composition.role");
+    type = builtin.findCategory ("schaeffer.type");
     Project p;
     p.resetToDefault ("t");
     auto track = p.getTrack (0);
     auto box = p.addTextBox (track, 0.0, 10.0, "b");
-    box.setProperty (IDs::level, "dison", nullptr);
-    box.setProperty (IDs::levelAlong, "0.7:meson:0;0.9:ison:0", nullptr);
-    box.setProperty (IDs::roleAlong, "0.2:F:0", nullptr);
+    p.setFrameworkValue (box, *level, "dison");
+    box.setProperty (level->alongProperty(), "0.7:meson:0;0.9:ison:0", nullptr);
+    box.setProperty (role->alongProperty(), "0.2:F:0", nullptr);
+    check (p.frameworkValue (box, *level).value == "dison" && p.frameworkValue (box, *level).isOwn(), "a box's own level");
+    check (p.frameworkValue (box, *role).value == "M" && p.frameworkValue (box, *role).isDefault(), "no role: the default, M");
+    check (p.valuesShown (box, *level).joinIntoString (",") == "dison,meson,ison" && p.valuesShown (box, *role).joinIntoString (",") == "M,F",
+           "the values a box shows, along it too");
     p.getUndoManager().beginNewTransaction ("Split");
     auto right = p.splitBox (box, 8.0);
-    check (right.isValid() && right[IDs::level].toString() == "meson" && right[IDs::levelAlong].toString() == "0.5:ison:0",
-           "right part: base meson, change at half: " + right[IDs::level].toString() + " " + right[IDs::levelAlong].toString());
-    check (box[IDs::levelAlong].toString() == "0.875:meson:0" && box[IDs::level].toString() == "dison", "left part: " + box[IDs::levelAlong].toString());
-    check (right[IDs::role].toString() == "F" && ! right.hasProperty (IDs::roleAlong) && box[IDs::roleAlong].toString() == "0.25:F:0", "roles split too");
+    check (right.isValid() && right[level->property()].toString() == "meson" && right[level->alongProperty()].toString() == "0.5:ison:0",
+           "right part: base meson, change at half: " + right[level->property()].toString() + " " + right[level->alongProperty()].toString());
+    check (box[level->alongProperty()].toString() == "0.875:meson:0" && box[level->property()].toString() == "dison", "left part: " + box[level->alongProperty()].toString());
+    check (right[role->property()].toString() == "F" && ! right.hasProperty (role->alongProperty()) && box[role->alongProperty()].toString() == "0.25:F:0", "roles split too");
     p.getUndoManager().undo();
-    check (box[IDs::levelAlong].toString() == "0.7:meson:0;0.9:ison:0" && Project::boxLength (box) == 10.0, "undo restores the changes");
+    check (box[level->alongProperty()].toString() == "0.7:meson:0;0.9:ison:0" && Project::boxLength (box) == 10.0, "undo restores the changes");
 
     auto folder = p.putInNewFolder (track);
     auto plain = p.addTextBox (track, 20.0, 2.0, "plain");
-    bool inherited = false;
-    check (p.effectiveLevel (plain, &inherited).isEmpty() && ! inherited, "no level anywhere");
-    folder.setProperty (IDs::level, "ison", nullptr);
-    check (p.effectiveLevel (plain, &inherited) == "ison" && inherited, "the folder gives its level");
-    check (p.effectiveLevel (box, &inherited) == "dison" && ! inherited, "a box's own level overrides it");
+    check (p.frameworkValue (plain, *level).value.isEmpty() && p.frameworkValue (plain, *level).from == Project::FrameworkValue::From::none, "no level anywhere");
+    p.setFrameworkValue (folder, *level, "ison");
+    check (p.frameworkValue (plain, *level).value == "ison" && p.frameworkValue (plain, *level).fromFolder(), "the folder gives its level");
+    check (p.frameworkValue (box, *level).value == "dison" && p.frameworkValue (box, *level).isOwn(), "a box's own level overrides it");
+    check (p.frameworkValue (plain, *energy).value.isEmpty(), "but only categories folders can give");
     auto outer = p.putInNewFolder (folder);
-    outer.setProperty (IDs::level, "meson", nullptr);
-    check (p.effectiveLevel (plain) == "ison", "the nearest folder wins");
-    folder.removeProperty (IDs::level, nullptr);
-    check (p.effectiveLevel (plain, &inherited) == "meson" && inherited, "else the outer folder's");
+    p.setFrameworkValue (outer, *level, "meson");
+    check (p.frameworkValue (plain, *level).value == "ison", "the nearest folder wins");
+    p.setFrameworkValue (folder, *level, {});
+    check (p.frameworkValue (plain, *level).value == "meson" && p.frameworkValue (plain, *level).fromFolder(), "else the outer folder's");
+    p.setFrameworkValue (box, *type, "X''");
+    check (box[type->property()].toString() == "X''", "Schaeffer's type");
 
-    // Saved and read back (the type is stored as "typology": "type" names the node in the file)
-    box.setProperty (IDs::typology, "X''", nullptr);
+    // == Saved and read back, and 4a projects
     juce::String err;
     Project q;
-    check (q.fromJson (p.toJson(), err) && q.findBox (box[IDs::id].toString())[IDs::levelAlong].toString() == box[IDs::levelAlong].toString(),
+    check (q.fromJson (p.toJson(), err) && q.findBox (box[IDs::id].toString())[level->alongProperty()].toString() == box[level->alongProperty()].toString(),
            "changes along a box survive saving");
-    check (q.findBox (box[IDs::id].toString())[IDs::typology].toString() == "X''" && q.findBox (box[IDs::id].toString()).getType() == IDs::BOX,
+    check (q.findBox (box[IDs::id].toString())[type->property()].toString() == "X''" && q.findBox (box[IDs::id].toString()).getType() == IDs::BOX,
            "the type survives saving, and the box stays a box");
+
+    Project old;
+    old.resetToDefault ("4a");
+    auto oldTrack = old.getTrack (0);
+    auto oldBox = old.addTextBox (oldTrack, 0.0, 4.0, "old");
+    auto oldFolder = old.putInNewFolder (oldTrack);
+    for (auto [k, v] : { std::pair<const char*, const char*> { "energy", "rebond" }, { "energy2", "flux" }, { "level", "meson" },
+                         { "levelAlong", "0.5:ison:0" }, { "role", "F" }, { "roleAlong", "0.5:B:0" }, { "typology", "K" } })
+        oldBox.setProperty (juce::Identifier (k), v, nullptr);
+    oldFolder.setProperty ("level", "dison", nullptr);
+    old.getState().setProperty (IDs::colourMode, "family", nullptr);
+    Project migrated;
+    check (migrated.fromJson (old.toJson(), err), "a 4a project opens");
+    auto m = migrated.findBox (oldBox[IDs::id].toString());
+    check (m[energy->property()].toString() == "rebond" && m[energy2->property()].toString() == "flux" && m[level->property()].toString() == "meson"
+           && m[level->alongProperty()].toString() == "0.5:ison:0" && m[role->property()].toString() == "F"
+           && m[role->alongProperty()].toString() == "0.5:B:0" && m[type->property()].toString() == "K", "its box fields get their new keys");
+    check (! m.hasProperty ("energy") && ! m.hasProperty ("typology") && ! m.hasProperty ("level"), "the old ones go");
+    check (migrated.findTrack (oldFolder[IDs::id].toString())[level->property()].toString() == "dison", "folder levels too");
+    check (migrated.getState()[IDs::colourMode].toString() == "composition.energy", "the colour mode too");
+
+    // == Files: library, project copies, a broken package, a 4a project folder
+    auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetFrameworks").getNonexistentSibling();
+    const auto lib = tmp.getChildFile ("Library");
+    for (auto& b : Framework::builtins()) check (Framework::writeBuiltin (lib, b.id).wasOk(), "writes " + b.id);
+    check (Framework::packageFolders (lib).size() == 3 && Framework::folderVersion (lib.getChildFile ("composition")) == 2
+           && lib.getChildFile ("schaeffer").getChildFile ("help.md").existsAsFile(), "the library: 3 packages with their help");
+    const auto proj = tmp.getChildFile ("Piece");
+    check (Framework::copyPackage (lib.getChildFile ("schaeffer"), Framework::projectFolder (proj)).wasOk()
+           && Framework::projectFolder (proj).getChildFile ("schaeffer").getChildFile ("framework.json").existsAsFile(), "a package copied into a project");
+    Framework::writePackage (lib.getChildFile ("broken"), "{ nope", {});
+    Framework fromDisk;
+    Framework::Report report;
+    fromDisk.loadFolder (lib, report);
+    check (fromDisk.getPackages().size() == 3 && report.errors.size() == 1 && report.errors[0].startsWith ("broken"),
+           "a broken package is reported, the others load: " + report.errors.joinIntoString ("; "));
+    const auto piece4a = tmp.getChildFile ("Piece4a");
+    piece4a.createDirectory();
+    piece4a.getChildFile ("framework.json").replaceWithText (Framework::legacyDefaultJson().replace ("\"language\": \"fr\"", "\"language\": \"en\""));
+    Framework::Report report4a;
+    check (Framework::ensureProject (piece4a, lang, naming, report4a).wasOk() && Framework::packageFolders (Framework::projectFolder (piece4a)).size() == 3
+           && piece4a.getChildFile ("framework-4a.json").existsAsFile() && ! piece4a.getChildFile ("framework.json").exists() && lang == "en",
+           "a 4a project folder gets packages; its old file is kept as framework-4a.json");
+    Framework::Report again;
+    check (Framework::ensureProject (piece4a, lang, naming, again).wasOk() && again.notes.isEmpty(), "and only once");
+    Framework::setLibraryFolder (lib);      // not the real library
+    const auto fresh = tmp.getChildFile ("Fresh");
+    fresh.createDirectory();
+    juce::String freshLang, freshNaming;
+    Framework::Report freshReport;
+    check (Framework::ensureProject (fresh, freshLang, freshNaming, freshReport).wasOk()
+           && Framework::packageFolders (Framework::projectFolder (fresh)).size() == Framework::packageFolders (lib).size()
+           && freshLang.isEmpty(), "a new project gets copies of the library's packages");
+    Framework::setLibraryFolder ({});
+    tmp.deleteRecursively();
     line();
 }
 
@@ -865,7 +1039,7 @@ int main (int argc, char** argv)
     std::cout << "Polyphase..." << std::endl;        testPolyphase();
     std::cout << "Proportions..." << std::endl;      testProportions();
     std::cout << "Marks..." << std::endl;            testMarks();
-    std::cout << "Framework..." << std::endl;        testFramework();
+    std::cout << "Framework packages..." << std::endl; testFramework();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

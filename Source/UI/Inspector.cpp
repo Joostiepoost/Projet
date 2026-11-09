@@ -35,7 +35,7 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
         addChildComponent (*t);
     }
     boxTab.setTooltip ("The box: sound, gain, fades, proportions, notes");
-    frameworkTab.setTooltip ("Energy, semiotic level, role and type");
+    frameworkTab.setTooltip ("The categories of the project's framework packages (energy, semiotic level, role, type ...)");
     boxTab.onClick = [this] { if (nameEditor.hasKeyboardFocus (true)) commitName(); showFramework = false; refresh(); };
     frameworkTab.onClick = [this] { if (nameEditor.hasKeyboardFocus (true)) commitName(); notes.commit(); showFramework = true; refresh(); };
     addChildComponent (frameworkPanel);
@@ -221,6 +221,15 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
         mode = Mode::project;     // leave the ruler panel
         refresh();
     };
+    addChildComponent (displayPanel);
+    addChildComponent (packagesPanel);
+    displayPanel.onDone = packagesPanel.onDone = [this]
+    {
+        mode = Mode::project;     // leave the panel
+        refresh();
+    };
+    frameworkPanel.onShowFrameworks = [this] { if (onShowFrameworks) onShowFrameworks(); };
+    frameworkPanel.onShowDisplay = [this] { showDisplay(); };
     addAndMakeVisible (notes);
 
     formatBox.addItem ("Ogg Vorbis (small)", 1);
@@ -252,11 +261,42 @@ void Inspector::setSelection (const juce::Array<juce::ValueTree>& boxes)
     selectionSize = boxes.size();
     selection = boxes;
     box = boxes.size() == 1 ? boxes.getFirst() : juce::ValueTree();
-    // Selecting boxes leaves the ruler panel; deselecting keeps it.
-    if (mode == Mode::ruler && boxes.isEmpty()) { rulerPanel.refresh(); return; }
+    // Selecting boxes leaves the ruler, display or frameworks panel; deselecting keeps it.
+    if (isSidePanel() && boxes.isEmpty())
+    {
+        if (mode == Mode::ruler) rulerPanel.refresh();
+        if (mode == Mode::display) displayPanel.refresh();
+        notes.setBox ({});
+        frameworkPanel.setBoxes ({});
+        return;
+    }
+    if (isSidePanel()) mode = Mode::project;
     notes.setBox (box);
     frameworkPanel.setBoxes (boxes);
     refresh();
+}
+
+void Inspector::showDisplay()
+{
+    if (nameEditor.hasKeyboardFocus (true)) commitName();
+    setMode (Mode::display);
+    title.setText ({}, juce::dontSendNotification);
+    resized();
+    displayPanel.refresh();
+}
+
+void Inspector::showPackages()
+{
+    if (nameEditor.hasKeyboardFocus (true)) commitName();
+    setMode (Mode::packages);
+    title.setText ({}, juce::dontSendNotification);
+    resized();
+}
+
+void Inspector::frameworkChanged()
+{
+    frameworkPanel.rebuildNow();
+    if (mode == Mode::display) displayPanel.refresh();
 }
 
 void Inspector::showRuler (const juce::String& layerId)
@@ -447,8 +487,10 @@ void Inspector::setMode (Mode m)
     qualityLabel.setVisible (quality.isVisible());
     pieceLength.setVisible (proj);
     pieceLengthLabel.setVisible (proj);
-    title.setVisible (m != Mode::ruler);
+    title.setVisible (! isSidePanel());
     rulerPanel.setVisible (m == Mode::ruler);
+    displayPanel.setVisible (m == Mode::display);
+    packagesPanel.setVisible (m == Mode::packages);
 
     // Box / Framework tabs
     const bool boxMode = isBoxMode();
@@ -504,6 +546,8 @@ void Inspector::fillSoundList()
 void Inspector::refresh()
 {
     if (mode == Mode::ruler) { rulerPanel.refresh(); return; }
+    if (mode == Mode::display) { displayPanel.refresh(); return; }
+    if (mode == Mode::packages) return;     // MainComponent gives it its entries
     const juce::ScopedValueSetter<bool> svs (updating, true);
     frameworkPanel.refresh();
 
@@ -694,6 +738,14 @@ void Inspector::resized()
     else if (mode == Mode::ruler)
     {
         rulerPanel.setBounds (getLocalBounds().reduced (14, 12));
+    }
+    else if (mode == Mode::display)
+    {
+        displayPanel.setBounds (getLocalBounds().reduced (14, 12).withTrimmedRight (-8));
+    }
+    else if (mode == Mode::packages)
+    {
+        packagesPanel.setBounds (getLocalBounds().reduced (14, 12).withTrimmedRight (-8));
     }
     else
     {
