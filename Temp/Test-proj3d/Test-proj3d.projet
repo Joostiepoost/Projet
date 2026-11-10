@@ -1,0 +1,59 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj3d",
+  "sampleRate": 48000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 20.0,
+  "playhead": 0.0,
+  "activeLayer": "81cac3b3253744b181420ef3183983b0",
+  "children": [
+    {
+      "type": "SOUNDS"
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "03dbcd44b71e436fbe4c300cfb2f866e",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 72,
+          "mute": false,
+          "solo": false
+        }
+      ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "id": "b569d4b4eae34bb1a8cc56f3f871cca3",
+          "kind": "time",
+          "name": "Time",
+          "height": 30,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "81cac3b3253744b181420ef3183983b0",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 20,
+          "visible": true,
+          "snap": true,
+          "frame": "piece",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        }
+      ]
+    },
+    {
+      "type": "MARKS"
+    }
+  ]
+}

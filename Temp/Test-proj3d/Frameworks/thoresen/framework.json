@@ -1,0 +1,170 @@
+{
+  "projet": "framework package",
+  "id": "thoresen",
+  "version": 1,
+  "order": 30,
+  "name": {"fr": "Thoresen : champs temporels", "en": "Thoresen: time-fields"},
+  "about": {
+    "fr": "Les jonctions entre boîtes et leurs fins, d'après les conjonctions de champs temporels de Lasse Thoresen (Emergent Musical Forms, 6.3).",
+    "en": "The junctions between boxes and how boxes end, after Lasse Thoresen's time-field conjunctions (Emergent Musical Forms, 6.3)."
+  },
+  "categories": [
+    {
+      "id": "junction",
+      "name": {"fr": "Jonction avec la boîte précédente", "en": "Junction with the box before"},
+      "about": {
+        "fr": "comment la boîte s'enchaîne à la précédente sur la même piste (positionnement des champs temporels, 6.3.1) : trouvé d'après le minutage, ou choisi",
+        "en": "how the box follows the one before it on the same track (time-field positioning, 6.3.1): found from the timing, or chosen"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "between": "previous",
+      "mark": "seam",
+      "derive": [
+        {"value": "separate", "from": 0.5, "covered": false},
+        {"value": "bridged", "from": 0.5, "covered": true},
+        {"value": "joint", "from": 0.02},
+        {"value": "close", "from": -0.02},
+        {"value": "hinged", "from": -8},
+        {"value": "overlapping"}
+      ],
+      "notes": [
+        {
+          "from": 0.02,
+          "to": 0.05,
+          "text": {
+            "fr": "entre 20 et 50 ms, l'attaque se brouille (Vande Gorne)",
+            "en": "between 20 and 50 ms the attack blurs (Vande Gorne)"
+          }
+        }
+      ],
+      "values": [
+        {
+          "id": "separate",
+          "name": {"fr": "séparé", "en": "separate"},
+          "about": {"fr": "un silence perceptible entre les deux", "en": "a noticeable silence between them"},
+          "sign": "M0 15 L20 15 L20 7 M40 7 L40 15 L60 15 M26 10 L29 14 L34 5",
+          "endAt": [20, 15]
+        },
+        {
+          "id": "bridged",
+          "name": {"fr": "ponté", "en": "bridged"},
+          "about": {
+            "fr": "un écart franchi par une transition ou un fond ininterrompu (une boîte sur une autre piste)",
+            "en": "a gap spanned by a transition or an uninterrupted background (a box on another track)"
+          },
+          "sign": "M0 15 L20 15 L20 7 M40 7 L40 15 L60 15 M26 12 L34 9",
+          "endAt": [20, 15]
+        },
+        {
+          "id": "joint",
+          "name": {"fr": "joint", "en": "joint"},
+          "about": {
+            "fr": "la suivante commence juste après la fin de la première",
+            "en": "the next begins just after the first has ended"
+          },
+          "sign": "M0 15 L27 15 L27 7 M33 7 L33 15 L60 15",
+          "endAt": [27, 15]
+        },
+        {
+          "id": "close",
+          "name": {"fr": "serré", "en": "close"},
+          "about": {"fr": "une succession très serrée (à 20 ms près)", "en": "a very tight succession (within 20 ms)"},
+          "sign": "M0 15 L60 15 M30 15 L30 7",
+          "endAt": [30, 15]
+        },
+        {
+          "id": "hinged",
+          "name": {"fr": "charnière", "en": "hinged"},
+          "about": {
+            "fr": "la fin de l'une coïncide avec le début de la suivante (un chevauchement jusqu'à 8 s)",
+            "en": "the end of one coincides with the start of the next (an overlap up to 8 s)"
+          },
+          "sign": "M0 15 L33 15 L33 7 M27 7 L27 15 L60 15",
+          "endAt": [33, 15]
+        },
+        {
+          "id": "overlapping",
+          "name": {"fr": "chevauchant", "en": "overlapping"},
+          "about": {
+            "fr": "la suivante commence bien avant la fin de la première",
+            "en": "the next begins well before the first has ended"
+          },
+          "sign": "M0 11 L40 11 L40 5 M20 9 L20 17 L60 17",
+          "endAt": [40, 11]
+        },
+        {
+          "id": "superimposed",
+          "name": {"fr": "superposé", "en": "superimposed"},
+          "about": {
+            "fr": "en couches, l'une sur l'autre (seulement choisi)",
+            "en": "in layers, one over the other (chosen only)"
+          },
+          "sign": "M8 3 L8 8 L28 8 L28 3 M32 3 L32 8 L52 8 L52 3 M0 17 L12 17 L12 12 M18 12 L18 17 L42 17 L42 12 M48 12 L48 17 L60 17"
+        }
+      ]
+    },
+    {
+      "id": "ending",
+      "name": {"fr": "Fin", "en": "Ending"},
+      "about": {
+        "fr": "comment la boîte se termine (démarcation des champs temporels, 6.3.2)",
+        "en": "how the box ends (time-field demarcation, 6.3.2)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "atEnd": true,
+      "mark": "end",
+      "values": [
+        {
+          "id": "vague",
+          "name": {"fr": "vague", "en": "vague"},
+          "about": {"fr": "on ne sait pas bien où le champ s'arrête", "en": "it is unclear where the field ends"},
+          "sign": "M0 15 L30 15 M16 10 L23 17 M23 10 L16 17",
+          "seamSign": "M-9 -4 L-3 2 M-3 -4 L-9 2"
+        },
+        {
+          "id": "open",
+          "name": {"fr": "ouverte", "en": "open"},
+          "about": {
+            "fr": "une fin arrondie, qui suggère une suite",
+            "en": "a rounded ending that suggests a continuation"
+          },
+          "sign": "M0 15 L22 15 M22 9 L22 20",
+          "seamSign": "M0 0 L0 5"
+        },
+        {
+          "id": "conclusive",
+          "name": {"fr": "conclusive", "en": "conclusive"},
+          "about": {"fr": "une fin nette, comme une cadence parfaite", "en": "a definite ending, like a full cadence"},
+          "sign": "M0 15 L20 15 M20 9 L20 20 M24 9 L24 20",
+          "seamSign": "M0 0 L0 5 M-4 -7 L-4 5"
+        },
+        {
+          "id": "cut",
+          "name": {"fr": "coupée", "en": "cut"},
+          "about": {
+            "fr": "une fin soudaine, ou un raccourci inattendu",
+            "en": "a sudden ending, or an unexpected abbreviation"
+          },
+          "sign": "M0 15 L22 15 L22 10 M20.5 6 A1.5 1.5 0 1 0 23.5 6 A1.5 1.5 0 1 0 20.5 6",
+          "seamSign": "M-1.5 -11 A1.5 1.5 0 1 0 1.5 -11 A1.5 1.5 0 1 0 -1.5 -11"
+        },
+        {
+          "id": "disjointed",
+          "name": {"fr": "disloquée", "en": "disjointed"},
+          "about": {"fr": "une fin très abrupte, fragmentée", "en": "a very abrupt, fragmented ending"},
+          "sign": "M0 15 L22 15 L22 10 M19 3 L25 9 M25 3 L19 9",
+          "seamSign": "M-3 -15 L3 -9 M3 -15 L-3 -9"
+        },
+        {
+          "id": "deferred",
+          "name": {"fr": "différée", "en": "deferred"},
+          "about": {"fr": "le champ se prolonge de façon inattendue", "en": "the field is unexpectedly prolonged"},
+          "sign": "M0 15 L14 15 C22 15 24 6 19 6 C14 6 15 15 24 15 L30 15",
+          "seamSign": "M-16 0 C-8 0 -6 -9 -11 -9 C-16 -9 -15 0 -6 0"
+        }
+      ]
+    }
+  ]
+}

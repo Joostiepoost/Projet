@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "composition",
-  "version": 3,
+  "version": 4,
   "order": 10,
   "name": {"fr": "Cadre de composition", "en": "Composition framework"},
   "about": {
@@ -355,14 +355,16 @@
           "id": "delta",
           "label": "<>",
           "name": {"fr": "delta", "en": "delta"},
-          "env": [[0, 0.06], [0.5, 1], [1, 0.06]]
+          "env": [[0, 0.06], [0.5, 1], [1, 0.06]],
+          "peak": 1
         },
         {
           "id": "hollow",
           "label": "><",
           "name": {"fr": "en creux", "en": "hollow"},
           "name2": {"fr": "delta inversé", "en": "reversed delta"},
-          "env": [[0, 1], [0.5, 0.15], [1, 1]]
+          "env": [[0, 1], [0.5, 0.15], [1, 1]],
+          "peak": 1
         },
         {
           "id": "mordent",
@@ -370,6 +372,39 @@
           "name": {"fr": "mordant", "en": "mordent"},
           "env": [[0, 1], [0.07, 1], [0.2, 0.4], [1, 0.35]]
         }
+      ]
+    },
+    {
+      "id": "peak",
+      "name": {"fr": "Position du pic", "en": "Peak position"},
+      "about": {
+        "fr": "où se trouve le pic du profil (delta, en creux), en % de la boîte : un delta asymétrique",
+        "en": "where the profile's peak sits (delta, hollow), in % of the box: an asymmetric delta"
+      },
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 50,
+      "envelope": "peak",
+      "onlyWith": {"category": "profile", "values": ["delta", "hollow"]},
+      "mark": "none"
+    },
+    {
+      "id": "peakshape",
+      "name": {"fr": "Pic", "en": "Peak"},
+      "about": {"fr": "un pic dur (anguleux) ou doux (arrondi)", "en": "a hard (angular) or soft (rounded) peak"},
+      "kind": "choice",
+      "control": "buttons",
+      "mark": "none",
+      "default": "hard",
+      "showDefault": false,
+      "envelope": "shape",
+      "onlyWith": {"category": "profile", "values": ["delta", "hollow"]},
+      "values": [
+        {"id": "hard", "name": {"fr": "dur", "en": "hard"}, "curve": "hard"},
+        {"id": "soft", "name": {"fr": "doux", "en": "soft"}, "curve": "soft"}
       ]
     }
   ]

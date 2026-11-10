@@ -1,0 +1,69 @@
+{
+  "projet": "framework package",
+  "id": "vandegorne",
+  "version": 1,
+  "order": 40,
+  "name": {"fr": "Vande Gorne : écriture", "en": "Vande Gorne: writing"},
+  "about": {
+    "fr": "Les relations de mélange sur les chevauchements, d'après Annette Vande Gorne (Techniques d'écriture sur support, ch. 3).",
+    "en": "Mixing relations on overlaps, after Annette Vande Gorne (writing techniques for fixed media, chapter 3)."
+  },
+  "categories": [
+    {
+      "id": "mixing",
+      "name": {"fr": "Relation de mélange", "en": "Mixing relation"},
+      "about": {
+        "fr": "sur un chevauchement avec la boîte précédente : comment les deux sons se mêlent",
+        "en": "on an overlap with the box before: how the two sounds mix"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "between": "previous",
+      "mark": "seam",
+      "onlyWith": {"category": "thoresen.junction", "values": ["hinged", "overlapping", "superimposed"]},
+      "values": [
+        {
+          "id": "fusion",
+          "name": {"fr": "fusion", "en": "fusion"},
+          "about": {"fr": "un nouveau son naît des deux", "en": "a new sound arises from both"},
+          "sign": "M0 5 L10 10 L20 10 M0 15 L10 10"
+        },
+        {
+          "id": "complementarity",
+          "name": {"fr": "complémentarité", "en": "complementarity"},
+          "about": {"fr": "chacun garde son identité, comme des voix", "en": "each keeps its identity, like voices"},
+          "sign": "M0 7 L5 7 M10 7 L15 7 M5 13 L10 13 M15 13 L20 13"
+        },
+        {
+          "id": "rejection",
+          "name": {"fr": "rejet", "en": "rejection"},
+          "about": {
+            "fr": "l'un masque l'autre, ou le démasque en disparaissant",
+            "en": "one masks the other, or unmasks it as it goes"
+          },
+          "sign": "M4 3 Q10 10 4 17 M16 3 Q10 10 16 17"
+        },
+        {
+          "id": "relay",
+          "name": {"fr": "relais d'énergie", "en": "relay of energy"},
+          "about": {
+            "fr": "un fondu-enchaîné où un son lance l'autre, sans fusion",
+            "en": "a crossfade where one sound launches the next, without fusion"
+          },
+          "sign": "M0 10 L16 10 M11 5 L16 10 L11 15",
+          "onlyWith": {"category": "thoresen.junction", "values": ["hinged"]}
+        },
+        {
+          "id": "metamorphosis",
+          "name": {"fr": "métamorphose indirecte", "en": "indirect metamorphosis"},
+          "about": {
+            "fr": "un fondu-enchaîné par un point d'équilibre, la même énergie",
+            "en": "a crossfade through a point of balance, the same energy"
+          },
+          "sign": "M0 10 Q2.5 4 5 10 Q7.5 16 10 10 L20 10",
+          "onlyWith": {"category": "thoresen.junction", "values": ["hinged"]}
+        }
+      ]
+    }
+  ]
+}

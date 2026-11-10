@@ -1,0 +1,357 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj3c",
+  "sampleRate": 48000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 1.481990095060312,
+  "playhead": 405.023879555746305,
+  "activeLayer": "b7fb7451d97a462ea9c02369e68b2622",
+  "spanStart": 284.682966530954957,
+  "spanEnd": 367.580734890112069,
+  "frameLength": 573.461817041692939,
+  "fwLanguage": "en",
+  "colourMode": "schaeffer.type",
+  "fwDisplay": "composition.level=badge;composition.profile=glyph;schaeffer.type=label",
+  "children": [
+    {
+      "type": "SOUNDS",
+      "children": [
+        {
+          "type": "SOUND",
+          "id": "1965647731ce4993b72301ac205d1a0e",
+          "name": "Untitled capture 2026-11-07 130840",
+          "file": "Sounds/Untitled capture 2026-11-07 130840.ogg",
+          "originalPath": "/Users/jvkmuz/Music/Effet Captures/Untitled capture 2026-11-07 130840.wav",
+          "originalHash": "f66df5c47265019a79d053703919f389",
+          "lengthSamples": 16090268,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        }
+      ]
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "name": "Macro-divisions",
+          "isFolder": true,
+          "colour": 1,
+          "height": 30,
+          "mute": false,
+          "solo": false,
+          "folded": false
+        },
+        {
+          "type": "TRACK",
+          "id": "3730a5d294f343ea807a7e09f8d116ce",
+          "name": "Track 1",
+          "colour": 1,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "00a76b9f905f4fe69a772974faa85e07",
+              "kind": "text",
+              "name": "Text",
+              "start": 30.088890118513731,
+              "length": 284.543796654079301,
+              "opacity": 1.0,
+              "notes": "",
+              "fw.composition.energy": "oscillation",
+              "fw.composition.energy2": "percussion-resonance",
+              "fw.composition.level": "metonymic",
+              "fw.composition.role": "F",
+              "fw.composition.role.along": "0.3:M:0.4;0.65:B:0.7",
+              "fw.schaeffer.type": "X'",
+              "fw.composition.profile": "crescendo"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "68af6ec280d5469794d8053944322155",
+          "name": "Track 2",
+          "colour": 4,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "5e6dd725ecfb459db6ea49942bf1cbe1",
+              "kind": "text",
+              "name": "Text",
+              "start": 95.707250521114304,
+              "length": 130.381666696255621,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "0.230609",
+              "propLength": "0.458213",
+              "propFrame": "00a76b9f905f4fe69a772974faa85e07",
+              "propLock": true,
+              "fw.composition.energy": "balancement",
+              "fw.composition.energy2": "pression-deformation",
+              "fw.schaeffer.type": "N''"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "d49d5b6221674b769a14a22d5a02e969",
+          "name": "Track 3",
+          "colour": 6,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "5875c6e3a72a4ebba34c0ec89e633119",
+              "kind": "text",
+              "name": "Text",
+              "start": 303.900327191974782,
+              "length": 93.107208816965823,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "0.23182",
+              "propLength": "1.123157",
+              "propFrame": "span",
+              "propLock": true,
+              "fadeIn": 0.0,
+              "fadeOut": 0.005,
+              "fw.schaeffer.type": "N",
+              "fw.composition.energy": "accumulation-corpuscules",
+              "fw.composition.energy2": "rebond",
+              "fw.composition.profile": "decrescendo"
+            },
+            {
+              "type": "BOX",
+              "id": "5a6bbc6fa2cd411e9e0a69dd77a0ef05",
+              "kind": "text",
+              "name": "Text",
+              "start": 432.80627409269573,
+              "length": 134.412016675136158,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "1.786819",
+              "propLength": "1.621419",
+              "propFrame": "span",
+              "propLock": true,
+              "fadeIn": 0.005,
+              "fadeOut": 0.0,
+              "fw.composition.energy": "rebond",
+              "fw.composition.level": "meson",
+              "fw.composition.role": "F",
+              "fw.schaeffer.type": "Tn",
+              "fw.composition.level.along": "0.5:dison:0.4",
+              "fw.composition.profile": "crescendo",
+              "fw.composition.energy2": "example-pulsation",
+              "fw.example.motion": "falling",
+              "fw.thoresen.junction": "superimposed",
+              "fw.thoresen.ending": "vague"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "73825509694141b0aa8802fe393f3870",
+          "name": "Track 4",
+          "colour": 3,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "d919c7cf59f94ff5a39f5f40920acbc4",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "b672e57ea59647a9b9297188c378749e",
+              "kind": "text",
+              "name": "Text",
+              "start": 340.43445137884396,
+              "length": 110.522289096089196,
+              "opacity": 0.39,
+              "notes": "",
+              "propStart": "0.672533",
+              "propLength": "1.333236",
+              "propFrame": "span",
+              "propLock": true,
+              "fadeIn": 0.005,
+              "fadeOut": 0.005,
+              "fw.example.materials": "wood,glass",
+              "fw.example.density": 6.0,
+              "fw.example.motion": "rising",
+              "fw.example.motion.along": "0.5:falling:0.3",
+              "fw.example.source": "little twigs breaking under feet",
+              "fw.composition.energy": "flux",
+              "fw.composition.energy2": "accumulation-corpuscules",
+              "fw.composition.role": "B",
+              "fw.composition.profile": "decrescendo"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "a8167e7328634087ba31e7fab0368415",
+          "name": "Track 5",
+          "colour": 4,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "e3d92b0476b24a3c8bbf1f829a641f52",
+              "kind": "text",
+              "name": "Text",
+              "start": 437.325197241490059,
+              "length": 109.89027651011898,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "1.841331",
+              "propLength": "1.325612",
+              "propFrame": "span",
+              "propLock": true,
+              "fadeIn": 0.005,
+              "fadeOut": 0.005,
+              "fw.schaeffer.type": "N",
+              "fw.composition.role": "F",
+              "fw.composition.level": "metonymic",
+              "fw.composition.energy": "percussion-resonance",
+              "fw.composition.energy2": "frottement-granulation",
+              "fw.composition.profile": "resonance"
+            },
+            {
+              "type": "BOX",
+              "id": "1a57ee6444ea43e18f0716bdd8b5d586",
+              "kind": "sound",
+              "name": "Untitled capture 2026-11-07 130840",
+              "start": 75.236366416601157,
+              "length": 307.071488613588599,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "-2.526565",
+              "propLength": "a2 - (-2.459734)",
+              "propFrame": "span",
+              "propLock": true,
+              "gainDb": -9.799999999999997,
+              "offset": 0.0,
+              "fadeIn": 0.003,
+              "fadeOut": 92.803242158577063,
+              "fadeInShape": 2,
+              "fadeOutShape": 1,
+              "fw.composition.energy": "spirale",
+              "fw.composition.energy2": "frottement-granulation",
+              "fw.schaeffer.type": "Zy",
+              "soundId": "1965647731ce4993b72301ac205d1a0e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "kind": "time",
+          "name": "Time",
+          "height": 88,
+          "visible": true,
+          "id": "127745d9b52240b2838f20e9c88cea6e"
+        },
+        {
+          "type": "LAYER",
+          "kind": "proportion",
+          "name": "Piece",
+          "height": 90,
+          "visible": true,
+          "frame": "piece",
+          "snap": true,
+          "autoDivisions": true,
+          "denominators": "2,3,4",
+          "series": "golden:2;fibonacci:5",
+          "id": "b7fb7451d97a462ea9c02369e68b2622"
+        },
+        {
+          "type": "LAYER",
+          "kind": "proportion",
+          "name": "Span",
+          "height": 90,
+          "visible": true,
+          "frame": "span",
+          "snap": true,
+          "autoDivisions": true,
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "id": "95d9a8a4b22b4c73ae7cb8117493f2bc",
+          "series": "harmonic:8"
+        },
+        {
+          "type": "LAYER",
+          "id": "947881196e8d483f87c0746531c53004",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "1a57ee6444ea43e18f0716bdd8b5d586",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true,
+          "series": "harmonic.dir:reversed;harmonic:16;custom:harmonic to 1/32;custom.dir:reversed;fibonacci:21;fibonacci.dir:reversed"
+        },
+        {
+          "type": "LAYER",
+          "id": "f739bedca37343e7b8a3c3e89455b2b5",
+          "kind": "time",
+          "name": "Time",
+          "height": 90,
+          "visible": true,
+          "frame": "e3d92b0476b24a3c8bbf1f829a641f52"
+        }
+      ]
+    },
+    {
+      "type": "MARKS",
+      "children": [
+        {
+          "type": "MARK",
+          "id": "2f0c3bb702e24afcb4305e80c03b5852",
+          "name": "a2",
+          "frame": "span",
+          "expr": "1.244485"
+        },
+        {
+          "type": "MARK",
+          "id": "687e7342152942689c49303958eae1e1",
+          "name": "a3",
+          "frame": "span",
+          "expr": "2.308268"
+        },
+        {
+          "type": "MARK",
+          "id": "db43a69dee3c4b868396f9f0848da420",
+          "name": "m3",
+          "frame": "00a76b9f905f4fe69a772974faa85e07",
+          "expr": "0.282359"
+        },
+        {
+          "type": "MARK",
+          "id": "3bf0b09185294a128739b2f5caf994ab",
+          "name": "a1",
+          "frame": "span",
+          "expr": "-2.921122"
+        }
+      ]
+    }
+  ]
+}
