@@ -27,7 +27,7 @@ std::vector<TimelineView::LayerRow> TimelineView::rulerRows() const
     {
         if (! (bool) l.getProperty (IDs::visible, true)) continue;
         const int h = juce::jlimit (minLayerHeight, maxLayerHeight, (int) l.getProperty (IDs::height, 24));
-        out.push_back ({ l, y, h, Project::isTimeLayer (l) });
+        out.push_back ({ l, y, h, Project::isTimeLayer (l), Project::isLaneLayer (l) });
         y += h;
     }
     if (out.empty()) out.push_back ({ {}, 0, 16, false });    // every layer hidden: a thin strip to bring them back
@@ -51,7 +51,7 @@ TimelineView::LayerRow TimelineView::layerAt (int y) const
 std::vector<TimelineView::Tick> TimelineView::visibleTicks (const juce::ValueTree& layer) const
 {
     std::vector<Tick> out;
-    if (! layer.isValid() || Project::isTimeLayer (layer)) return out;
+    if (! layer.isValid() || ! Project::isProportionLayer (layer)) return out;
     const auto f = project.frameFor (project.layerFrame (layer));
     if (! f.isValid()) return out;
 
@@ -113,7 +113,7 @@ std::vector<TimelineView::Tick> TimelineView::visibleTicks (const juce::ValueTre
 
 juce::ValueTree TimelineView::markAt (const LayerRow& row, float x) const
 {
-    if (! row.layer.isValid() || row.time) return {};
+    if (! row.layer.isValid() || row.time || row.lane) return {};
     const auto ref = project.layerFrame (row.layer);
     for (auto m : project.getMarks())
     {
@@ -140,6 +140,7 @@ void TimelineView::paintRuler (juce::Graphics& g)
                         juce::Justification::centredLeft, true);
         }
         else if (r.time) paintTimeLayer (g, r);
+        else if (r.lane) paintLaneLayer (g, r);
         else paintProportionLayer (g, r);
     }
     g.setColour (Theme::lineStrong);
@@ -334,7 +335,7 @@ void TimelineView::paintMarksInLanes (juce::Graphics& g)
 {
     // Every mark whose frame is shown: a dashed line through the tracks.
     std::set<juce::String> shownFrames;
-    for (auto& r : rulerRows()) if (r.layer.isValid() && ! r.time) shownFrames.insert (project.layerFrame (r.layer));
+    for (auto& r : rulerRows()) if (r.layer.isValid() && ! r.time && ! r.lane) shownFrames.insert (project.layerFrame (r.layer));
 
     const float top = (float) rulerHeight(), bottom = (float) getHeight();
     const float dashes[] = { 6.0f, 4.0f };
@@ -361,6 +362,7 @@ bool TimelineView::rulerMouseMove (const juce::MouseEvent& e)
         setMouseCursor (onEdge ? juce::MouseCursor::UpDownResizeCursor : juce::MouseCursor::PointingHandCursor);
         return true;
     }
+    if (row.lane) { setMouseCursor (juce::MouseCursor::PointingHandCursor); return true; }
     if (row.layer.isValid() && ! row.time)
     {
         const auto f = project.frameFor (project.layerFrame (row.layer));
@@ -392,9 +394,16 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
             dragLayerStartHeight = row.h;
             return true;
         }
-        if (! row.time) project.setActiveLayer (row.layer);
+        if (! row.time && ! row.lane) project.setActiveLayer (row.layer);
         repaint();
         showLayerMenu (row.layer);
+        return true;
+    }
+
+    if (row.lane)
+    {
+        if (e.mods.isPopupMenu()) showLayerMenu (row.layer);
+        else laneClicked (row, e);
         return true;
     }
 
@@ -522,6 +531,11 @@ bool TimelineView::rulerDoubleClick (const juce::MouseEvent& e)
     if (e.y >= rulerHeight()) return false;
     const auto row = layerAt (e.y);
     if (! row.layer.isValid() || row.time) return true;
+    if (row.lane)
+    {
+        if (e.x < headerWidth && onShowRulerPanel) onShowRulerPanel (row.layer[IDs::id].toString());
+        return true;
+    }
 
     if (e.x < headerWidth)
     {
@@ -557,8 +571,33 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
     juce::PopupMenu m;
     int timeLayers = 0;
     for (auto l : project.getRulers()) if (Project::isTimeLayer (l)) ++timeLayers;
+    const auto lanes = lanesMenu (900);
 
-    if (time)
+    if (Project::isLaneLayer (layer))
+    {
+        // An overview lane (stage 4d): its sizes follow its rows.
+        juce::PopupMenu laneSize;
+        if (auto* lane = framework.findLane (layer[IDs::lane].toString()))
+        {
+            const int small = Lanes::heightFor (framework, *lane, 0), medium = Lanes::heightFor (framework, *lane, 1);
+            laneSize.addItem (41, "Small", true, h < (small + medium) / 2);
+            laneSize.addItem (42, "Medium", true, h >= (small + medium) / 2 && h <= medium + 4);
+            laneSize.addItem (43, "Large", true, h > medium + 4);
+            m.addSectionHeader (layer[IDs::name].toString());
+        }
+        else
+            m.addSectionHeader (layer[IDs::name].toString() + " (not in this project's frameworks)");
+        m.addItem (44, "Show all (clear the highlight)", highlight.isActive());
+        m.addSubMenu ("Size", laneSize, laneSize.getNumItems() > 0);
+        m.addItem (4, "Hide");
+        m.addItem (5, "Add a proportion layer below");
+        m.addItem (9, "Add a time layer below");
+        m.addSubMenu ("Add a lane below", lanes, lanes.getNumItems() > 0);
+        m.addItem (8, "Delete this lane");
+        m.addSeparator();
+        m.addItem (6, "Ruler layers panel...");
+    }
+    else if (time)
     {
         const auto from = layer.getProperty (IDs::frame, "piece").toString();
         juce::PopupMenu count;
@@ -577,6 +616,7 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         m.addItem (4, "Hide");
         m.addItem (5, "Add a proportion layer below");
         m.addItem (9, "Add a time layer below");
+        m.addSubMenu ("Add a lane below", lanes, lanes.getNumItems() > 0);
         m.addItem (8, "Delete this layer", timeLayers > 1);
         m.addSeparator();
         m.addItem (6, "Ruler layers panel...");
@@ -662,6 +702,7 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         m.addItem (4, "Hide");
         m.addItem (5, "Add a proportion layer below");
         m.addItem (9, "Add a time layer below");
+        m.addSubMenu ("Add a lane below", lanes, lanes.getNumItems() > 0);
         m.addItem (8, "Delete this layer");
         m.addItem (6, "Ruler layers panel...");
     }
@@ -678,6 +719,14 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
             layer.setProperty (IDs::series, Proportion::withSeriesPart (layer[IDs::series].toString(), key, v > 0 ? juce::String (v) : juce::String()), nullptr);
         };
 
+        if (r >= 900 && r < 1000) { safe->addLane (r - 900, p.getRulers().indexOf (layer) + 1); return; }
+        if (r >= 41 && r <= 43)
+        {
+            if (auto* lane = safe->framework.findLane (layer[IDs::lane].toString()))
+                layer.setProperty (IDs::height, Lanes::heightFor (safe->framework, *lane, r - 41), nullptr);
+            return;
+        }
+        if (r == 44) { safe->clearHighlight(); if (safe->onHighlightChanged) safe->onHighlightChanged(); return; }
         if (r >= 1 && r <= 3) layer.setProperty (IDs::height, r == 1 ? sizeSmall : (r == 2 ? sizeMedium : sizeLarge), nullptr);
         else if (r == 4) layer.setProperty (IDs::visible, false, nullptr);
         else if (r == 5)
@@ -932,4 +981,215 @@ void TimelineView::askRatioSplit (const juce::String& frameRef, juce::ValueTree 
         }
         safe->repaint();
     }), true);
+}
+
+//== Lanes (stage 4d) ==========================================================
+// Overview lanes are ruler layers that draw what a package's lane works out
+// from the boxes (Lanes.cpp): rows (the energies by family, the typology by
+// zone) or a scale (the semiotic profile).
+
+juce::PopupMenu TimelineView::lanesMenu (int base) const
+{
+    juce::PopupMenu m;
+    const auto& lanes = framework.getLanes();
+    for (int i = 0; i < lanes.size() && i < 99; ++i)
+    {
+        const auto& lane = lanes.getReference (i);
+        auto* package = framework.findPackage (lane.package);
+        m.addItem (base + i, framework.text (lane.name) + (package != nullptr ? "  (" + framework.text (package->name) + ")" : juce::String()));
+    }
+    return m;
+}
+
+int TimelineView::laneHeight (const Framework& fw, const Framework::Lane& lane)
+{
+    return Lanes::heightFor (fw, lane, 1);
+}
+
+juce::ValueTree TimelineView::addLane (int laneIndex, int layerIndex)
+{
+    if (! juce::isPositiveAndBelow (laneIndex, framework.getLanes().size())) return {};
+    const auto& lane = framework.getLanes().getReference (laneIndex);
+    auto l = project.addLaneLayer (lane.key(), framework.text (lane.name), laneHeight (framework, lane), layerIndex);
+    repaint();
+    return l;
+}
+
+const TimelineView::LaneCache& TimelineView::laneData (const Framework::Lane& lane)
+{
+    auto& c = laneCache[lane.key()];
+    if (c.changes != project.getChangeCount() || c.generation != framework.getGeneration())
+    {
+        c.changes = project.getChangeCount();
+        c.generation = framework.getGeneration();
+        c.rows.clear();
+        c.scale = {};
+        if (lane.kind == Framework::Lane::Kind::rows) c.rows = Lanes::rows (project, framework, lane);
+        else c.scale = Lanes::scale (project, framework, lane);
+    }
+    return c;
+}
+
+void TimelineView::paintLaneLayer (juce::Graphics& g, const LayerRow& row)
+{
+    const int y0 = row.y, h = row.h;
+    g.setColour (layerBackground);
+    g.fillRect (0, y0, getWidth(), h);
+    g.setColour (Theme::line);
+    g.fillRect (0, y0 + h - 1, getWidth(), 1);
+
+    const auto key = row.layer[IDs::lane].toString();
+    auto* lane = framework.findLane (key);
+    // The name on the first row, beside that row's label (the labels sit on the right).
+    int nameW = headerWidth - 18;
+    if (lane != nullptr)
+        if (auto* c = framework.findCategory (lane->category))
+        {
+            juce::String firstLabel;
+            if (lane->kind == Framework::Lane::Kind::rows)
+                firstLabel = lane->byGroups && ! framework.groupsOf (*c).isEmpty() ? framework.text (framework.groupsOf (*c).getFirst().name)
+                                                                                  : (framework.valuesOf (*c).isEmpty() ? juce::String() : framework.valueName (*c, framework.valuesOf (*c).getFirst().id));
+            else
+            {
+                auto values = framework.valuesOf (*c);
+                std::stable_sort (values.begin(), values.end(), [] (const Framework::Value& a, const Framework::Value& b) { return a.order < b.order; });
+                if (! values.isEmpty()) firstLabel = framework.valueName (*c, values.getLast().id);     // the top row: the most abstract
+            }
+            nameW = juce::jmax (56, headerWidth - 26 - juce::GlyphArrangement::getStringWidthInt (Theme::font (10.0f), firstLabel));
+        }
+    g.setColour (Theme::textMuted);
+    g.setFont (Theme::font (h < 16 ? 9.5f : 11.0f));
+    g.drawText (row.layer[IDs::name].toString() + juce::String::fromUTF8 (" \xe2\x96\xbe"), 12, y0, nameW, juce::jmin (h, 18),
+                juce::Justification::centredLeft, true);
+    if (lane == nullptr)
+    {
+        g.setFont (Theme::font (10.5f));
+        g.drawText ("This lane (" + key + ") comes from a package the project does not use: Framework > Frameworks...",
+                    headerWidth + 8, y0, getWidth() - headerWidth - 16, h, juce::Justification::centredLeft, true);
+        return;
+    }
+
+    const auto& data = laneData (*lane);
+    const float top = (float) y0 + 2.0f, avail = (float) h - 4.0f;
+    const auto neutral = juce::Colour (0xffc9c6bd);
+    auto label = [&] (const juce::String& text, float centre, float rowH, juce::Colour colour, bool ticked, bool topRow)
+    {
+        if (rowH < 7.0f) return;
+        const int left = topRow ? 12 + nameW : 24;
+        g.setFont (Theme::font (juce::jmin (10.0f, rowH - 0.5f), ticked));
+        g.setColour (ticked ? Theme::accent : colour.withAlpha (0.85f));
+        g.drawText (text, left, (int) (centre - rowH / 2.0f), headerWidth - 6 - left, (int) rowH + 1, juce::Justification::centredRight, true);
+    };
+
+    juce::Graphics::ScopedSaveState ss (g);
+    if (lane->kind == Framework::Lane::Kind::rows)
+    {
+        const int n = (int) data.rows.size();
+        if (n == 0) return;
+        auto* cat = framework.findCategory (lane->category);
+        const bool groups = lane->byGroups && cat != nullptr && ! framework.groupsOf (*cat).isEmpty();
+        const auto hlKey = cat == nullptr ? juce::String() : (groups ? framework.source (*cat).key() + "#groups" : framework.source (*cat).key());
+        const auto ticked = highlight.idsFor (hlKey);
+        const float rowH = avail / (float) n;
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& r = data.rows[(size_t) i];
+            const float centre = top + ((float) i + 0.5f) * rowH;
+            const auto colour = r.colour != 0 ? juce::Colour (r.colour) : neutral;
+            label (framework.text (r.name), centre, rowH, colour, ticked.contains (r.id), i == 0);
+        }
+        g.reduceClipRegion (headerWidth, y0, getWidth() - headerWidth, h);
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& r = data.rows[(size_t) i];
+            const float centre = top + ((float) i + 0.5f) * rowH;
+            const auto colour = r.colour != 0 ? juce::Colour (r.colour) : neutral;
+            g.setColour (Theme::line.withAlpha (0.6f));
+            g.fillRect ((float) headerWidth, centre - 0.5f, (float) (getWidth() - headerWidth), 1.0f);
+            // Thicker where more boxes sound at once: one, two, three or more.
+            auto thickness = [rowH] (int count) { return juce::jmax (2.0f, rowH * (count >= 3 ? 0.9f : (count == 2 ? 0.68f : 0.45f))); };
+            auto draw = [&] (const std::vector<Lanes::Segment>& segs, juce::Colour c)
+            {
+                g.setColour (c);
+                for (auto& s : segs)
+                {
+                    const float x0 = timeToX (s.start), x1 = timeToX (s.end);
+                    if (x1 < (float) headerWidth || x0 > (float) getWidth()) continue;
+                    const float th = thickness (s.count);
+                    g.fillRect (x0, centre - th / 2.0f, juce::jmax (1.0f, x1 - x0), th);
+                }
+            };
+            draw (r.second, colour.withAlpha (0.35f));
+            draw (r.main, colour.withAlpha (ticked.isEmpty() || ticked.contains (r.id) ? 0.9f : 0.35f));
+        }
+        return;
+    }
+
+    // A scale: the range present at each moment, abstract at the top, and the weighted average.
+    const auto& sc = data.scale;
+    const int n = sc.ids.size();
+    if (n == 0) return;
+    auto* cat = framework.findCategory (lane->category);
+    const auto ticked = cat == nullptr ? juce::StringArray() : highlight.idsFor (framework.source (*cat).key());
+    const float rowH = avail / (float) n;
+    auto yFor = [&] (double pos) { return top + avail - ((float) pos + 0.5f) * rowH; };
+    for (int i = 0; i < n; ++i)
+    {
+        const auto colour = cat != nullptr && framework.valueColours (*cat, sc.ids[i]).colour != 0
+                          ? juce::Colour (framework.valueColours (*cat, sc.ids[i]).colour) : neutral;
+        label (cat != nullptr ? framework.valueName (*cat, sc.ids[i]) : sc.ids[i], yFor (i), rowH, colour, ticked.contains (sc.ids[i]), i == n - 1);
+    }
+    g.reduceClipRegion (headerWidth, y0, getWidth() - headerWidth, h);
+    for (int i = 0; i < n; ++i)
+    {
+        g.setColour (Theme::line.withAlpha (0.6f));
+        g.fillRect ((float) headerWidth, yFor (i) - 0.5f, (float) (getWidth() - headerWidth), 1.0f);
+    }
+    juce::Path mean;
+    bool open = false;
+    double lastEnd = -1.0;
+    for (auto& s : sc.segments)
+    {
+        const float x0 = timeToX (s.start), x1 = timeToX (s.end);
+        if (x1 >= (float) headerWidth && x0 <= (float) getWidth())
+        {
+            const float yTop = yFor (s.high) - rowH * 0.38f, yBottom = yFor (s.low) + rowH * 0.38f;
+            g.setColour (neutral.withAlpha (0.2f));
+            g.fillRect (x0, yTop, juce::jmax (1.0f, x1 - x0), yBottom - yTop);
+        }
+        const float ym = yFor (s.mean);
+        if (open && std::abs (s.start - lastEnd) < 1.0e-9) mean.lineTo (x0, ym);
+        else mean.startNewSubPath (x0, ym);
+        mean.lineTo (x1, ym);
+        open = true;
+        lastEnd = s.end;
+    }
+    g.setColour (Theme::text.withAlpha (0.85f));
+    g.strokePath (mean, juce::PathStrokeType (1.5f));
+}
+
+void TimelineView::laneClicked (const LayerRow& row, const juce::MouseEvent& e)
+{
+    auto* lane = framework.findLane (row.layer[IDs::lane].toString());
+    if (lane == nullptr) return;
+    auto* cat = framework.findCategory (lane->category);
+    if (cat == nullptr) return;
+    const auto& data = laneData (*lane);
+    const float top = (float) row.y + 2.0f, avail = (float) row.h - 4.0f;
+    if (lane->kind == Framework::Lane::Kind::rows)
+    {
+        const int n = (int) data.rows.size();
+        if (n == 0) return;
+        const int i = juce::jlimit (0, n - 1, (int) (((float) e.y - top) / (avail / (float) n)));
+        const bool groups = lane->byGroups && ! framework.groupsOf (*cat).isEmpty();
+        toggleHighlight (groups ? framework.source (*cat).key() + "#groups" : framework.source (*cat).key(), data.rows[(size_t) i].id);
+    }
+    else
+    {
+        const int n = data.scale.ids.size();
+        if (n == 0) return;
+        const int i = juce::jlimit (0, n - 1, (int) ((top + avail - (float) e.y) / (avail / (float) n)));
+        toggleHighlight (framework.source (*cat).key(), data.scale.ids[i]);
+    }
+    if (onHighlightChanged) onHighlightChanged();
 }

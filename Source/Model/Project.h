@@ -77,6 +77,10 @@ public:
     int blockEnd (const juce::ValueTree& track);
 
     juce::ValueTree addFolder (const juce::String& name, int index, const juce::String& folderId = {});
+    /** One folder per value of a category folders can give (in the values'
+        order), each holding one track and giving its value to the boxes on it:
+        the semiotic track template (stage 4d). Undoable; needs the framework. */
+    juce::Array<juce::ValueTree> addFoldersFor (const Framework::Category&);
     /** A new folder in the track's place, holding the track. */
     juce::ValueTree putInNewFolder (juce::ValueTree track);
     /** Moves the track (with everything inside it, if a folder) so it lands
@@ -154,7 +158,12 @@ public:
     juce::ValueTree getRulers();
     juce::ValueTree findLayer (const juce::String& layerId);
     static bool isTimeLayer (const juce::ValueTree& l)              { return l[IDs::kind].toString() == "time"; }
+    /** An overview lane (stage 4d): draws what a package's lane works out from the boxes. */
+    static bool isLaneLayer (const juce::ValueTree& l)              { return l[IDs::kind].toString() == "lane"; }
+    static bool isProportionLayer (const juce::ValueTree& l)        { return l.isValid() && ! isTimeLayer (l) && ! isLaneLayer (l); }
     juce::ValueTree addLayer (const juce::String& kind, int index = -1);
+    /** A lane layer for a package's lane ("composition.energies"). */
+    juce::ValueTree addLaneLayer (const juce::String& laneKey, const juce::String& name, int height, int index = -1);
     void removeLayer (juce::ValueTree layer);
     /** The proportion layer the menus and "the ruler's frame" refer to. */
     juce::ValueTree getActiveLayer();
@@ -236,22 +245,31 @@ public:
         categories folders can give), else the category's default. */
     struct FrameworkValue
     {
-        enum class From { none, own, folder, defaultValue, timing };
+        enum class From { none, own, folder, defaultValue, timing, implied };
         juce::String value;
         From from = From::none;
+        juce::String source;                        // implied: the key of the folder's category that gave it
         bool isOwn() const noexcept                 { return from == From::own; }
         bool fromFolder() const noexcept            { return from == From::folder; }
         bool isDefault() const noexcept             { return from == From::defaultValue; }
         bool fromTiming() const noexcept            { return from == From::timing; }
+        bool isImplied() const noexcept             { return from == From::implied; }
+        /** Worked out rather than set: from the timing, or given by a folder's other value. */
+        bool isDerived() const noexcept             { return fromTiming() || isImplied(); }
     };
-    /** Also: a join's value found from the timing (stage 4c), and nothing
-        while the category (or its value) does not apply ("only with"). */
-    FrameworkValue frameworkValue (const juce::ValueTree& box, const Framework::Category&);
+    /** Also: a join's value found from the timing (stage 4c), a value a
+        folder's other category gives (a writing type's mixing relation, 4d),
+        and nothing while the category (or its value) does not apply ("only
+        with"), or for a category set on folders only. `ignoreOwn`: what the
+        box would have without a value of its own. */
+    FrameworkValue frameworkValue (const juce::ValueTree& box, const Framework::Category&, bool ignoreOwn = false);
 
     /** The framework the project's values are read with (for "only with"
         conditions, and for what a split keeps on each side). May be null. */
     void setFramework (const Framework* f)          { framework = f; joinsValid = false; }
     const Framework* getFramework() const noexcept  { return framework; }
+    /** What the box's folders give it for `c` through another category ("" if nothing). */
+    FrameworkValue impliedValue (const juce::ValueTree& box, const Framework::Category&);
     /** True if the category applies to the box ("only with"). */
     bool applies (const juce::ValueTree& box, const Framework::Category&);
     /** True if this value of the category applies to the box. */
@@ -291,6 +309,8 @@ public:
 
     /** Called after any change to the model (also undo/redo). */
     std::function<void()> onChanged;
+    /** Goes up with every change (for caches of what is worked out from the boxes). */
+    int getChangeCount() const noexcept             { return changeCount; }
 
     //== JSON =================================================================
     static juce::var toVar (const juce::ValueTree&);
@@ -311,6 +331,7 @@ private:
     void freezePieceLengthFor (const juce::String& ref);
 
     bool applying = false, loading = false;
+    int changeCount = 0;
 
     const Framework* framework = nullptr;
     struct JoinInfo { juce::String before, after; double gap = 0.0; bool covered = false; };

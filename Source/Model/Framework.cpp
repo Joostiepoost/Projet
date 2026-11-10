@@ -126,6 +126,9 @@ namespace
         }
         if (v.hasProperty ("fadeAt")) x.fadeX = (float) (double) v["fadeAt"];
         x.onlyWith = readCondition (v["onlyWith"]);
+        x.impliesCategory = v["implies"]["category"].toString().trim();
+        x.impliesValue = cleanValueId (v["implies"]["value"].toString());
+        if (x.impliesValue.isEmpty()) x.impliesCategory = {};
         return x;
     }
 
@@ -175,7 +178,9 @@ namespace
 
         c.control = v["control"].toString().trim().toLowerCase();
         c.along = (bool) v.getProperty ("along", false);
-        c.folders = (bool) v.getProperty ("folders", false);
+        const auto folders = v.getProperty ("folders", false);
+        c.foldersOnly = folders.toString().trim().toLowerCase() == "only";
+        c.folders = c.foldersOnly || (folders.isBool() ? (bool) folders : folders.toString().trim().toLowerCase() == "true");
         c.showDefault = (bool) v.getProperty ("showDefault", true);
         c.defaultValue = cleanValueId (v["default"].toString());
         c.valuesFrom = v["valuesFrom"].toString().trim();
@@ -251,6 +256,12 @@ namespace
             c.along = c.folders = false;
         }
         if (! c.between) c.derive.clear();
+        if (c.foldersOnly && (c.along || c.between || c.atEnd || c.envelope.isNotEmpty()))
+        {
+            warnings.add ("A category set on folders only (" + c.id + ") cannot change along a box, belong to a join or describe an ending.");
+            c.along = c.between = c.atEnd = false;
+            c.envelope = {};
+        }
         if (c.envelope.isNotEmpty() && c.envelope != "peak" && c.envelope != "shape") c.envelope = {};
         if (c.envelope == "peak" && c.kind != Framework::Kind::number) c.envelope = {};
         if (c.envelope == "shape" && c.kind != Framework::Kind::choice) c.envelope = {};
@@ -299,6 +310,42 @@ bool Framework::addPackage (const juce::String& json, const juce::String& folder
             raw.categories.add (c);
         }
 
+    if (auto* a = root["lanes"].getArray())
+        for (auto& v : *a)
+        {
+            Lane lane;
+            lane.id = cleanId (v["id"].toString());
+            lane.package = p.id;
+            if (lane.id.isEmpty()) { p.warnings.add ("A lane without an id was left out."); continue; }
+            lane.name = readName (v["name"]);
+            if (lane.name.isEmpty()) lane.name = { lane.id, lane.id };
+            lane.about = readName (v["about"]);
+            const auto kind = v.getProperty ("kind", "rows").toString().trim().toLowerCase();
+            if (kind == "rows") lane.kind = Lane::Kind::rows;
+            else if (kind == "scale") lane.kind = Lane::Kind::scale;
+            else { p.warnings.add ("The lane " + lane.id + " has an unknown kind (" + kind + "): left out. Kinds: rows, scale."); continue; }
+            auto keyOf = [&p] (const juce::var& x)
+            {
+                auto k = x.toString().trim();
+                return k.isEmpty() || k.containsChar ('.') ? k : p.id + "." + cleanId (k);
+            };
+            lane.category = keyOf (v["category"]);
+            lane.second = keyOf (v["second"]);
+            lane.byGroups = v.getProperty ("rows", "groups").toString().trim().toLowerCase() != "values";
+            lane.weightCategory = keyOf (v["weightBy"]["category"]);
+            lane.defaultWeight = (double) v["weightBy"].getProperty ("default", 1.0);
+            if (auto* w = v["weightBy"]["weights"].getDynamicObject())
+                for (auto& nv : w->getProperties())
+                {
+                    lane.weightIds.add (nv.name.toString());
+                    lane.weightValues.add ((double) nv.value);
+                }
+            bool duplicate = false;
+            for (auto& other : raw.lanes) duplicate = duplicate || other.id == lane.id;
+            if (duplicate) { p.warnings.add ("The lane " + lane.id + " appears twice; the second was left out."); continue; }
+            raw.lanes.add (lane);
+        }
+
     for (int i = raws.size(); --i >= 0;)
         if (raws.getReference (i).package.id == p.id) raws.remove (i);
     raws.add (raw);
@@ -324,6 +371,9 @@ void Framework::rebuild()
 {
     packages.clear();
     categories.clear();
+    lanes.clear();
+    implications.clear();
+    ++generation;
     std::stable_sort (raws.begin(), raws.end(), [] (const Raw& a, const Raw& b)
     {
         return a.package.order != b.package.order ? a.package.order < b.package.order : a.package.id < b.package.id;
@@ -451,6 +501,55 @@ void Framework::rebuild()
             if (v.onlyWith.category == c.key()) v.onlyWith = {};
         }
     }
+
+    // Implications (4d): a folder value giving the boxes inside a value of another category.
+    implications.resize (categories.size());
+    for (int i = 0; i < categories.size(); ++i)
+    {
+        auto& c = categories.getReference (i);
+        auto& warnings = packages.getReference (packageIndex (c.package)).warnings;
+        for (auto& v : c.values)
+        {
+            if (v.impliesCategory.isEmpty()) continue;
+            auto key = v.impliesCategory;
+            if (! key.containsChar ('.')) key = (v.from.isNotEmpty() ? v.from : c.package) + "." + cleanId (key);
+            const int ti = categoryIndex (key);
+            if (! c.folders || ti < 0 || ti == i || findValue (categories.getReference (ti), v.impliesValue) == nullptr)
+            {
+                if (ti >= 0 || packageIndex (key.upToFirstOccurrenceOf (".", false, false)) >= 0)
+                    warnings.add (c.key() + " " + v.id + " implies " + key + " " + v.impliesValue
+                                  + (c.folders ? ", which is not there; left out." : ", but only folder values can imply; left out."));
+                continue;
+            }
+            v.impliesCategory = key;
+            implications.getReference (ti).add ({ i, v.id, v.impliesValue });
+        }
+    }
+
+    // Lanes: their categories must be there.
+    for (auto& raw : raws)
+        for (auto lane : raw.lanes)
+        {
+            auto& warnings = packages.getReference (packageIndex (raw.package.id)).warnings;
+            const int ci = categoryIndex (lane.category);
+            if (ci < 0) { warnings.add ("The lane " + lane.key() + " draws " + lane.category + ", which no loaded package has; left out."); continue; }
+            if (categories.getReference (ci).kind != Kind::choice) { warnings.add ("The lane " + lane.key() + " needs a choice to draw; left out."); continue; }
+            if (lane.second.isNotEmpty() && categoryIndex (lane.second) < 0) lane.second = {};
+            if (lane.weightCategory.isNotEmpty() && categoryIndex (lane.weightCategory) < 0) lane.weightCategory = {};
+            lanes.add (lane);
+        }
+}
+
+const juce::Array<Framework::Implication>& Framework::implicationsFor (const Category& c) const
+{
+    static const juce::Array<Implication> none;
+    return juce::isPositiveAndBelow (c.index, implications.size()) ? implications.getReference (c.index) : none;
+}
+
+const Framework::Lane* Framework::findLane (const juce::String& key) const
+{
+    for (auto& l : lanes) if (l.key() == key) return &l;
+    return nullptr;
 }
 
 const Framework::Package* Framework::findPackage (const juce::String& id) const
@@ -644,6 +743,11 @@ Framework::Mark Framework::markFromName (const juce::String& s, Mark fallback)
 juce::Array<Framework::Mark> Framework::marksFor (const Category& c)
 {
     juce::Array<Mark> out { Mark::none };
+    if (c.foldersOnly)
+    {
+        out.add (Mark::label);                  // on the folder's lane
+        return out;
+    }
     if (c.between)
     {
         out.addArray ({ Mark::seam, Mark::badge, Mark::label });

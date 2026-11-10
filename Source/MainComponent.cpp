@@ -72,6 +72,13 @@ MainComponent::MainComponent()
     inspector.getRulerPanel().getPlayhead = [this] { return engine.getPositionSeconds(); };
     inspector.getRulerPanel().setProperties (properties.getUserSettings());
     inspector.getRulerPanel().onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
+    inspector.getRulerPanel().setFramework (&framework);
+    inspector.getRulerPanel().onAddLane = [this] (int laneIndex) { return timeline.addLane (laneIndex); };
+    timeline.onHighlightChanged = [this]
+    {
+        const auto& h = timeline.getHighlight();
+        transport.setStatus (h.isActive() ? "Highlighting " + h.describe (framework) + " (click the lane again, or View > Highlight > Show all, to clear)" : juce::String());
+    };
     inspector.getDisplayPanel().setProperties (properties.getUserSettings());
     inspector.getDisplayPanel().setView = [this] (const juce::Identifier& id, const juce::String& v) { setViewSetting (id, v); };
     inspector.getPackagesPanel().onAction = [this] (const juce::String& a, const juce::String& id) { packagesAction (a, id); };
@@ -903,7 +910,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             juce::PopupMenu colours;
             colours.addItem (6000, "Track colours", hasProject(), mode == "own");
             for (auto& c : framework.getCategories())
-                if ((c.kind == Framework::Kind::choice || c.kind == Framework::Kind::tags) && framework.hasColours (c) && c.index < 98)
+                if ((c.kind == Framework::Kind::choice || c.kind == Framework::Kind::tags) && framework.hasColours (c) && c.index < 98 && ! c.foldersOnly)
                 {
                     bool ownColours = false;
                     for (auto& v : framework.valuesOf (c)) ownColours = ownColours || v.colours.colour != 0;
@@ -919,7 +926,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             hl.addItem (6100, "Show all (clear)", h.isActive());
             for (auto& c : framework.getCategories())
             {
-                if (c.valuesFrom.isNotEmpty() || (c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags)) continue;
+                if (c.valuesFrom.isNotEmpty() || c.foldersOnly || (c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags)) continue;
                 const auto& values = framework.valuesOf (c);
                 const auto& groups = framework.groupsOf (c);
                 if (values.isEmpty() || values.size() > 249 || groups.size() > 248) continue;
@@ -967,7 +974,17 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             break;
         }
         case 3: add ({ cmdPlayStop, cmdToStart }); break;
-        case 4: add ({ cmdAddTrack }); break;
+        case 4:
+        {
+            add ({ cmdAddTrack });
+            // One folder per value (stage 4d: the semiotic track template): ids 6300+
+            juce::PopupMenu from;
+            for (auto& c : framework.getCategories())
+                if (c.folders && ! c.foldersOnly && c.kind == Framework::Kind::choice && c.index < 90 && ! framework.valuesOf (c).isEmpty())
+                    from.addItem (6300 + c.index, framework.text (c.name), hasProject());
+            m.addSubMenu ("Folders from", from, hasProject() && from.getNumItems() > 0);
+            break;
+        }
         case 5:
         {
             // Framework packages (stage 4b): ids 6200+
@@ -1029,6 +1046,15 @@ void MainComponent::menuItemSelected (int id, int)
         }
         const auto& h = timeline.getHighlight();
         transport.setStatus (h.isActive() ? "Highlighting " + h.describe (framework) + " (View > Highlight > Show all to clear)" : juce::String());
+        return;
+    }
+    if (id >= 6300 && id < 6390 && juce::isPositiveAndBelow (id - 6300, framework.getCategories().size()))
+    {
+        const auto& c = framework.getCategories().getReference (id - 6300);
+        project.getUndoManager().beginNewTransaction ("Folders from " + framework.text (c.name));
+        const auto made = project.addFoldersFor (c);
+        transport.setStatus (juce::String (made.size()) + " folders added, one per " + framework.text (c.name).toLowerCase()
+                             + ": boxes on their tracks take the folder's value unless they have their own.");
         return;
     }
     if (id == 6200) { showPackages(); return; }

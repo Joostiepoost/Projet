@@ -27,6 +27,7 @@
 #include "../Source/Model/Proportion.h"
 #include "../Source/Model/Framework.h"
 #include "../Source/Model/Glyphs.h"
+#include "../Source/Model/Lanes.h"
 
 #include <random>
 #include <thread>
@@ -756,7 +757,7 @@ void testFramework()
            && packages[3].id == "vandegorne" && packages[4].id == "rk1",
            "5 packages in order: composition, schaeffer, thoresen, vandegorne, rk1");
     for (auto& p : packages) check (p.warnings.isEmpty(), p.id + " loads without warnings " + p.warnings.joinIntoString ("; "));
-    check (fw.getCategories().size() == 11, "11 categories, got " + juce::String (fw.getCategories().size()));
+    check (fw.getCategories().size() == 14, "14 categories, got " + juce::String (fw.getCategories().size()));
     auto* energy = fw.findCategory ("composition.energy");
     auto* energy2 = fw.findCategory ("composition.energy2");
     auto* level = fw.findCategory ("composition.level");
@@ -818,7 +819,7 @@ void testFramework()
 
     // == Packages that are broken or odd
     check (! fw.addPackage ("{ not json", "broken", error) && error.isNotEmpty(), "a broken package is refused");
-    check (fw.getPackages().size() == 5 && fw.getCategories().size() == 11, "and nothing changes");
+    check (fw.getPackages().size() == 5 && fw.getCategories().size() == 14, "and nothing changes");
     check (! fw.addPackage ("[ 1, 2 ]", "list", error), "a file that holds no package is refused");
     check (fw.addPackage (R"({ "categories": [ { "name": "no id" }, { "id": "a", "kind": "colour" },
                                               { "id": "b", "kind": "tags", "along": true }, { "id": "b" },
@@ -827,7 +828,7 @@ void testFramework()
     check (odd != nullptr && odd->categories.size() == 2 && odd->warnings.size() == 5,
            "its id from the folder; bad categories left out, with warnings: " + (odd != nullptr ? odd->warnings.joinIntoString (" | ") : juce::String()));
     fw.removePackage ("oddone");
-    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 11, "removed");
+    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 14, "removed");
 
     // == A new framework needs only a folder: the example package
     const juce::File example (juce::String (PROJET_SOURCE_DIR) + "/Examples/Frameworks/example");
@@ -846,7 +847,7 @@ void testFramework()
     check (motion->kind == Framework::Kind::choice && motion->control == "buttons" && motion->along && motion->folders
            && materials->kind == Framework::Kind::tags && density->kind == Framework::Kind::number && source->kind == Framework::Kind::text,
            "kinds and settings");
-    check (fw.getCategories().size() == 15 && fw.getCategories()[11].key() == "example.motion", "after the builtins (order 60)");
+    check (fw.getCategories().size() == 18 && fw.getCategories()[14].key() == "example.motion", "after the builtins (order 60)");
     check (fw.valuesOf (*energy).size() == 11 && fw.findValue (*energy, "example-pulsation") != nullptr
            && fw.findValue (*energy, "example-pulsation")->from == "example" && fw.valuesOf (*energy2).size() == 11,
            "it adds an energy, which the second energy shares");
@@ -985,7 +986,7 @@ void testFramework()
     auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetFrameworks").getNonexistentSibling();
     const auto lib = tmp.getChildFile ("Library");
     for (auto& b : Framework::builtins()) check (Framework::writeBuiltin (lib, b.id).wasOk(), "writes " + b.id);
-    check (Framework::packageFolders (lib).size() == 5 && Framework::folderVersion (lib.getChildFile ("composition")) == 4
+    check (Framework::packageFolders (lib).size() == 5 && Framework::folderVersion (lib.getChildFile ("composition")) == 5
            && lib.getChildFile ("schaeffer").getChildFile ("help.md").existsAsFile(), "the library: 5 packages with their help");
     check (lib.getChildFile ("composition").getChildFile ("glyphs.js").existsAsFile()
            && ! lib.getChildFile ("schaeffer").getChildFile ("glyphs.js").exists(),
@@ -1246,6 +1247,182 @@ void testJunctions()
     line();
 }
 
+void testOverview()
+{
+    line ("## 14. Folder fields and overview lanes (stage 4d.1)");
+    line();
+    auto fw = Framework::builtIn();
+    for (auto& pk : fw.getPackages()) check (pk.warnings.isEmpty(), pk.id + " loads cleanly " + pk.warnings.joinIntoString ("; "));
+    auto* writing = fw.findCategory ("vandegorne.writing");
+    auto* felt = fw.findCategory ("vandegorne.timefelt");
+    auto* movement = fw.findCategory ("vandegorne.timemove");
+    auto* mixing = fw.findCategory ("vandegorne.mixing");
+    auto* level = fw.findCategory ("composition.level");
+    auto* role = fw.findCategory ("composition.role");
+    auto* energy = fw.findCategory ("composition.energy");
+    auto* energy2 = fw.findCategory ("composition.energy2");
+    check (writing != nullptr && felt != nullptr && movement != nullptr && mixing != nullptr, "writing type and time-feel load");
+    if (writing == nullptr || felt == nullptr || movement == nullptr || mixing == nullptr) return;
+
+    // == As data
+    check (writing->foldersOnly && writing->folders && felt->foldersOnly && movement->foldersOnly
+           && fw.valuesOf (*writing).size() == 7 && fw.valuesOf (*felt).size() == 3 && fw.valuesOf (*movement).size() == 5,
+           "on folders only: seven writing types, three times felt, five movements");
+    check (Framework::marksFor (*writing) == juce::Array<Framework::Mark> { Framework::Mark::none, Framework::Mark::label } && writing->mark == Framework::Mark::label,
+           "shown as a label (on the folder's lane) or not at all");
+    const auto& imps = fw.implicationsFor (*mixing);
+    juce::StringArray implied;
+    for (auto& i : imps) implied.add (i.value + ">" + i.implied);
+    check (imps.size() == 3 && implied.contains ("weaving>fusion") && implied.contains ("complex>complementarity") && implied.contains ("rhythms>complementarity"),
+           "only where she names one: weaving gives fusion, complex drawing and rhythms complementarity (" + implied.joinIntoString (", ") + ")");
+    {
+        Framework odd = Framework::builtIn();
+        juce::String error;
+        check (odd.addPackage (R"({ "id": "odd", "order": 70, "categories": [
+                 { "id": "w", "kind": "choice", "folders": "only", "values": [ { "id": "x", "implies": { "category": "vandegorne.mixing", "value": "nonsense" } } ] },
+                 { "id": "b", "kind": "choice", "values": [ { "id": "y", "implies": { "category": "vandegorne.mixing", "value": "fusion" } } ] } ],
+               "lanes": [ { "id": "l1", "kind": "rows", "category": "nothing" }, { "id": "l2", "kind": "pie", "category": "w" } ] })", "odd", error),
+               "a package with odd implications and lanes loads");
+        auto* pk = odd.findPackage ("odd");
+        check (pk != nullptr && pk->warnings.size() == 4 && odd.implicationsFor (*odd.findCategory ("vandegorne.mixing")).size() == 3,
+               "an unknown value, an implication from a box category, an unknown category and kind: warned and left out ("
+               + (pk != nullptr ? pk->warnings.joinIntoString (" / ") : juce::String()) + ")");
+    }
+
+    Project p;
+    p.resetToDefault ("overview");
+    p.setFramework (&fw);
+    auto first = p.getTrack (0);
+
+    // == The semiotic track template: one folder per level
+    p.getUndoManager().beginNewTransaction ("Folders");
+    const int before = p.getTracks().getNumChildren();
+    const auto made = p.addFoldersFor (*level);
+    juce::StringArray names, values;
+    for (auto f : made) { names.add (f[IDs::name].toString()); values.add (f[level->property()].toString()); }
+    check (made.size() == 4 && values.joinIntoString (",") == "ison,dison,metonymic,meson" && p.getTracks().getNumChildren() == before + 8,
+           "Folders from > Semiotic level: four folders in order, each with a track (" + names.joinIntoString (", ") + ")");
+    auto isonTrack = p.getTracks().getChild (before + 1);
+    check (! Project::isFolder (isonTrack) && p.folderOf (isonTrack) == made[0], "the track sits in its folder");
+    auto onIson = p.addTextBox (isonTrack, 0.0, 4.0, "on I-son");
+    check (p.frameworkValue (onIson, *level).value == "ison" && p.frameworkValue (onIson, *level).fromFolder(), "its boxes take the folder's level");
+    check (p.addFoldersFor (*writing).isEmpty() && p.addFoldersFor (*energy).isEmpty(), "not for folder-only categories, nor for ones folders cannot give");
+    p.getUndoManager().undo();
+    check (p.getTracks().getNumChildren() == before, "one undo removes them");
+
+    // == Writing types give their overlaps a mixing relation
+    p.getUndoManager().beginNewTransaction ("Folder");
+    auto folder = p.addFolder ("Section", -1);
+    auto inside = p.addTrack ("voices", -1, folder[IDs::id].toString());
+    auto a = p.addTextBox (inside, 0.0, 10.0, "a");
+    auto b = p.addTextBox (inside, 9.0, 6.0, "b");          // hinged
+    auto c = p.addTextBox (inside, 20.0, 5.0, "c");         // separate
+    p.setFrameworkValue (folder, *writing, "weaving");
+    auto mix = [&] (const juce::ValueTree& box) { return p.frameworkValue (box, *mixing); };
+    check (mix (b).value == "fusion" && mix (b).isImplied() && mix (b).isDerived() && mix (b).source == "vandegorne.writing",
+           "weaving: the hinged overlap takes fusion, from the folder's writing type");
+    check (mix (c).value.isEmpty() && mix (a).value.isEmpty(), "not where there is no overlap");
+    p.setFrameworkValue (b, *mixing, "rejection");
+    check (mix (b).value == "rejection" && mix (b).isOwn() && p.frameworkValue (b, *mixing, true).value == "fusion",
+           "a chosen relation wins; without it, the folder's");
+    p.setFrameworkValue (b, *mixing, {});
+    p.setFrameworkValue (folder, *writing, "stainedglass");
+    check (mix (b).value.isEmpty(), "stained glass implies none");
+    p.setFrameworkValue (folder, *writing, "complex");
+    check (mix (b).value == "complementarity", "complex drawing: complementarity");
+    auto inner = p.addFolder ("Inner", -1, folder[IDs::id].toString());
+    p.moveTrack (inside, p.getTracks().getNumChildren(), inner[IDs::id].toString());
+    p.setFrameworkValue (inner, *writing, "weaving");
+    check (mix (b).value == "fusion", "the nearest folder with a writing type decides");
+    b.setProperty (writing->property(), "rhythms", nullptr);
+    check (p.frameworkValue (b, *writing).value.isEmpty(), "boxes never have a folder-only value");
+    p.setFrameworkValue (folder, *felt, "suspended");
+    check (folder[felt->property()].toString() == "suspended" && p.frameworkValue (a, *felt).value.isEmpty(), "time felt sits on the folder only");
+
+    // == Lanes
+    auto* energies = fw.findLane ("composition.energies");
+    auto* semiotic = fw.findLane ("composition.semiotic");
+    auto* typology = fw.findLane ("schaeffer.typology");
+    check (fw.getLanes().size() == 3 && energies != nullptr && semiotic != nullptr && typology != nullptr, "three lanes: energies, semiotic profile, typology");
+    if (energies == nullptr || semiotic == nullptr || typology == nullptr) return;
+    check (energies->kind == Framework::Lane::Kind::rows && energies->second == "composition.energy2" && energies->byGroups
+           && semiotic->kind == Framework::Lane::Kind::scale && semiotic->weightCategory == "composition.role"
+           && semiotic->weightFor ("F") == 3.0 && semiotic->weightFor ("B") == 1.0 && semiotic->weightFor ("x") == 2.0,
+           "as declared: rows by family with a second energy; a scale weighted by role (F 3, M 2, B 1)");
+
+    Project q;
+    q.resetToDefault ("lanes");
+    q.setFramework (&fw);
+    auto t1 = q.getTrack (0);
+    auto t2 = q.addTrack ("two");
+    auto t3 = q.addTrack ("muted");
+    auto x = q.addTextBox (t1, 0.0, 10.0, "x");
+    auto y = q.addTextBox (t2, 5.0, 10.0, "y");
+    auto z = q.addTextBox (t3, 0.0, 20.0, "z");
+    t3.setProperty (IDs::mute, true, nullptr);
+    q.setFrameworkValue (x, *energy, "frottement-granulation");             // two families
+    q.setFrameworkValue (y, *energy, "rotation");
+    q.setFrameworkValue (y, *energy2, "frottement-granulation");
+    q.setFrameworkValue (z, *energy, "rotation");
+    const auto famRows = Lanes::rows (q, fw, *energies);
+    auto rowFor = [&] (const juce::String& id) -> const Lanes::Row* { for (auto& r : famRows) if (r.id == id) return &r; return nullptr; };
+    const auto* fx = fw.findValue (*energy, "frottement-granulation");
+    const auto* fr = fw.findValue (*energy, "rotation");
+    check (famRows.size() == 5 && fx != nullptr && fr != nullptr && fx->groups.size() == 2, "five rows, one per family; frottement in two");
+    if (famRows.size() != 5 || fx == nullptr || fr == nullptr) return;
+    const auto* r1 = rowFor (fx->groups[0]);
+    const auto* r2 = rowFor (fx->groups[1]);
+    const auto* rr = rowFor (fr->groups[0]);
+    check (r1 != nullptr && r2 != nullptr && r1->main.size() == 1 && r2->main.size() == 1 && r1->main[0].start == 0.0 && r1->main[0].end == 10.0,
+           "a box counts in both its families");
+    check (r1 != nullptr && r1->second.size() == 1 && r1->second[0].start == 5.0 && r1->second[0].end == 15.0, "a second energy, apart");
+    check (rr != nullptr && rr->main.size() == 1 && rr->main[0].start == 5.0 && rr->main[0].end == 15.0 && ! rr->boxIds.contains (z[IDs::id].toString()),
+           "a muted track is left out");
+    q.setFrameworkValue (x, *energy, "rotation");
+    const auto famRows2 = Lanes::rows (q, fw, *energies);
+    const Lanes::Row* rr2 = nullptr;
+    for (auto& r : famRows2) if (r.id == fr->groups[0]) rr2 = &r;
+    check (rr2 != nullptr && rr2->main.size() == 3 && rr2->main[0].count == 1 && rr2->main[1].count == 2 && rr2->main[1].start == 5.0
+           && rr2->main[1].end == 10.0 && rr2->main[2].count == 1, "two boxes at once: counted (1, 2, 1)");
+    auto x2 = q.addTextBox (t1, 10.0, 5.0, "x2");
+    q.setFrameworkValue (x2, *energy, "rotation");
+    const auto famRows3 = Lanes::rows (q, fw, *energies);
+    for (auto& r : famRows3)
+        if (r.id == fr->groups[0])
+            check (r.main.size() == 2 && r.main[1].start == 5.0 && r.main[1].end == 15.0 && r.main[1].count == 2, "touching boxes leave no gap (one ends as the next begins: still 2)");
+    check (Lanes::rows (q, fw, *typology).size() == 3, "typology: three rows (balanced, redundant, eccentric)");
+
+    // The semiotic profile
+    q.setFrameworkValue (x, *level, "ison");
+    q.setFrameworkValue (x, *role, "F");
+    q.setFrameworkValue (y, *level, "meson");
+    q.setFrameworkValue (y, *role, "B");
+    const auto sc = Lanes::scale (q, fw, *semiotic);
+    check (sc.ids.joinIntoString (",") == "ison,dison,metonymic,meson", "the scale in its order");
+    bool both = false, alone = false;
+    for (auto& sg : sc.segments)
+    {
+        if (sg.start == 5.0 && sg.end == 10.0) both = sg.low == 0.0 && sg.high == 3.0 && std::abs (sg.mean - 0.75) < 1.0e-9;
+        if (sg.start == 0.0 && sg.end == 5.0) alone = sg.low == 0.0 && sg.high == 0.0 && sg.mean == 0.0;
+    }
+    check (both && alone, "the range present, and the average weighted by role: (3 x 0 + 1 x 3) / 4 = 0.75");
+    q.setChangesAlong (x, *level, { { 0.5, "metonymic", 0.0 } });
+    const auto pieces = Lanes::piecesOf (q, x, *level);
+    check (pieces.size() == 2 && pieces[0].value == "ison" && pieces[1].value == "metonymic" && pieces[1].start == 5.0, "changes along a box count");
+
+    // == Lane layers
+    const int layers = q.getRulers().getNumChildren();
+    auto lane = q.addLaneLayer ("composition.energies", "Energies", 54);
+    check (Project::isLaneLayer (lane) && ! Project::isProportionLayer (lane) && q.getRulers().getNumChildren() == layers + 1
+           && lane[IDs::lane].toString() == "composition.energies", "a lane is a kind of ruler layer");
+    q.setActiveLayer (lane);
+    check (Project::isProportionLayer (q.getActiveLayer()), "never the active proportion layer");
+    const int changes = q.getChangeCount();
+    q.moveBox (x, t1, 1.0);
+    check (q.getChangeCount() > changes, "a change counter for caches");
+}
+
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -1257,7 +1434,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -1287,6 +1464,7 @@ int main (int argc, char** argv)
     std::cout << "Framework packages..." << std::endl; testFramework();
     std::cout << "Energy glyphs..." << std::endl;      testGlyphs();
     std::cout << "Junctions..." << std::endl;          testJunctions();
+    std::cout << "Overview..." << std::endl;           testOverview();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

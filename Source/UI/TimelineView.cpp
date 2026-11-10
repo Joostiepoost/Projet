@@ -135,7 +135,7 @@ double TimelineView::snap (double t, const juce::ValueTree& exclude, bool enable
     // divisions shown at this zoom, and its series.
     for (auto& row : rulerRows())
     {
-        if (row.time || ! (bool) row.layer.getProperty (IDs::snap, true)) continue;
+        if (row.time || row.lane || ! (bool) row.layer.getProperty (IDs::snap, true)) continue;
         const auto f = project.frameFor (project.layerFrame (row.layer));
         if (! f.isValid()) continue;
         consider (f.start);
@@ -408,6 +408,24 @@ void TimelineView::paint (juce::Graphics& g)
                     g.fillRoundedRectangle (x0, (float) r.y + (float) r.h * 0.5f - 3.0f, juce::jmax (2.0f, x1 - x0), 6.0f, 2.0f);
                 }
             }
+
+            // Values set on the folder only (writing type, time-feel: 4d), at the left of its lane.
+            juce::StringArray labels;
+            for (auto& c : framework.getCategories())
+                if (c.foldersOnly && markFor (c) == Framework::Mark::label && r.track[c.property()].toString().isNotEmpty())
+                    labels.add (framework.valueName (c, r.track[c.property()].toString()));
+            if (! labels.isEmpty())
+            {
+                const auto text = labels.joinIntoString (juce::String::fromUTF8 (" \xc2\xb7 "));
+                const auto font = Theme::font (11.0f);
+                const int w = juce::GlyphArrangement::getStringWidthInt (font, text) + 12;
+                const auto pill = juce::Rectangle<float> ((float) headerWidth + 6.0f, (float) r.y + (float) r.h * 0.5f - 8.0f, (float) w, 16.0f);
+                g.setColour (Theme::background.withAlpha (0.88f));
+                g.fillRoundedRectangle (pill, 8.0f);
+                g.setColour (Theme::textMuted.brighter (0.2f));
+                g.setFont (font);
+                g.drawText (text, pill, juce::Justification::centred, true);
+            }
         }
 
         // Boxes
@@ -421,7 +439,7 @@ void TimelineView::paint (juce::Graphics& g)
                 // The ruler's frame: a dashed outline. A box with proportions: a corner mark
                 // (filled while it follows its frame).
                 bool isFrame = false;
-                for (auto& lr : rulerRows()) if (! lr.time && project.layerFrame (lr.layer) == box[IDs::id].toString()) isFrame = true;
+                for (auto& lr : rulerRows()) if (! lr.time && ! lr.lane && project.layerFrame (lr.layer) == box[IDs::id].toString()) isFrame = true;
                 if (isFrame)
                 {
                     juce::Path outline, dashed;
@@ -605,7 +623,7 @@ void TimelineView::paintTrackHeader (juce::Graphics& g, const TrackRow& r, int i
         juce::StringArray pillTexts;
         juce::Array<juce::uint32> pillColours;
         for (auto& c : framework.getCategories())
-            if (c.folders && track[c.property()].toString().isNotEmpty())
+            if (c.folders && ! c.foldersOnly && track[c.property()].toString().isNotEmpty())
             {
                 const auto id = track[c.property()].toString();
                 pillTexts.add (c.kind == Framework::Kind::number ? framework.formatNumber (c, id.getDoubleValue()) : framework.valueLabel (c, id));
@@ -1038,6 +1056,16 @@ juce::String TimelineView::getTooltip()
     return {};
 }
 
+juce::String TimelineView::describeSource (const Project::FrameworkValue& v) const
+{
+    if (v.fromTiming()) return "from the timing";
+    if (v.isImplied())
+        if (auto* c = framework.findCategory (v.source))
+            return "from the folder's " + framework.text (c->name).toLowerCase();
+    if (v.fromFolder()) return "from the folder";
+    return {};
+}
+
 juce::Path TimelineView::fadeGaps (float endX, float endY, float length)
 {
     // The line before an end bracket turning to dashes: shorter dashes and
@@ -1067,9 +1095,10 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
     juce::StringArray combined;                     // boxes whose ending went into a seam sign
 
     auto draw = [&] (const juce::Path& path, juce::Point<float> anchor, float anchorX, bool solid, float alpha,
-                     const juce::String& boxId, const juce::String& tip, bool seam, const juce::Path& cut)
+                     const juce::String& boxId, const juce::String& tip, bool seam, const juce::Path& cut, const juce::Path& faint)
     {
-        const auto b = path.getBounds();
+        auto b = path.getBounds();
+        if (! faint.isEmpty()) b = b.getUnion (faint.getBounds());
         const auto xform = juce::AffineTransform::translation (-anchorX, -b.getCentreY()).scaled (scale).translated (anchor);
         const auto drawn = b.transformedBy (xform);
         const auto area = juce::Rectangle<float> (drawn.getX() - 4.0f, anchor.y - 7.0f, drawn.getWidth() + 8.0f, 14.0f);
@@ -1101,6 +1130,11 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
         }
         g.setColour (Theme::signs.withAlpha ((solid ? 1.0f : 0.75f) * alpha));
         g.strokePath (path, juce::PathStrokeType (1.25f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), xform);
+        if (! faint.isEmpty())                      // worked out, not chosen (a writing type's mixing relation)
+        {
+            g.setColour (Theme::signs.withAlpha (0.45f * alpha));
+            g.strokePath (faint, juce::PathStrokeType (1.25f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), xform);
+        }
         signHits.push_back ({ area, boxId, tip, seam });
     };
 
@@ -1113,7 +1147,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
         const auto join = project.joinBefore (box);
         if (join.isValid() && ! seamCats.isEmpty())
         {
-            juce::Path main, all, cut;
+            juce::Path main, all, cut, faint;
             juce::StringArray tips;
             bool own = false;
             const Framework::Value* first = nullptr;
@@ -1125,6 +1159,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
                 auto* val = framework.findValue (*c, v.value);
                 auto tip = framework.valueName (*c, v.value);
                 if (first == nullptr) tip << (v.isOwn() ? " (chosen; " : " (from the timing; ") << describeGap (join.gap) << ")";
+                else if (v.isImplied()) tip << " (" << describeSource (v) << ")";
                 tips.add (juce::String (framework.text (c->name)) + ": " + tip);
                 if (val == nullptr || val->sign.isEmpty()) continue;
                 auto path = signPath (val->sign);
@@ -1139,7 +1174,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
                 {
                     const auto pb = path.getBounds();
                     path.applyTransform (juce::AffineTransform::translation (nextX - pb.getX(), 0.0f));
-                    all.addPath (path);
+                    (v.isDerived() ? faint : all).addPath (path);
                     nextX += pb.getWidth() + 5.0f;
                 }
             }
@@ -1173,7 +1208,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
                 const double tEnd = juce::jmin (Project::boxEnd (join.before), Project::boxEnd (box));
                 const float x = timeToX ((Project::boxStart (box) + tEnd) / 2.0);
                 all.addPath (main);
-                draw (all, { x, centreY }, main.getBounds().getCentreX(), own, alpha, box[IDs::id].toString(), tips.joinIntoString ("\n"), true, cut);
+                draw (all, { x, centreY }, main.getBounds().getCentreX(), own, alpha, box[IDs::id].toString(), tips.joinIntoString ("\n"), true, cut, faint);
             }
         }
 
@@ -1195,7 +1230,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
             const auto& path = signPath (val->sign);
             const float x = timeToX (Project::boxEnd (box)) + 2.0f;
             draw (path, { x, centreY + (float) k * 15.0f }, path.getBounds().getRight(), true, alpha, box[IDs::id].toString(),
-                  framework.text (c->name) + ": " + framework.valueName (*c, v.value), false, {});
+                  framework.text (c->name) + ": " + framework.valueName (*c, v.value), false, {}, {});
         }
     }
 }
@@ -1429,7 +1464,7 @@ void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce
     // Ids: boxMenuBase + category index * menuStride + 1 + value index (+0 = none).
     for (auto& c : framework.getCategories())
     {
-        if (c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) continue;
+        if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || c.foldersOnly) continue;
         if (only && ! only (c)) continue;
         const auto& values = framework.valuesOf (c);
         if (values.isEmpty() || values.size() >= menuStride - 1) continue;
@@ -1460,13 +1495,14 @@ void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce
         {
             auto none = c.defaultValue.isNotEmpty() ? "None (the default, " + framework.valueLabel (c, c.defaultValue) + ")"
                       : c.folders ? juce::String ("None (or the folder's)") : juce::String ("None");
-            if (c.between)
+            if (c.between || ! framework.implicationsFor (c).isEmpty())
             {
-                none = "From the timing";
+                // Back to what is worked out: the timing, or the folder's other value (a writing type).
+                none = ! c.derive.isEmpty() ? "From the timing" : ! framework.implicationsFor (c).isEmpty() ? "From the folder" : "None";
                 if (boxes.size() == 1)
                 {
-                    const auto derived = Project::derivedValue (c, project.joinBefore (boxes.getFirst()));
-                    if (derived.isNotEmpty()) none << " (" << framework.valueName (c, derived) << ")";
+                    const auto derived = project.frameworkValue (boxes.getFirst(), c, true);
+                    if (derived.value.isNotEmpty()) none << " (" << framework.valueName (c, derived.value) << ")";
                 }
             }
             sub.addItem (base, none, true, ! mixed && common.isEmpty());
@@ -2019,7 +2055,7 @@ void TimelineView::showTrackMenu (juce::ValueTree track)
             sub.addItem (base, "None", true, current.isEmpty());
             for (int i = 0; i < values.size(); ++i)
                 sub.addItem (base + 1 + i, framework.valueName (c, values[i].id), true, current == values[i].id);
-            m.addSubMenu (framework.text (c.name) + " for its boxes", sub);
+            m.addSubMenu (framework.text (c.name) + (c.foldersOnly ? juce::String() : juce::String (" for its boxes")), sub);
         }
         m.addSeparator();
         m.addItem (4, "Delete folder and its tracks", project.laneTracks().size() > 1 || project.blockEnd (track) - project.getTracks().indexOf (track) <= 1);

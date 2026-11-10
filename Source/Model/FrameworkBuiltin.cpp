@@ -35,7 +35,7 @@ const juce::Array<Framework::Builtin>& Framework::builtins()
 R"PKG({
   "projet": "framework package",
   "id": "composition",
-  "version": 4,
+  "version": 5,
   "order": 10,
   "name": {"fr": "Cadre de composition", "en": "Composition framework"},
   "about": {
@@ -441,6 +441,31 @@ R"PKG({
         {"id": "soft", "name": {"fr": "doux", "en": "soft"}, "curve": "soft"}
       ]
     }
+  ],
+  "lanes": [
+    {
+      "id": "energies",
+      "name": {"fr": "Énergies", "en": "Energies"},
+      "about": {
+        "fr": "une rangée par famille : où les boîtes ont une énergie de cette famille (la seconde énergie plus claire)",
+        "en": "one row per family: where boxes have an energy of that family (the second energy lighter)"
+      },
+      "kind": "rows",
+      "category": "energy",
+      "second": "energy2",
+      "rows": "groups"
+    },
+    {
+      "id": "semiotic",
+      "name": {"fr": "Profil sémiotique", "en": "Semiotic profile"},
+      "about": {
+        "fr": "du niveau le plus concret au plus abstrait présent à chaque instant, et leur moyenne pondérée par le rôle (F 3, M 2, B 1)",
+        "en": "from the most concrete to the most abstract level present at each moment, and their average weighted by role (F 3, M 2, B 1)"
+      },
+      "kind": "scale",
+      "category": "level",
+      "weightBy": {"category": "role", "weights": {"F": 3, "M": 2, "B": 1}, "default": 2}
+    }
   ]
 }
 )PKG",
@@ -454,6 +479,8 @@ R"HELP(# Composition framework
 
 **Dynamic profile.** The box's intensity envelope, with Schaeffer's names (*Traité*, 31.4) and Vande Gorne's where she has one: flat, resonance (attack-resonance), crescendo (reversed sound), decrescendo, delta, hollow (reversed delta), mordent. The energy glyph is drawn inside the profile, so a bounce can live in a delta. A delta or a hollow profile also has a **peak position** (in % of the box: an asymmetric delta) and a **hard or soft peak**.
 
+**Lanes.** Two overview lanes, added in the ruler panel (*Add lane*): **Energies**, one row per family, with a bar wherever a box has an energy of that family (the second energy lighter, the bar thicker where more boxes sound at once); and the **Semiotic profile**, a band from the most concrete to the most abstract level present at each moment, with a line for their average weighted by role (F 3, M 2, B 1). Muted tracks are left out. The `lanes` list in `framework.json` declares them.
+
 **Glyphs.** The energies are drawn on the boxes by `glyphs.js`, this package's drawing script (JavaScript, sandboxed: no files or network). Edit it to change the shapes; each value's `glyph` field names the shape it uses.
 
 Edit `framework.json` to rename, translate or add values, then *Framework > Reload frameworks*.
@@ -464,7 +491,7 @@ Glyphs::builtinSource()),
 R"PKG({
   "projet": "framework package",
   "id": "schaeffer",
-  "version": 2,
+  "version": 3,
   "order": 20,
   "name": {"fr": "Schaeffer", "en": "Schaeffer"},
   "about": {
@@ -773,6 +800,19 @@ R"PKG({
         }
       ]
     }
+  ],
+  "lanes": [
+    {
+      "id": "typology",
+      "name": {"fr": "Typologie", "en": "Typology"},
+      "about": {
+        "fr": "une rangée par zone (équilibrés, redondants, excentriques) : le mélange des types d'objets au fil de la pièce",
+        "en": "one row per zone (balanced, redundant, eccentric): the mix of object kinds across the piece"
+      },
+      "kind": "rows",
+      "category": "type",
+      "rows": "groups"
+    }
   ]
 }
 )PKG",
@@ -780,7 +820,9 @@ R"HELP(# Schaeffer
 
 **Type.** The typology of the *Traité des objets musicaux* (summary table, fig. 34): the mass of the sound down (definite pitch, complex and fixed, slightly varying, unpredictable), its sustainment across (from unpredictable facture to unpredictable facture, through held, impulse and iterative). The balanced types sit in the middle, the redundant ones beside them, the eccentric ones at the edges.
 
-Later stages may add his dynamic profiles, the seven morphological criteria and his genres.
+**Typology lane.** One row each for balanced, redundant and eccentric types, so the mix of object kinds across the piece shows at a glance (in the ruler panel: *Add lane*).
+
+Later stages may add the seven morphological criteria and his genres.
 )HELP"),
 
         make ("rk1",
@@ -1057,7 +1099,7 @@ Lasse Thoresen's time-field conjunctions (*Emergent Musical Forms*, 6.3), betwee
 R"PKG({
   "projet": "framework package",
   "id": "vandegorne",
-  "version": 1,
+  "version": 2,
   "order": 40,
   "name": {"fr": "Vande Gorne : écriture", "en": "Vande Gorne: writing"},
   "about": {
@@ -1120,17 +1162,186 @@ R"PKG({
           "onlyWith": {"category": "thoresen.junction", "values": ["hinged"]}
         }
       ]
+    },
+    {
+      "id": "writing",
+      "name": {"fr": "Type d'écriture", "en": "Writing type"},
+      "about": {
+        "fr": "comment les voix du dossier se mêlent (Vande Gorne, ch. 3) ; certains impliquent une relation de mélange pour les chevauchements du dossier",
+        "en": "how the voices of the folder mix (Vande Gorne, chapter 3); some imply a mixing relation for the overlaps in the folder"
+      },
+      "kind": "choice",
+      "control": "menu",
+      "folders": "only",
+      "mark": "label",
+      "values": [
+        {
+          "id": "weaving",
+          "name": {"fr": "tissage, texture", "en": "weaving, texture"},
+          "about": {
+            "fr": "des éléments courts d'égale importance, en fusion ; un temps non linéaire, sans développement",
+            "en": "short elements of equal importance, fused; time without direction or development"
+          },
+          "implies": {"category": "vandegorne.mixing", "value": "fusion"}
+        },
+        {
+          "id": "stainedglass",
+          "name": {"fr": "vitrail, mosaïque", "en": "stained glass, mosaic"},
+          "about": {
+            "fr": "des états de polyphonie juxtaposés, comme des changements de couleur",
+            "en": "juxtaposed states of polyphony, like changes of colour"
+          }
+        },
+        {
+          "id": "complex",
+          "name": {"fr": "dessin complexe", "en": "complex drawing"},
+          "about": {
+            "fr": "des figures très formées, superposées et synchronisées en détail : mélange par complémentarité",
+            "en": "highly formed figures, superposed and synchronised in detail: mixing by complementarity"
+          },
+          "implies": {"category": "vandegorne.mixing", "value": "complementarity"}
+        },
+        {
+          "id": "lines",
+          "name": {"fr": "lignes-divergences et nœuds-convergences", "en": "diverging lines and converging nodes"},
+          "about": {
+            "fr": "des lignes parallèles qui divergent, puis convergent vers des nœuds : des changements brusques et synchrones",
+            "en": "parallel lines that diverge, then converge on nodes: sudden, synchronous changes"
+          }
+        },
+        {
+          "id": "rhythms",
+          "name": {"fr": "rythmes et vitesses", "en": "rhythms and speeds"},
+          "about": {
+            "fr": "des couches de rythmes répétés et différenciés, aux rencontres toujours renouvelées : mélange par complémentarité",
+            "en": "layers of repeated, differentiated rhythms whose meetings keep changing: mixing by complementarity"
+          },
+          "implies": {"category": "vandegorne.mixing", "value": "complementarity"}
+        },
+        {
+          "id": "melismas",
+          "name": {"fr": "mélismes sur ostinato", "en": "melismas on an ostinato"},
+          "about": {
+            "fr": "des séquences agiles et changeantes sur un fond qui se répète à grande échelle",
+            "en": "agile, changing sequences over a background that repeats on a large scale"
+          }
+        },
+        {
+          "id": "images",
+          "name": {"fr": "superposition polyphonique d'images", "en": "superposed images"},
+          "about": {
+            "fr": "une icône (un faux paysage) faite de plusieurs i-sons, développés dans le temps",
+            "en": "an icon (a false landscape) built from several I-sons, developed in time"
+          }
+        }
+      ]
+    },
+    {
+      "id": "timefelt",
+      "name": {"fr": "Temps ressenti", "en": "Time felt"},
+      "about": {
+        "fr": "comment le temps de la section est perçu (Vande Gorne, ch. 4)",
+        "en": "how the section's time is perceived (Vande Gorne, chapter 4)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "folders": "only",
+      "mark": "label",
+      "values": [
+        {
+          "id": "long",
+          "name": {"fr": "long", "en": "long"},
+          "about": {
+            "fr": "peu d'événements, des silences, de la répétition, des sons longs ou graves",
+            "en": "few events, silences, repetition, long or low sounds"
+          }
+        },
+        {
+          "id": "short",
+          "name": {"fr": "court", "en": "short"},
+          "about": {
+            "fr": "la stratégie inverse : des événements nombreux, variés, rapides",
+            "en": "the opposite: many varied, quick events"
+          }
+        },
+        {
+          "id": "suspended",
+          "name": {"fr": "suspendu", "en": "suspended"},
+          "about": {
+            "fr": "un temps gelé, hypnotique : lent, continu, sans agitation, ou fondé sur la répétition",
+            "en": "frozen, hypnotic time: slow, continuous, calm, or built on repetition"
+          }
+        }
+      ]
+    },
+    {
+      "id": "timemove",
+      "name": {"fr": "Mouvement du temps", "en": "Time movement"},
+      "about": {
+        "fr": "comment le temps évolue dans la section (Vande Gorne, ch. 4 : fixe, mobile, intermodulé)",
+        "en": "how time moves through the section (Vande Gorne, chapter 4: fixed, mobile, intermodulated)"
+      },
+      "kind": "choice",
+      "control": "menu",
+      "folders": "only",
+      "mark": "label",
+      "values": [
+        {
+          "id": "fixed",
+          "name": {"fr": "fixe", "en": "fixed"},
+          "about": {
+            "fr": "une seule perception du temps sur toute la section",
+            "en": "one perception of time through the whole section"
+          }
+        },
+        {
+          "id": "speeding",
+          "name": {"fr": "mobile : accélérant", "en": "mobile: speeding up"},
+          "about": {
+            "fr": "un profil temporel par accélération progressive",
+            "en": "a time profile of gradual speeding up"
+          }
+        },
+        {
+          "id": "slowing",
+          "name": {"fr": "mobile : ralentissant", "en": "mobile: slowing down"},
+          "about": {
+            "fr": "un profil temporel par ralentissement progressif",
+            "en": "a time profile of gradual slowing down"
+          }
+        },
+        {
+          "id": "contrasts",
+          "name": {"fr": "mobile : contrastes", "en": "mobile: contrasts"},
+          "about": {
+            "fr": "des contrastes temporels successifs et différenciés",
+            "en": "successive, differentiated contrasts of time"
+          }
+        },
+        {
+          "id": "intermodulated",
+          "name": {"fr": "intermodulé", "en": "intermodulated"},
+          "about": {
+            "fr": "une voie de commande module le temps : compression-expansion, vitesse, longueur de boucle",
+            "en": "a control channel modulates time: compression and expansion, speed, loop length"
+          }
+        }
+      ]
     }
   ]
 }
 )PKG",
 R"HELP(# Vande Gorne: writing
 
-Annette Vande Gorne's mixing relations (*Techniques d'écriture sur support*, chapter 3), on the overlaps between the boxes of a track.
+Annette Vande Gorne's mixing relations and writing types (*Techniques d'écriture sur support*, chapter 3) and her time-feel (chapter 4).
 
 **Mixing relation.** Offered when the junction with the box before is hinged, overlapping or superimposed: fusion (a new sound arises from both), complementarity (each keeps its identity), rejection (one masks the other, or unmasks it as it goes). On a hinged overlap used as a crossfade, also relay of energy (one sound launches the next, without fusion) and indirect metamorphosis (through a point of balance, the same energy). Its sign sits beside the junction sign.
 
-Between boxes on different tracks, mixing relations come with the relations of stage 8.
+**Writing type**, set on a folder (right-click its header): weaving or texture, stained glass or mosaic, complex drawing, diverging lines and converging nodes, rhythms and speeds, melismas on an ostinato, superposed images. Where she names the mixing relation a writing implies, the overlaps in the folder take it (weaving: fusion; complex drawing, rhythms and speeds: complementarity), drawn faint until you choose another; *From the folder* goes back. A value's `implies` field says which.
+
+**Time felt** (long, short, suspended) and **time movement** (fixed; mobile: speeding up, slowing down, contrasts; intermodulated), also on folders, the sections of a piece until containers come (stage 5).
+
+Folder values show on the folder's lane. Between boxes on different tracks, mixing relations come with the relations of stage 8.
 )HELP")
     };
     return list;
