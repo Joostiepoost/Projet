@@ -7,8 +7,12 @@
   "vorbisQuality": 7,
   "viewStart": 0.0,
   "pixelsPerSecond": 20.0,
-  "playhead": 0.0,
+  "playhead": 2.074609375,
   "activeLayer": "81cac3b3253744b181420ef3183983b0",
+  "fwLanguage": "en",
+  "frameLength": 20.672460937499999,
+  "spanStart": 2.074609375,
+  "spanEnd": 29.293554687499999,
   "children": [
     {
       "type": "SOUNDS"
@@ -23,7 +27,56 @@
           "colour": 0,
           "height": 72,
           "mute": false,
-          "solo": false
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "8647d5f9457e4c7d8f60fa6e336f965e",
+              "kind": "text",
+              "name": "Text",
+              "start": 7.400377090625,
+              "length": 5.92012060546875,
+              "opacity": 1.0,
+              "notes": "",
+              "propStart": "0.195664",
+              "propLength": "0.2175",
+              "propFrame": "span",
+              "propLock": true
+            },
+            {
+              "type": "BOX",
+              "id": "da978678499a49918e2949fd43acb4e8",
+              "kind": "text",
+              "name": "Text",
+              "start": 15.514045279882811,
+              "length": 10.755185174999999,
+              "opacity": 1.0,
+              "notes": "",
+              "fw.thoresen.ending": "cut",
+              "propStart": "0.493753",
+              "propLength": "0.395136",
+              "propFrame": "span",
+              "propLock": true
+            },
+            {
+              "type": "BOX",
+              "id": "a2438d464e584cafaa1349d14c16fea4",
+              "kind": "text",
+              "name": "Text",
+              "start": 2.686355170898437,
+              "length": 7.376905777539062,
+              "opacity": 1.0,
+              "notes": "",
+              "fw.composition.role": "F",
+              "fw.thoresen.ending": "vague",
+              "fw.composition.profile": "decrescendo",
+              "fw.composition.level": "ison",
+              "propStart": "0.022475",
+              "propLength": "0.271021",
+              "propFrame": "span",
+              "propLock": true
+            }
+          ]
         }
       ]
     },
@@ -46,7 +99,7 @@
           "height": 20,
           "visible": true,
           "snap": true,
-          "frame": "piece",
+          "frame": "span",
           "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
           "autoDivisions": true
         }
