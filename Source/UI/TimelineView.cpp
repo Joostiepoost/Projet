@@ -1911,6 +1911,7 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         case DragMode::itemStart:
         case DragMode::itemEnd:
         case DragMode::itemGoal:
+        case DragMode::itemGoalEnd:
         case DragMode::drawNode:
         case DragMode::nodeMove:
         case DragMode::nodeStart:

@@ -273,12 +273,12 @@ In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": 
 ### The dynamic form and nodes (stage 4d.2)
 
 **The dynamic form** (Thoresen, *Emergent Musical Forms*, chapter 8) has a lane of its own: a ruler layer's menu > *Add a lane below* > *Forme dynamique*. You draw in it by hand; once containers exist (stage 5) it will attach to them.
-- **Drag** in the lane to draw a span, then choose its **form-building function**: forward-oriented (a wedge opening towards what comes), presence-oriented (a bar), backward-oriented (a wedge closing), neutral (a thin line), or a **delta** (towards a goal and away from it, Vande Gorne's phrase: drag the small handle under it to move the goal).
-- Right-click a span for its function, its **emphasis** (faint, the secondary function: dashed; average, the primary: plain; emphasised: heavy) and, for a forward span or a delta, its **goal**: attained, blunted (the dimensions arrive at different times), suspended (the goal comes later), fully or partly evaded.
-- Overlapping spans **stack**, so a secondary function can run beside a primary one.
-- **Click** (without dragging) for an **accent**: a weighted point above the spans. Right-click it to add more functions (several combine): accent, goal point, separation, release, termination, affirmation, warning.
+- **Drag** in the lane to draw a span, then choose its **form-building function** (his figures 8.1, 8.2 and 8.5): forward-oriented (a ramp rising to a vertical end), presence-oriented (a box), backward-oriented (a vertical start, a ramp falling), neutral (a dashed box crossed by dashed diagonals), wavering (a box with a solid cross), a **delta** (a triangle on the baseline, its peak anywhere: drag the small handle under it) or a **delta with a plateau** (rise, hold, fall: two handles).
+- Right-click a span for its function; its **emphasis**, on the line carrying the tendency only (the slope, the top of a box): dashed when faint (the secondary function), plain when average, heavy when emphasised; its **height**, low or high (the energy level); and, for a forward span or a delta, its **goal** (figure 8.3), marked above the high corner: attained (o), blunted (a second, dashed slope arriving later, (o) at each arrival), suspended (a crossed square and an arrow; mark where the goal arrives with a circle or a goal point), fully evaded (a crossed square), partly evaded (in brackets).
+- Overlapping spans **stack**, the shorter above the longer ones that sum them up (as in his hierarchies).
+- **Click** (without dragging) for an **accent** (figure 8.4): the weighted point, a filled triangle. Right-click it to add functions, which combine: goal point (a circle round it), separation (a line through it), release (a line up turning into an arrow), termination (bars on each side), affirmation (a bar above), warning (a dot below).
 - Drag a span or an accent to move it, a span's edges to resize it; they snap like boxes (Shift: no snapping). Delete removes the selected one; undo works as everywhere.
-- The scans of his figures are hard to read, so the signs follow his text (wedges, a bar, dashed and heavy lines, a T for the weighted point, a circled point for a goal). They are package data: change them in `Frameworks/thoresen/framework.json`.
+- The signs follow his figures (checked against a scan of chapter 8). They are package data: change them in `Frameworks/thoresen/framework.json`. Not yet drawn: a secondary function inside the primary's sign (a dashed slope inside a box, as in his Messiaen analyses), and time-field brackets under the signs (with containers, stage 5).
 - What you draw is kept apart from the ruler layers, so applying a ruler preset never touches it.
 
 **Nodes** (Vande Gorne, chapter 3): a sudden, synchronous change of every voice of a section, a short resolution.
@@ -286,7 +286,7 @@ In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": 
 - **Select it** and the panel says how long it is against the stretch before it (since the previous node, or the folder's first box), and names the folder's tracks that do not change within it (a box starting or ending there, up to 50 ms outside). It is flagged (amber, with a !) when shorter than 2% of that stretch (it may go unheard), longer than 25% (it becomes a line), or when a voice does not change. Muted and empty tracks are left out.
 - The numbers are in `Frameworks/vandegorne/framework.json` (`nodes`: `short`, `long`, `window`). Deleting a folder deletes its nodes.
 
-In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ "kind": "drawn", "spans": "function", "emphasis": "emphasis", "goal": "goal", "goalOn": ["forward", "delta"], "points": "accent" }` names them. A span kind's `shape` is `forward`, `backward`, `presence`, `neutral` or `delta`; an emphasis' `stroke` is `dashed`, `solid` or `bold`; a goal's and an accent's `sign` is an SVG path in a 20 by 20 box (a goal's from the goal at x 0, an accent's around the stem at x 10).
+In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ "kind": "drawn", "spans": "function", "emphasis": "emphasis", "height": "height", "goal": "goal", "goalOn": ["forward", "delta", "plateau"], "points": "accent", "pointBase": "M5.5 6 L14.5 6 L10 14 Z" }` names them. A span kind's `shape` is `forward`, `backward`, `presence`, `neutral`, `wavering`, `delta` or `plateau`; an emphasis' `stroke` is `dashed`, `solid` or `bold`; a height's `size` its share of the row; a goal's `sign` an SVG path drawn upwards from the high corner at 0, 0 (10 units: the space above the span), and `early` for a blunted goal (where the main slope arrives); an accent's `sign` (stroked) and `signFill` (filled) are paths in a 20 by 20 box around the point at 10, 10, over the lane's filled `pointBase`.
 
 ### Folders (stage 3a)
 
@@ -317,9 +317,9 @@ In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ 
 - The meters top right show the output peak.
 
 **Worth testing in stage 4d.2**:
-- First, *Framework > Frameworks...*: thoresen (v3) and vandegorne (v3) — for each, *Library: take Projet's*, then *Take the library's*.
-- Add the dynamic form lane (a ruler layer's menu > *Add a lane below* > *Forme dynamique*). Drag to draw spans of each function; overlap two (they stack); right-click: emphasis (faint, average, emphasised) and goals (on forward spans and deltas only).
-- A delta: drag its handle to move the goal; give it a goal.
+- First, *Framework > Frameworks...*: thoresen (v4) and vandegorne (v3) — for each, *Library: take Projet's*, then *Take the library's*.
+- Add the dynamic form lane (a ruler layer's menu > *Add a lane below* > *Forme dynamique*). Drag to draw spans of each function and compare them with figures 8.1–8.5; overlap a short and a long one (the short one sits above); right-click: emphasis (only the slope or top changes), height (low, high) and goals (on forward spans and deltas only; blunted adds the second slope).
+- A delta: drag its handle to move the peak; a delta with a plateau: both handles.
 - Click for accents; right-click one to combine functions. Move and resize things (with and without Shift); Delete; undo.
 - Apply a ruler preset: what you drew stays. Save, quit, reopen.
 - Nodes: drag on a folder's lane; select it and read the panel; make it very short and very long (the !); add a box on a track that does not change there and see it named; mute that track; a second node (the stretch now counts from the first); delete the folder (its nodes go; undo brings them back).

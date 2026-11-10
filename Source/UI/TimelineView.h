@@ -128,7 +128,7 @@ public:
 private:
     enum class DragMode { none, locate, move, trimStart, trimEnd, fadeIn, fadeOut, lasso,
                           span, frameStart, frameEnd, track, layerHeight, mark,
-                          drawSpan, itemMove, itemStart, itemEnd, itemGoal,      // drawn lanes (4d.2)
+                          drawSpan, itemMove, itemStart, itemEnd, itemGoal, itemGoalEnd,   // drawn lanes (4d.2)
                           drawNode, nodeMove, nodeStart, nodeEnd };
     enum class Zone { none, body, startEdge, endEdge, fadeInHandle, fadeOutHandle };
 

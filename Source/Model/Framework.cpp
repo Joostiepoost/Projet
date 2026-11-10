@@ -131,6 +131,9 @@ namespace
         if (x.impliesValue.isEmpty()) x.impliesCategory = {};
         x.shape = v["shape"].toString().trim().toLowerCase();
         x.stroke = v["stroke"].toString().trim().toLowerCase();
+        if (v.hasProperty ("size")) x.size = juce::jlimit (0.1f, 1.0f, (float) (double) v["size"]);
+        if (v.hasProperty ("early")) x.early = juce::jlimit (0.05f, 0.95f, (float) (double) v["early"]);
+        x.signFill = v["signFill"].toString().trim();
         return x;
     }
 
@@ -343,6 +346,8 @@ bool Framework::addPackage (const juce::String& json, const juce::String& folder
             lane.emphasis = keyOf (v["emphasis"]);
             lane.goal = keyOf (v["goal"]);
             lane.points = keyOf (v["points"]);
+            lane.height = keyOf (v["height"]);
+            lane.pointBase = v["pointBase"].toString().trim();
             if (auto* g = v["goalOn"].getArray())
                 for (auto& x : *g) lane.goalOn.add (cleanValueId (x.toString()));
             if (lane.kind == Lane::Kind::drawn) lane.category = lane.spans.isNotEmpty() ? lane.spans : lane.points;
@@ -580,6 +585,7 @@ void Framework::rebuild()
                 check (lane.emphasis, Kind::choice, "emphasis");
                 check (lane.goal, Kind::choice, "goals");
                 check (lane.points, Kind::tags, "points");
+                check (lane.height, Kind::choice, "heights");
                 if (lane.spans.isEmpty() && lane.points.isEmpty()) { warnings.add ("The lane " + lane.key() + " has nothing to draw; left out."); continue; }
                 lane.category = lane.spans.isNotEmpty() ? lane.spans : lane.points;
             }

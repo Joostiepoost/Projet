@@ -58,8 +58,9 @@ namespace Lanes
 
     //== Drawn lanes and nodes (stage 4d.2) ====================================
 
-    /** A drawn lane's spans on rows: overlapping spans stack (each takes the
-        first row where it fits, in order of start). */
+    /** A drawn lane's spans on rows: overlapping spans stack, the shorter
+        above the longer (each takes the first row where it fits, shortest
+        first). */
     struct Placed { juce::ValueTree item; int row = 0; };
     std::vector<Placed> stack (Project&, const juce::String& laneKey, int& rows);
 

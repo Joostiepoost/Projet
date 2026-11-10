@@ -62,7 +62,9 @@ namespace IDs
     PROJET_ID (value)                 // a drawn span's kind, a point's functions (comma-separated)
     PROJET_ID (emphasis)
     PROJET_ID (goal)
-    PROJET_ID (goalAt)                // a delta's goal, as a proportion of its span                  // a lane layer's lane: "composition.energies" (stage 4d)
+    PROJET_ID (goalAt)                // a delta's goal (a plateau's start), as a proportion of its span
+    PROJET_ID (goalEnd)               // a plateau's end, as a proportion of its span
+    PROJET_ID (size)                  // a drawn span's height (a value id: low, high)                  // a lane layer's lane: "composition.energies" (stage 4d)
     PROJET_ID (frame)                 // a layer's or a mark's frame: "piece", "span" or a box id
     PROJET_ID (visible)
     PROJET_ID (snap)

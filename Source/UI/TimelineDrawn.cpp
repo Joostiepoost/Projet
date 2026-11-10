@@ -77,71 +77,132 @@ juce::Rectangle<float> TimelineView::spanRect (const DrawnGeometry& g, const juc
 
 void TimelineView::paintSpan (juce::Graphics& g, const Framework::Lane& lane, const juce::ValueTree& span, juce::Rectangle<float> r, bool selected)
 {
-    juce::String shape = "presence", stroke = "solid";
-    auto* fn = framework.findCategory (lane.spans);
-    if (fn != nullptr)
-        if (auto* v = framework.findValue (*fn, span[IDs::value].toString())) shape = v->shape;
+    // After Thoresen's figures 8.1-8.5: ramps on a baseline, boxes, crossed
+    // boxes, a triangle for a delta; the emphasis on the line carrying the
+    // tendency only (the slope, the top of a box); goal marks above the
+    // high corner (figure 8.3).
+    const auto* fnValue = [&]() -> const Framework::Value*
+    {
+        auto* fn = framework.findCategory (lane.spans);
+        return fn != nullptr ? framework.findValue (*fn, span[IDs::value].toString()) : nullptr;
+    }();
+    const auto shape = fnValue != nullptr ? fnValue->shape : juce::String ("presence");
+    juce::String stroke = "solid";
     if (auto* em = framework.findCategory (lane.emphasis))
     {
         auto e = span[IDs::emphasis].toString();
         if (e.isEmpty()) e = em->defaultValue;
         if (auto* v = framework.findValue (*em, e)) stroke = v->stroke;
     }
-    const float l = r.getX(), rt = r.getRight(), top = r.getY(), bottom = r.getBottom(), cy = r.getCentreY();
-    const double goalAt = juce::jlimit (0.0, 1.0, (double) span.getProperty (IDs::goalAt, 0.5));
-    const float gx = l + (float) goalAt * r.getWidth();
+    float size = 1.0f;
+    if (auto* hc = framework.findCategory (lane.height))
+    {
+        auto h = span[IDs::size].toString();
+        if (h.isEmpty()) h = hc->defaultValue;
+        if (auto* v = framework.findValue (*hc, h); v != nullptr && v->size > 0.0f) size = v->size;
+    }
+    const Framework::Value* goalValue = nullptr;
+    if (auto* goal = framework.findCategory (lane.goal); goal != nullptr && lane.goalOn.contains (span[IDs::value].toString()))
+        goalValue = framework.findValue (*goal, span[IDs::goal].toString());
 
-    juce::Path p;
-    if (shape == "forward")        { p.startNewSubPath (rt, top); p.lineTo (l, cy); p.lineTo (rt, bottom); }
-    else if (shape == "backward")  { p.startNewSubPath (l, top); p.lineTo (rt, cy); p.lineTo (l, bottom); }
+    const float markH = lane.goal.isNotEmpty() ? juce::jlimit (5.0f, 10.0f, r.getHeight() * 0.32f) : 0.0f;
+    auto area = r.withTrimmedTop (markH);
+    area = area.withTop (area.getBottom() - area.getHeight() * size);
+    const float l = area.getX(), rt = area.getRight(), top = area.getY(), bottom = area.getBottom(), w = area.getWidth();
+    const float gx = l + (float) juce::jlimit (0.0, 1.0, (double) span.getProperty (IDs::goalAt, 0.5)) * w;
+    const float ge = juce::jmax (gx, l + (float) juce::jlimit (0.0, 1.0, (double) span.getProperty (IDs::goalEnd, juce::jmin (1.0, (double) span.getProperty (IDs::goalAt, 0.5) + 0.3))) * w);
+
+    juce::Path frame, tendency, dashedFrame;
+    juce::Array<float> goalsAt;                 // where goal marks go (on the top line)
+    const float early = goalValue != nullptr ? goalValue->early : -1.0f;
+    auto rise = [&] (float peak)
+    {
+        // The rising slope up to `peak`; a blunted goal arrives early, with a
+        // second, dashed slope arriving at the peak.
+        if (early > 0.0f)
+        {
+            const float xe = l + early * (peak - l);
+            tendency.startNewSubPath (l, bottom); tendency.lineTo (xe, top); tendency.lineTo (peak, top);
+            dashedFrame.startNewSubPath (l, bottom); dashedFrame.lineTo (peak, top);
+            goalsAt.add (xe);
+        }
+        else { tendency.startNewSubPath (l, bottom); tendency.lineTo (peak, top); }
+        goalsAt.add (peak);
+    };
+
+    if (shape == "forward")
+    {
+        rise (rt);
+        frame.startNewSubPath (rt, top); frame.lineTo (rt, bottom); frame.lineTo (l, bottom);
+    }
+    else if (shape == "backward")
+    {
+        tendency.startNewSubPath (l, top); tendency.lineTo (rt, bottom);
+        frame.startNewSubPath (l, top); frame.lineTo (l, bottom); frame.lineTo (rt, bottom);
+    }
+    else if (shape == "delta" || shape == "plateau")
+    {
+        const float peakEnd = shape == "plateau" ? ge : gx;
+        rise (gx);
+        tendency.startNewSubPath (gx, top); tendency.lineTo (peakEnd, top); tendency.lineTo (rt, bottom);
+        frame.startNewSubPath (l, bottom); frame.lineTo (rt, bottom);
+    }
     else if (shape == "neutral")
     {
-        const float tick = r.getHeight() * 0.2f;
-        p.startNewSubPath (l, cy); p.lineTo (rt, cy);
-        p.startNewSubPath (l, cy - tick); p.lineTo (l, cy + tick);
-        p.startNewSubPath (rt, cy - tick); p.lineTo (rt, cy + tick);
-    }
-    else if (shape == "delta")     { p.startNewSubPath (l, cy); p.lineTo (gx, top); p.lineTo (rt, cy); p.lineTo (gx, bottom); p.closeSubPath(); }
-    else                           p.addRectangle (r);
-
-    const auto colour = selected ? Theme::accent : Theme::signs;
-    if (stroke == "bold")
-    {
-        g.setColour (colour.withAlpha (0.14f));
-        g.fillPath (p);
-    }
-    const float width = stroke == "bold" ? 2.6f : (stroke == "dashed" ? 1.1f : 1.4f);
-    juce::PathStrokeType st (width, juce::PathStrokeType::mitered, juce::PathStrokeType::butt);
-    g.setColour (colour.withAlpha (stroke == "dashed" ? 0.75f : 0.95f));
-    if (stroke == "dashed")
-    {
-        juce::Path dashed;
-        const float dashes[] = { 4.0f, 3.0f };
-        st.createDashedStroke (dashed, p, dashes, 2);
-        g.fillPath (dashed);
+        dashedFrame.addRectangle (area);
+        dashedFrame.startNewSubPath (l, top); dashedFrame.lineTo (rt, bottom);
+        dashedFrame.startNewSubPath (l, bottom); dashedFrame.lineTo (rt, top);
     }
     else
-        g.strokePath (p, st);
-
-    // The goal: at the end of a forward span, at a delta's goal.
-    if (auto* goal = framework.findCategory (lane.goal))
-        if (lane.goalOn.contains (span[IDs::value].toString()))
-            if (auto* v = framework.findValue (*goal, span[IDs::goal].toString()); v != nullptr && v->sign.isNotEmpty())
-            {
-                auto sign = juce::Drawable::parseSVGPath (v->sign);
-                const float k = r.getHeight() / 20.0f;
-                const float at = shape == "delta" ? gx : rt;
-                sign.applyTransform (juce::AffineTransform::scale (k).translated (at, top));
-                g.setColour (colour);
-                g.strokePath (sign, juce::PathStrokeType (1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-            }
-
-    if (selected && shape == "delta")
     {
-        juce::Path handle;
-        handle.addTriangle (gx - 4.0f, bottom + 1.5f, gx + 4.0f, bottom + 1.5f, gx, bottom - 3.5f);
+        tendency.startNewSubPath (l, top); tendency.lineTo (rt, top);
+        frame.startNewSubPath (l, top); frame.lineTo (l, bottom); frame.lineTo (rt, bottom); frame.lineTo (rt, top);
+        if (shape == "wavering")
+        {
+            frame.startNewSubPath (l, top); frame.lineTo (rt, bottom);
+            frame.startNewSubPath (l, bottom); frame.lineTo (rt, top);
+        }
+    }
+
+    const auto colour = selected ? Theme::accent : Theme::signs;
+    const float dashes[] = { 4.0f, 3.0f };
+    auto dashed = [&] (const juce::Path& path, float width)
+    {
+        juce::Path out;
+        juce::PathStrokeType (width).createDashedStroke (out, path, dashes, 2);
+        g.fillPath (out);
+    };
+    g.setColour (colour.withAlpha (0.95f));
+    g.strokePath (frame, juce::PathStrokeType (1.1f));
+    dashed (dashedFrame, 1.1f);
+    if (stroke == "dashed")     dashed (tendency, 1.2f);
+    else                        g.strokePath (tendency, juce::PathStrokeType (stroke == "bold" ? 2.8f : 1.3f, juce::PathStrokeType::mitered, juce::PathStrokeType::butt));
+
+    if (goalValue != nullptr && (goalValue->sign.isNotEmpty() || goalValue->signFill.isNotEmpty()))
+    {
+        const float k = juce::jmax (markH, 6.0f) / 10.0f;
+        for (auto x : goalsAt)
+        {
+            const auto t = juce::AffineTransform::scale (k).translated (x, top);
+            if (goalValue->sign.isNotEmpty())
+            {
+                auto sign = juce::Drawable::parseSVGPath (goalValue->sign);
+                g.strokePath (sign, juce::PathStrokeType (1.1f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), t);
+            }
+            if (goalValue->signFill.isNotEmpty()) g.fillPath (juce::Drawable::parseSVGPath (goalValue->signFill), t);
+        }
+    }
+
+    if (selected && (shape == "delta" || shape == "plateau"))
+    {
         g.setColour (Theme::accent);
-        g.fillPath (handle);
+        for (auto x : { gx, shape == "plateau" ? ge : -1.0f })
+        {
+            if (x < 0.0f) continue;
+            juce::Path handle;
+            handle.addTriangle (x - 4.0f, r.getBottom() + 1.5f, x + 4.0f, r.getBottom() + 1.5f, x, r.getBottom() - 3.5f);
+            g.fillPath (handle);
+        }
     }
 }
 
@@ -172,8 +233,9 @@ void TimelineView::paintDrawnLane (juce::Graphics& g, const LayerRow& row, const
         g.fillRect (x0, geo.rowsTop, juce::jmax (1.0f, x1 - x0), (float) (row.y + row.h - 2) - geo.rowsTop);
     }
 
-    // Accents: a weighted point (the stem) with each function's mark.
+    // Accents: the weighted point (a filled triangle) with each function's mark (figure 8.4).
     auto* accents = framework.findCategory (lane.points);
+    const auto base = juce::Drawable::parseSVGPath (lane.pointBase.isNotEmpty() ? lane.pointBase : juce::String ("M5.5 6 L14.5 6 L10 14 Z"));
     for (auto item : project.drawnItems (lane.key()))
     {
         if (Project::isSpan (item)) continue;
@@ -181,19 +243,21 @@ void TimelineView::paintDrawnLane (juce::Graphics& g, const LayerRow& row, const
         if (x < (float) headerWidth - 12.0f || x > (float) getWidth() + 12.0f) continue;
         const bool selected = item[IDs::id].toString() == selectedItemId;
         const auto colour = selected ? Theme::accent : Theme::signs;
-        juce::Path sign;
-        sign.startNewSubPath (10.0f, 4.0f);
-        sign.lineTo (10.0f, 20.0f);
+        juce::Path strokes, fills = base;
         if (accents != nullptr)
             for (auto& tag : juce::StringArray::fromTokens (item[IDs::value].toString(), ",", {}))
-                if (auto* v = framework.findValue (*accents, tag.trim()); v != nullptr && v->sign.isNotEmpty())
-                    sign.addPath (juce::Drawable::parseSVGPath (v->sign));
+                if (auto* v = framework.findValue (*accents, tag.trim()))
+                {
+                    if (v->sign.isNotEmpty()) strokes.addPath (juce::Drawable::parseSVGPath (v->sign));
+                    if (v->signFill.isNotEmpty()) fills.addPath (juce::Drawable::parseSVGPath (v->signFill));
+                }
         const float k = geo.pointsH / 20.0f;
-        sign.applyTransform (juce::AffineTransform::scale (k).translated (x - 10.0f * k, geo.pointsTop));
-        g.setColour (colour.withAlpha (0.25f));
+        const auto t = juce::AffineTransform::scale (k).translated (x - 10.0f * k, geo.pointsTop);
+        g.setColour (colour.withAlpha (0.15f));
         g.fillRect (x - 0.5f, geo.rowsTop, 1.0f, (float) (row.y + row.h - 2) - geo.rowsTop);
         g.setColour (colour);
-        g.strokePath (sign, juce::PathStrokeType (1.3f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.fillPath (fills, t);
+        g.strokePath (strokes, juce::PathStrokeType (1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), t);
     }
 
     if (project.drawnItems (lane.key()).isEmpty())
@@ -240,11 +304,16 @@ bool TimelineView::drawnMouseDown (const LayerRow& row, const Framework::Lane& l
         dragItem = p.item;
         dragFrom = (double) p.item[IDs::start];
         dragTo = (double) p.item[IDs::end];
-        const float gx = r.getX() + (float) juce::jlimit (0.0, 1.0, (double) p.item.getProperty (IDs::goalAt, 0.5)) * r.getWidth();
-        bool delta = false;
+        const double goalAt = juce::jlimit (0.0, 1.0, (double) p.item.getProperty (IDs::goalAt, 0.5));
+        const float gx = r.getX() + (float) goalAt * r.getWidth();
+        const float ge = r.getX() + (float) juce::jlimit (goalAt, 1.0, (double) p.item.getProperty (IDs::goalEnd, juce::jmin (1.0, goalAt + 0.3))) * r.getWidth();
+        juce::String shape;
         if (auto* fn = framework.findCategory (lane.spans))
-            if (auto* v = framework.findValue (*fn, p.item[IDs::value].toString())) delta = v->shape == "delta";
-        if (delta && std::abs (pos.x - gx) <= edgeGrab && pos.y > r.getCentreY()) dragMode = DragMode::itemGoal;
+            if (auto* v = framework.findValue (*fn, p.item[IDs::value].toString())) shape = v->shape;
+        const bool peaked = shape == "delta" || shape == "plateau";
+        const bool low = pos.y > r.getCentreY();
+        if (shape == "plateau" && low && std::abs (pos.x - ge) <= edgeGrab && std::abs (pos.x - ge) < std::abs (pos.x - gx)) dragMode = DragMode::itemGoalEnd;
+        else if (peaked && low && std::abs (pos.x - gx) <= edgeGrab) dragMode = DragMode::itemGoal;
         else if (std::abs (pos.x - r.getX()) <= edgeGrab) dragMode = DragMode::itemStart;
         else if (std::abs (pos.x - r.getRight()) <= edgeGrab) dragMode = DragMode::itemEnd;
         else dragMode = DragMode::itemMove;
@@ -302,11 +371,25 @@ bool TimelineView::drawnMouseDrag (const juce::MouseEvent& e)
         repaint();
         return true;
     }
-    if (dragMode == DragMode::itemGoal)
+    if (dragMode == DragMode::itemGoal || dragMode == DragMode::itemGoalEnd)
     {
+        // A delta's peak; a plateau's start and end (kept in order).
         const double s = dragItem[IDs::start], en = dragItem[IDs::end];
-        if (en > s) dragItem.setProperty (IDs::goalAt, juce::jlimit (0.0, 1.0, (snap (t, {}, snapping) - s) / (en - s)), project.um());
-        if (onStatus) onStatus ("Goal at " + juce::String (juce::roundToInt (100.0 * (double) dragItem[IDs::goalAt])) + "% of the delta", false);
+        if (en <= s) return true;
+        const double at = juce::jlimit (0.0, 1.0, (snap (t, {}, snapping) - s) / (en - s));
+        const double from = juce::jlimit (0.0, 1.0, (double) dragItem.getProperty (IDs::goalAt, 0.5));
+        const double to = juce::jlimit (from, 1.0, (double) dragItem.getProperty (IDs::goalEnd, juce::jmin (1.0, from + 0.3)));
+        if (dragMode == DragMode::itemGoal)
+        {
+            dragItem.setProperty (IDs::goalAt, juce::jmin (at, dragItem.hasProperty (IDs::goalEnd) ? to : 1.0), project.um());
+            if (onStatus) onStatus ("Peak at " + juce::String (juce::roundToInt (100.0 * (double) dragItem[IDs::goalAt])) + "% of the span", false);
+        }
+        else
+        {
+            if (! dragItem.hasProperty (IDs::goalEnd)) dragItem.setProperty (IDs::goalEnd, to, project.um());
+            dragItem.setProperty (IDs::goalEnd, juce::jmax (at, from), project.um());
+            if (onStatus) onStatus ("The plateau ends at " + juce::String (juce::roundToInt (100.0 * (double) dragItem[IDs::goalEnd])) + "% of the span", false);
+        }
         repaint();
         return true;
     }
@@ -357,7 +440,7 @@ bool TimelineView::drawnMouseUp (const juce::MouseEvent& e)
         repaint();
         return true;
     }
-    if (mode == DragMode::itemMove || mode == DragMode::itemStart || mode == DragMode::itemEnd || mode == DragMode::itemGoal
+    if (mode == DragMode::itemMove || mode == DragMode::itemStart || mode == DragMode::itemEnd || mode == DragMode::itemGoal || mode == DragMode::itemGoalEnd
         || mode == DragMode::nodeMove || mode == DragMode::nodeStart || mode == DragMode::nodeEnd)
     {
         dragMode = DragMode::none;
@@ -444,6 +527,15 @@ void TimelineView::showItemMenu (juce::ValueTree item, const Framework::Lane& la
             for (int i = 0; i < values.size(); ++i) sub.addItem (200 + i, framework.valueName (*em, values.getReference (i).id), true, values.getReference (i).id == cur);
             m.addSubMenu (framework.text (em->name), sub);
         }
+        if (auto* hc = framework.findCategory (lane.height))
+        {
+            juce::PopupMenu sub;
+            auto cur = item[IDs::size].toString();
+            if (cur.isEmpty()) cur = hc->defaultValue;
+            const auto& values = framework.valuesOf (*hc);
+            for (int i = 0; i < values.size(); ++i) sub.addItem (400 + i, framework.valueName (*hc, values.getReference (i).id), true, values.getReference (i).id == cur);
+            m.addSubMenu (framework.text (hc->name), sub);
+        }
         if (goal != nullptr && lane.goalOn.contains (kind))
         {
             juce::PopupMenu sub;
@@ -486,6 +578,7 @@ void TimelineView::showItemMenu (juce::ValueTree item, const Framework::Lane& la
             else if (r >= 200 && r < 300) { um.beginNewTransaction ("Emphasis"); item.setProperty (IDs::emphasis, pick (l->emphasis, r - 200), &um); }
             else if (r == 399) { um.beginNewTransaction ("Goal"); item.removeProperty (IDs::goal, &um); }
             else if (r >= 300 && r < 399) { um.beginNewTransaction ("Goal"); item.setProperty (IDs::goal, pick (l->goal, r - 300), &um); }
+            else if (r >= 400 && r < 500) { um.beginNewTransaction ("Height"); item.setProperty (IDs::size, pick (l->height, r - 400), &um); }
         }
         else if (r >= 100)
         {

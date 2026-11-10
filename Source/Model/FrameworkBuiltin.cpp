@@ -916,7 +916,7 @@ The operations of your structuring language, from the RK1 research: 10 primitive
 R"PKG({
   "projet": "framework package",
   "id": "thoresen",
-  "version": 3,
+  "version": 4,
   "order": 30,
   "name": {"fr": "Thoresen : champs temporels", "en": "Thoresen: time-fields"},
   "about": {
@@ -1086,8 +1086,8 @@ R"PKG({
       "id": "function",
       "name": {"fr": "Fonction de forme", "en": "Form-building function"},
       "about": {
-        "fr": "ce que fait une plage de la forme dynamique (8.1.1)",
-        "en": "what a stretch of the dynamic form does (8.1.1)"
+        "fr": "ce que fait une plage de la forme dynamique (8.1.1, figures 8.1, 8.2, 8.5)",
+        "en": "what a stretch of the dynamic form does (8.1.1, figures 8.1, 8.2, 8.5)"
       },
       "kind": "choice",
       "control": "buttons",
@@ -1097,8 +1097,8 @@ R"PKG({
           "id": "forward",
           "name": {"fr": "orientée vers l'avant", "en": "forward-oriented"},
           "about": {
-            "fr": "dirigée vers un point à venir, ou une tendance croissante",
-            "en": "directed towards a future point in time, or an increasing tendency"
+            "fr": "dirigée vers un point à venir, ou une tendance croissante : une rampe qui monte",
+            "en": "directed towards a future point in time, or an increasing tendency: a ramp rising"
           },
           "shape": "forward"
         },
@@ -1106,8 +1106,8 @@ R"PKG({
           "id": "presence",
           "name": {"fr": "orientée vers la présence", "en": "presence-oriented"},
           "about": {
-            "fr": "une tendance stable, ou nulle : ni vers l'avenir ni vers le passé",
-            "en": "a stable (or no) tendency: directed towards neither future nor past"
+            "fr": "une tendance stable, ou nulle : ni vers l'avenir ni vers le passé ; un rectangle",
+            "en": "a stable (or no) tendency: directed towards neither future nor past; a box"
           },
           "shape": "presence"
         },
@@ -1115,8 +1115,8 @@ R"PKG({
           "id": "backward",
           "name": {"fr": "orientée vers l'arrière", "en": "backward-oriented"},
           "about": {
-            "fr": "s'éloignant d'un point passé, ou une tendance décroissante",
-            "en": "directed away from a past point in time, or a decreasing tendency"
+            "fr": "s'éloignant d'un point passé, ou une tendance décroissante : une rampe qui descend",
+            "en": "directed away from a past point in time, or a declining tendency: a ramp falling"
           },
           "shape": "backward"
         },
@@ -1124,19 +1124,37 @@ R"PKG({
           "id": "neutral",
           "name": {"fr": "neutre", "en": "neutral"},
           "about": {
-            "fr": "la négation des trois (non leur contraire) : aucune fonction claire",
-            "en": "the negation of the three (not their opposite): no clear function"
+            "fr": "la négation des trois (non leur contraire) : un rectangle barré, en tirets",
+            "en": "the negation of the three (not their opposite): a crossed box, dashed"
           },
           "shape": "neutral"
+        },
+        {
+          "id": "wavering",
+          "name": {"fr": "énergie vacillante", "en": "wavering"},
+          "about": {
+            "fr": "une énergie qui vacille, sans forme dynamique (figure 8.5) : un rectangle barré",
+            "en": "a wavering energy shape, no dynamic form (figure 8.5): a crossed box"
+          },
+          "shape": "wavering"
         },
         {
           "id": "delta",
           "name": {"fr": "delta", "en": "delta"},
           "about": {
-            "fr": "vers un but puis s'en éloignant, le but n'importe où dans la plage (la phrase en delta de Vande Gorne)",
-            "en": "towards a goal and away from it, the goal anywhere along the span (Vande Gorne's phrase shaped as a delta)"
+            "fr": "monte vers un sommet puis redescend, le sommet n'importe où dans la plage (8.1.3 ; la phrase en delta de Vande Gorne)",
+            "en": "rises to a peak and falls, the peak anywhere along the span (8.1.3; Vande Gorne's phrase shaped as a delta)"
           },
           "shape": "delta"
+        },
+        {
+          "id": "plateau",
+          "name": {"fr": "delta à plateau", "en": "delta with a plateau"},
+          "about": {
+            "fr": "monte, se maintient, redescend : le tout structurel, sans subdivisions (8.1.4)",
+            "en": "rises, holds, falls: the complete whole without subdivisions (8.1.4)"
+          },
+          "shape": "plateau"
         }
       ]
     },
@@ -1144,8 +1162,8 @@ R"PKG({
       "id": "emphasis",
       "name": {"fr": "Accentuation", "en": "Emphasis"},
       "about": {
-        "fr": "avec quelle force la fonction s'affirme ; une fonction faible, simultanée à une autre, est secondaire",
-        "en": "how strongly the function shows; a faint one beside another is secondary"
+        "fr": "avec quelle force la fonction s'affirme, sur la ligne qui porte la tendance (la pente, le haut du rectangle) ; une fonction faible, simultanée à une autre, est secondaire",
+        "en": "how strongly the function shows, on the line carrying the tendency (the slope, the top of the box); a faint one beside another is secondary"
       },
       "kind": "choice",
       "control": "buttons",
@@ -1155,20 +1173,46 @@ R"PKG({
         {
           "id": "faint",
           "name": {"fr": "faible (secondaire)", "en": "faint (secondary)"},
-          "about": {"fr": "en tirets", "en": "dashed"},
+          "about": {"fr": "la ligne de la tendance en tirets", "en": "the tendency's line dashed"},
           "stroke": "dashed"
         },
         {
           "id": "average",
           "name": {"fr": "moyenne (primaire)", "en": "average (primary)"},
-          "about": {"fr": "en trait plein", "en": "a plain line"},
+          "about": {"fr": "en trait simple", "en": "a plain line"},
           "stroke": "solid"
         },
         {
           "id": "emphasised",
           "name": {"fr": "accentuée", "en": "emphasised"},
-          "about": {"fr": "en trait épais", "en": "a heavy line"},
+          "about": {"fr": "la ligne de la tendance épaisse", "en": "the tendency's line heavy"},
           "stroke": "bold"
+        }
+      ]
+    },
+    {
+      "id": "height",
+      "name": {"fr": "Hauteur", "en": "Height"},
+      "about": {
+        "fr": "le niveau d'énergie : en général deux degrés, bas et haut (8.1.3) ; des hauteurs disparates se combinent (8.1.4)",
+        "en": "the energy level: generally two degrees, low and high (8.1.3); disparate levels combine (8.1.4)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "on": "lane",
+      "default": "high",
+      "values": [
+        {
+          "id": "low",
+          "name": {"fr": "bas", "en": "low"},
+          "about": {"fr": "le signe à mi-hauteur", "en": "the sign at a lower height"},
+          "size": 0.6
+        },
+        {
+          "id": "high",
+          "name": {"fr": "haut", "en": "high"},
+          "about": {"fr": "le signe à pleine hauteur", "en": "the sign at full height"},
+          "size": 1.0
         }
       ]
     },
@@ -1176,8 +1220,8 @@ R"PKG({
       "id": "goal",
       "name": {"fr": "Atteinte du but", "en": "Goal attainment"},
       "about": {
-        "fr": "au bout d'une fonction orientée vers l'avant (ou au but d'un delta) : le but est-il atteint ? (8.1.1)",
-        "en": "at the end of a forward-oriented function (or a delta's goal): is the goal reached? (8.1.1)"
+        "fr": "au sommet d'une fonction orientée vers l'avant (ou d'un delta) : le but est-il atteint ? (8.1.1, figure 8.3)",
+        "en": "at the top of a forward-oriented function (or a delta): is the goal reached? (8.1.1, figure 8.3)"
       },
       "kind": "choice",
       "control": "buttons",
@@ -1186,41 +1230,48 @@ R"PKG({
         {
           "id": "attained",
           "name": {"fr": "but atteint", "en": "goal attainment"},
-          "about": {"fr": "la fonction atteint le but attendu", "en": "the function reaches its expected goal"},
-          "sign": "M1 0 L1 20"
+          "about": {
+            "fr": "la fonction atteint le but attendu : un cercle au sommet",
+            "en": "the function reaches its expected goal: a circle at the top"
+          },
+          "sign": "M3 -5 A3 3 0 1 0 -3 -5 A3 3 0 1 0 3 -5"
         },
         {
           "id": "blunted",
           "name": {"fr": "atteinte émoussée", "en": "blunted"},
           "about": {
-            "fr": "le but est atteint, mais les dimensions y arrivent à des moments différents",
-            "en": "the goal is reached, but different dimensions arrive at different times"
+            "fr": "le but est atteint, mais les dimensions y arrivent à des moments différents : une seconde pente, en tirets, et (o) à chaque arrivée",
+            "en": "the goal is reached, but different dimensions arrive at different times: a second slope, dashed, and (o) at each arrival"
           },
-          "sign": "M-3 2 L-3 8 M1 6 L1 14 M5 12 L5 18"
+          "sign": "M-4.5 -9 Q-6.5 -5 -4.5 -1 M4.5 -9 Q6.5 -5 4.5 -1 M2.4 -5 A2.4 2.4 0 1 0 -2.4 -5 A2.4 2.4 0 1 0 2.4 -5",
+          "early": 0.7
         },
         {
           "id": "suspended",
           "name": {"fr": "but suspendu", "en": "suspended"},
           "about": {
-            "fr": "le but attendu est d'abord suspendu, puis arrive plus tard",
-            "en": "the expected goal is first suspended, then arrives later"
+            "fr": "le but attendu est d'abord suspendu, puis arrive plus tard : un carré barré, une flèche (marquez l'arrivée d'un cercle)",
+            "en": "the expected goal is first suspended, then arrives later: a crossed square, an arrow (mark the arrival with a circle)"
           },
-          "sign": "M2 10 L3 10 M5.5 10 L6.5 10 M9 10 L10 10 M13 0 L13 20"
+          "sign": "M-3 -8 L3 -8 L3 -2 L-3 -2 Z M-3 -8 L3 -2 M3 -8 L-3 -2 M6 -5 L13 -5 M10.5 -7 L13 -5 L10.5 -3"
         },
         {
           "id": "evaded",
           "name": {"fr": "évitement complet", "en": "fully evaded"},
-          "about": {"fr": "le but n'est pas atteint (annulé)", "en": "the goal is not reached (cancelled)"},
-          "sign": "M1 0 L1 20 M-3 5 L5 15 M5 5 L-3 15"
+          "about": {
+            "fr": "le but n'est pas atteint (annulé) : un carré barré",
+            "en": "the goal is not reached (cancelled): a crossed square"
+          },
+          "sign": "M-3 -8 L3 -8 L3 -2 L-3 -2 Z M-3 -8 L3 -2 M3 -8 L-3 -2"
         },
         {
           "id": "partial",
           "name": {"fr": "évitement partiel", "en": "partly evaded"},
           "about": {
-            "fr": "le but n'est pas atteint pleinement, ou pas comme attendu",
-            "en": "the goal is not fully reached, or not as expected"
+            "fr": "le but n'est pas atteint pleinement, ou pas comme attendu : (carré barré)",
+            "en": "the goal is not fully reached, or not as expected: (crossed square)"
           },
-          "sign": "M1 6 L1 14"
+          "sign": "M-5.5 -9 Q-7.5 -5 -5.5 -1 M5.5 -9 Q7.5 -5 5.5 -1 M-3 -8 L3 -8 L3 -2 L-3 -2 Z M-3 -8 L3 -2 M3 -8 L-3 -2"
         }
       ]
     },
@@ -1228,8 +1279,8 @@ R"PKG({
       "id": "accent",
       "name": {"fr": "Fonctions d'accent", "en": "Accent functions"},
       "about": {
-        "fr": "un point pondéré qui ponctue la forme ; plusieurs fonctions peuvent se combiner (8.1.2)",
-        "en": "a weighted point that punctuates the form; several functions can combine (8.1.2)"
+        "fr": "un point pondéré (un triangle plein) qui ponctue la forme ; plusieurs fonctions se combinent sur un même point (8.1.2, figure 8.4)",
+        "en": "a weighted point (a filled triangle) that punctuates the form; several functions combine on one point (8.1.2, figure 8.4)"
       },
       "kind": "tags",
       "on": "lane",
@@ -1237,62 +1288,61 @@ R"PKG({
         {
           "id": "accent",
           "name": {"fr": "accent", "en": "accent"},
-          "about": {"fr": "le signe général : un point pondéré", "en": "the general sign: a weighted point"},
-          "sign": "M4 4 L16 4"
+          "about": {"fr": "le signe général : un point pondéré", "en": "the general sign: a weighted point"}
         },
         {
           "id": "goal",
           "name": {"fr": "point de but", "en": "goal point"},
           "about": {
-            "fr": "un accent qui marque le but d'un mouvement",
-            "en": "an accent marking the goal of a movement"
+            "fr": "un accent qui marque le but d'un mouvement : un cercle autour",
+            "en": "an accent marking the goal of a movement: a circle round it"
           },
-          "sign": "M6 4 A4 4 0 1 0 14 4 A4 4 0 1 0 6 4 M10 3.6 L10 4.4"
+          "sign": "M17 10 A7 7 0 1 0 3 10 A7 7 0 1 0 17 10"
         },
         {
           "id": "separation",
           "name": {"fr": "point de séparation", "en": "separation point"},
           "about": {
-            "fr": "un accent qui sépare deux champs temporels",
-            "en": "an accent setting two time-fields apart"
+            "fr": "un accent qui sépare deux champs temporels : un trait vertical à travers",
+            "en": "an accent setting two time-fields apart: a vertical line through it"
           },
-          "sign": "M5 12 L5 20 M15 12 L15 20"
+          "sign": "M10 0.5 L10 19.5"
         },
         {
           "id": "release",
           "name": {"fr": "point de lancement", "en": "release point"},
           "about": {
-            "fr": "un accent qui lance un mouvement, ou ouvre un champ",
-            "en": "an accent launching a motion, or opening a field"
+            "fr": "un accent qui lance un mouvement, ou ouvre un champ : un trait vers le haut qui tourne en flèche",
+            "en": "an accent launching a motion, or opening a field: a line up that turns into an arrow"
           },
-          "sign": "M10 12 L18 12 M15 9 L18 12 L15 15"
+          "sign": "M10 6 L10 1 L17 1 M14.5 -1.2 L17 1 L14.5 3.2"
         },
         {
           "id": "termination",
           "name": {"fr": "point de terminaison", "en": "termination point"},
           "about": {
-            "fr": "un accent qui termine un champ ou une fonction",
-            "en": "an accent ending a time-field or a function"
+            "fr": "un accent qui termine un champ ou une fonction : des barres de chaque côté",
+            "en": "an accent ending a time-field or a function: bars on each side"
           },
-          "sign": "M4 1 L4 8 M16 1 L16 8"
+          "sign": "M3.5 4 L3.5 16 M16.5 4 L16.5 16"
         },
         {
           "id": "affirmation",
           "name": {"fr": "point d'affirmation", "en": "affirmation point"},
           "about": {
-            "fr": "un accent qui affirme ou répète un accent ou un élément passé",
-            "en": "an accent affirming or repeating an earlier accent or element"
+            "fr": "un accent qui affirme ou répète un accent ou un élément passé : une barre au-dessus",
+            "en": "an accent affirming or repeating an earlier accent or element: a bar above"
           },
-          "sign": "M4 8 L16 8"
+          "sign": "M5.5 3.2 L14.5 3.2"
         },
         {
           "id": "warning",
           "name": {"fr": "point d'alerte", "en": "warning point"},
           "about": {
-            "fr": "un accent qui annonce un événement imminent",
-            "en": "an accent alerting the listener to an imminent event"
+            "fr": "un accent qui annonce un événement imminent : un point en dessous",
+            "en": "an accent alerting the listener to an imminent event: a dot below"
           },
-          "sign": "M1.5 4 L1.6 4"
+          "signFill": "M11.4 17.6 A1.4 1.4 0 1 0 8.6 17.6 A1.4 1.4 0 1 0 11.4 17.6"
         }
       ]
     }
@@ -1308,9 +1358,11 @@ R"PKG({
       "kind": "drawn",
       "spans": "function",
       "emphasis": "emphasis",
+      "height": "height",
       "goal": "goal",
-      "goalOn": ["forward", "delta"],
-      "points": "accent"
+      "goalOn": ["forward", "delta", "plateau"],
+      "points": "accent",
+      "pointBase": "M5.5 6 L14.5 6 L10 14 Z"
     }
   ]
 }
@@ -1325,9 +1377,9 @@ Lasse Thoresen's time-field conjunctions (*Emergent Musical Forms*, 6.3), betwee
 
 **Signs.** Drawn at the top of the lane, after Thoresen's figures 6.2 and 6.3. Where a box with an ending meets the next box, the two make one sign, the ending's mark on the first box's bracket (his figure 6.4). A junction found from the timing has a dashed frame; a chosen one a solid frame. Each value's `sign` is an SVG path: a junction's in a 60 by 20 box with `endAt` where the first box's bracket ends, an ending's `seamSign` drawn from that point. An ending's `seamFade` turns that much of the line before the bracket into dashes instead (the vague ending), stopping at the junction's `fadeAt` if it has one (where the next box begins, for hinged).
 
-**The dynamic form** (chapter 8), in a lane of its own (*Add a lane below* > *Forme dynamique*), drawn by hand until containers come (stage 5). Drag in the lane to draw a span and choose its **form-building function**: forward-oriented (a wedge opening towards what comes), presence-oriented (a bar), backward-oriented (a wedge closing), neutral (a thin line), or a **delta** (towards a goal and away from it, the goal anywhere: drag its handle). Its **emphasis**: faint (secondary, dashed), average (primary) or emphasised (heavy). Overlapping spans stack, so a secondary function can run beside a primary one. A forward-oriented span or a delta can reach its **goal**: attained, blunted, suspended, fully or partly evaded. Click in the lane (without dragging) for an **accent**, a weighted point with one or more functions: accent, goal point, separation, release, termination, affirmation, warning.
+**The dynamic form** (chapter 8), in a lane of its own (*Add a lane below* > *Forme dynamique*), drawn by hand until containers come (stage 5). Drag in the lane to draw a span and choose its **form-building function** (figures 8.1, 8.2, 8.5): forward-oriented (a ramp rising to a vertical end), presence-oriented (a box), backward-oriented (a vertical start and a ramp falling), neutral (a dashed box crossed by dashed diagonals), wavering (a box with a solid cross), a **delta** (a triangle on the baseline, its peak anywhere: drag the handle under it) or a **delta with a plateau** (rise, hold, fall: two handles). Its **emphasis** marks only the line carrying the tendency, the slope or the top of the box: dashed when faint (a secondary function), heavy when emphasised. Its **height**: low or high, the energy level (8.1.3). Overlapping spans stack, the shorter above the longer ones that sum them up. A forward span or a delta can reach its **goal** (figure 8.3), marked above its high corner: attained (o); blunted (a second, dashed slope arriving later, and (o) at each arrival); suspended (a crossed square and an arrow: mark where the goal arrives with a circle or a goal point); fully evaded (a crossed square); partly evaded (in brackets). Click in the lane (without dragging) for an **accent** (figure 8.4): the weighted point, a filled triangle, with each function's mark added: a circle round it (goal point), a line through it (separation), a line up turning into an arrow (release), bars on each side (termination), a bar above (affirmation), a dot below (warning). Several combine on one point.
 
-The scans of figures 8.1 to 8.4 are hard to read, so the signs follow the text: wedges and a bar, dashed when faint and heavy when emphasised, a T for the weighted point and a circled point for a goal. They are data: a span kind's `shape` (forward, backward, presence, neutral, delta), an emphasis' `stroke` (dashed, solid, bold), a goal's and an accent's `sign` (an SVG path in a 20 by 20 box: a goal's from the goal at x 0, an accent's around a stem at x 10). Categories with `"on": "lane"` belong to the lane; the lane names them (`spans`, `emphasis`, `goal`, `goalOn`, `points`).
+The signs are data: a span kind's `shape` (forward, backward, presence, neutral, wavering, delta, plateau), an emphasis' `stroke` (dashed, solid, bold), a height's `size` (its share of the row), a goal's `sign` (an SVG path drawn from the high corner at 0, 0, upwards: 10 units are the space above the span) and `early` (a blunted goal: where the main slope arrives, as a share of the rise), an accent's `sign` and `signFill` (stroked and filled paths in a 20 by 20 box around the point at 10, 10), and the lane's `pointBase` (the filled triangle). Categories with `"on": "lane"` belong to the lane; the lane names them (`spans`, `emphasis`, `height`, `goal`, `goalOn`, `points`).
 )HELP"),
         make ("vandegorne",
 R"PKG({
