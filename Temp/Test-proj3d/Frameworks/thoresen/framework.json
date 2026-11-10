@@ -1,12 +1,12 @@
 {
   "projet": "framework package",
   "id": "thoresen",
-  "version": 2,
+  "version": 4,
   "order": 30,
   "name": {"fr": "Thoresen : champs temporels", "en": "Thoresen: time-fields"},
   "about": {
-    "fr": "Les jonctions entre boîtes et leurs fins, d'après les conjonctions de champs temporels de Lasse Thoresen (Emergent Musical Forms, 6.3).",
-    "en": "The junctions between boxes and how boxes end, after Lasse Thoresen's time-field conjunctions (Emergent Musical Forms, 6.3)."
+    "fr": "Les jonctions entre boîtes et leurs fins, d'après les conjonctions de champs temporels de Lasse Thoresen (Emergent Musical Forms, 6.3) ; la forme dynamique, dans sa piste (ch. 8).",
+    "en": "The junctions between boxes and how boxes end, after Lasse Thoresen's time-field conjunctions (Emergent Musical Forms, 6.3); the dynamic form, in its lane (chapter 8)."
   },
   "categories": [
     {
@@ -166,6 +166,288 @@
           "seamSign": "M-16 0 C-8 0 -6 -9 -11 -9 C-16 -9 -15 0 -6 0"
         }
       ]
+    },
+    {
+      "id": "function",
+      "name": {"fr": "Fonction de forme", "en": "Form-building function"},
+      "about": {
+        "fr": "ce que fait une plage de la forme dynamique (8.1.1, figures 8.1, 8.2, 8.5)",
+        "en": "what a stretch of the dynamic form does (8.1.1, figures 8.1, 8.2, 8.5)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "on": "lane",
+      "values": [
+        {
+          "id": "forward",
+          "name": {"fr": "orientée vers l'avant", "en": "forward-oriented"},
+          "about": {
+            "fr": "dirigée vers un point à venir, ou une tendance croissante : une rampe qui monte",
+            "en": "directed towards a future point in time, or an increasing tendency: a ramp rising"
+          },
+          "shape": "forward"
+        },
+        {
+          "id": "presence",
+          "name": {"fr": "orientée vers la présence", "en": "presence-oriented"},
+          "about": {
+            "fr": "une tendance stable, ou nulle : ni vers l'avenir ni vers le passé ; un rectangle",
+            "en": "a stable (or no) tendency: directed towards neither future nor past; a box"
+          },
+          "shape": "presence"
+        },
+        {
+          "id": "backward",
+          "name": {"fr": "orientée vers l'arrière", "en": "backward-oriented"},
+          "about": {
+            "fr": "s'éloignant d'un point passé, ou une tendance décroissante : une rampe qui descend",
+            "en": "directed away from a past point in time, or a declining tendency: a ramp falling"
+          },
+          "shape": "backward"
+        },
+        {
+          "id": "neutral",
+          "name": {"fr": "neutre", "en": "neutral"},
+          "about": {
+            "fr": "la négation des trois (non leur contraire) : un rectangle barré, en tirets",
+            "en": "the negation of the three (not their opposite): a crossed box, dashed"
+          },
+          "shape": "neutral"
+        },
+        {
+          "id": "wavering",
+          "name": {"fr": "énergie vacillante", "en": "wavering"},
+          "about": {
+            "fr": "une énergie qui vacille, sans forme dynamique (figure 8.5) : un rectangle barré",
+            "en": "a wavering energy shape, no dynamic form (figure 8.5): a crossed box"
+          },
+          "shape": "wavering"
+        },
+        {
+          "id": "delta",
+          "name": {"fr": "delta", "en": "delta"},
+          "about": {
+            "fr": "monte vers un sommet puis redescend, le sommet n'importe où dans la plage (8.1.3 ; la phrase en delta de Vande Gorne)",
+            "en": "rises to a peak and falls, the peak anywhere along the span (8.1.3; Vande Gorne's phrase shaped as a delta)"
+          },
+          "shape": "delta"
+        },
+        {
+          "id": "plateau",
+          "name": {"fr": "delta à plateau", "en": "delta with a plateau"},
+          "about": {
+            "fr": "monte, se maintient, redescend : le tout structurel, sans subdivisions (8.1.4)",
+            "en": "rises, holds, falls: the complete whole without subdivisions (8.1.4)"
+          },
+          "shape": "plateau"
+        }
+      ]
+    },
+    {
+      "id": "emphasis",
+      "name": {"fr": "Accentuation", "en": "Emphasis"},
+      "about": {
+        "fr": "avec quelle force la fonction s'affirme, sur la ligne qui porte la tendance (la pente, le haut du rectangle) ; une fonction faible, simultanée à une autre, est secondaire",
+        "en": "how strongly the function shows, on the line carrying the tendency (the slope, the top of the box); a faint one beside another is secondary"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "on": "lane",
+      "default": "average",
+      "values": [
+        {
+          "id": "faint",
+          "name": {"fr": "faible (secondaire)", "en": "faint (secondary)"},
+          "about": {"fr": "la ligne de la tendance en tirets", "en": "the tendency's line dashed"},
+          "stroke": "dashed"
+        },
+        {
+          "id": "average",
+          "name": {"fr": "moyenne (primaire)", "en": "average (primary)"},
+          "about": {"fr": "en trait simple", "en": "a plain line"},
+          "stroke": "solid"
+        },
+        {
+          "id": "emphasised",
+          "name": {"fr": "accentuée", "en": "emphasised"},
+          "about": {"fr": "la ligne de la tendance épaisse", "en": "the tendency's line heavy"},
+          "stroke": "bold"
+        }
+      ]
+    },
+    {
+      "id": "height",
+      "name": {"fr": "Hauteur", "en": "Height"},
+      "about": {
+        "fr": "le niveau d'énergie : en général deux degrés, bas et haut (8.1.3) ; des hauteurs disparates se combinent (8.1.4)",
+        "en": "the energy level: generally two degrees, low and high (8.1.3); disparate levels combine (8.1.4)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "on": "lane",
+      "default": "high",
+      "values": [
+        {
+          "id": "low",
+          "name": {"fr": "bas", "en": "low"},
+          "about": {"fr": "le signe à mi-hauteur", "en": "the sign at a lower height"},
+          "size": 0.6
+        },
+        {
+          "id": "high",
+          "name": {"fr": "haut", "en": "high"},
+          "about": {"fr": "le signe à pleine hauteur", "en": "the sign at full height"},
+          "size": 1.0
+        }
+      ]
+    },
+    {
+      "id": "goal",
+      "name": {"fr": "Atteinte du but", "en": "Goal attainment"},
+      "about": {
+        "fr": "au sommet d'une fonction orientée vers l'avant (ou d'un delta) : le but est-il atteint ? (8.1.1, figure 8.3)",
+        "en": "at the top of a forward-oriented function (or a delta): is the goal reached? (8.1.1, figure 8.3)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "on": "lane",
+      "values": [
+        {
+          "id": "attained",
+          "name": {"fr": "but atteint", "en": "goal attainment"},
+          "about": {
+            "fr": "la fonction atteint le but attendu : un cercle au sommet",
+            "en": "the function reaches its expected goal: a circle at the top"
+          },
+          "sign": "M3 -5 A3 3 0 1 0 -3 -5 A3 3 0 1 0 3 -5"
+        },
+        {
+          "id": "blunted",
+          "name": {"fr": "atteinte émoussée", "en": "blunted"},
+          "about": {
+            "fr": "le but est atteint, mais les dimensions y arrivent à des moments différents : une seconde pente, en tirets, et (o) à chaque arrivée",
+            "en": "the goal is reached, but different dimensions arrive at different times: a second slope, dashed, and (o) at each arrival"
+          },
+          "sign": "M-4.5 -9 Q-6.5 -5 -4.5 -1 M4.5 -9 Q6.5 -5 4.5 -1 M2.4 -5 A2.4 2.4 0 1 0 -2.4 -5 A2.4 2.4 0 1 0 2.4 -5",
+          "early": 0.7
+        },
+        {
+          "id": "suspended",
+          "name": {"fr": "but suspendu", "en": "suspended"},
+          "about": {
+            "fr": "le but attendu est d'abord suspendu, puis arrive plus tard : un carré barré, une flèche (marquez l'arrivée d'un cercle)",
+            "en": "the expected goal is first suspended, then arrives later: a crossed square, an arrow (mark the arrival with a circle)"
+          },
+          "sign": "M-3 -8 L3 -8 L3 -2 L-3 -2 Z M-3 -8 L3 -2 M3 -8 L-3 -2 M6 -5 L13 -5 M10.5 -7 L13 -5 L10.5 -3"
+        },
+        {
+          "id": "evaded",
+          "name": {"fr": "évitement complet", "en": "fully evaded"},
+          "about": {
+            "fr": "le but n'est pas atteint (annulé) : un carré barré",
+            "en": "the goal is not reached (cancelled): a crossed square"
+          },
+          "sign": "M-3 -8 L3 -8 L3 -2 L-3 -2 Z M-3 -8 L3 -2 M3 -8 L-3 -2"
+        },
+        {
+          "id": "partial",
+          "name": {"fr": "évitement partiel", "en": "partly evaded"},
+          "about": {
+            "fr": "le but n'est pas atteint pleinement, ou pas comme attendu : (carré barré)",
+            "en": "the goal is not fully reached, or not as expected: (crossed square)"
+          },
+          "sign": "M-5.5 -9 Q-7.5 -5 -5.5 -1 M5.5 -9 Q7.5 -5 5.5 -1 M-3 -8 L3 -8 L3 -2 L-3 -2 Z M-3 -8 L3 -2 M3 -8 L-3 -2"
+        }
+      ]
+    },
+    {
+      "id": "accent",
+      "name": {"fr": "Fonctions d'accent", "en": "Accent functions"},
+      "about": {
+        "fr": "un point pondéré (un triangle plein) qui ponctue la forme ; plusieurs fonctions se combinent sur un même point (8.1.2, figure 8.4)",
+        "en": "a weighted point (a filled triangle) that punctuates the form; several functions combine on one point (8.1.2, figure 8.4)"
+      },
+      "kind": "tags",
+      "on": "lane",
+      "values": [
+        {
+          "id": "accent",
+          "name": {"fr": "accent", "en": "accent"},
+          "about": {"fr": "le signe général : un point pondéré", "en": "the general sign: a weighted point"}
+        },
+        {
+          "id": "goal",
+          "name": {"fr": "point de but", "en": "goal point"},
+          "about": {
+            "fr": "un accent qui marque le but d'un mouvement : un cercle autour",
+            "en": "an accent marking the goal of a movement: a circle round it"
+          },
+          "sign": "M17 10 A7 7 0 1 0 3 10 A7 7 0 1 0 17 10"
+        },
+        {
+          "id": "separation",
+          "name": {"fr": "point de séparation", "en": "separation point"},
+          "about": {
+            "fr": "un accent qui sépare deux champs temporels : un trait vertical à travers",
+            "en": "an accent setting two time-fields apart: a vertical line through it"
+          },
+          "sign": "M10 0.5 L10 19.5"
+        },
+        {
+          "id": "release",
+          "name": {"fr": "point de lancement", "en": "release point"},
+          "about": {
+            "fr": "un accent qui lance un mouvement, ou ouvre un champ : un trait vers le haut qui tourne en flèche",
+            "en": "an accent launching a motion, or opening a field: a line up that turns into an arrow"
+          },
+          "sign": "M10 6 L10 1 L17 1 M14.5 -1.2 L17 1 L14.5 3.2"
+        },
+        {
+          "id": "termination",
+          "name": {"fr": "point de terminaison", "en": "termination point"},
+          "about": {
+            "fr": "un accent qui termine un champ ou une fonction : des barres de chaque côté",
+            "en": "an accent ending a time-field or a function: bars on each side"
+          },
+          "sign": "M3.5 4 L3.5 16 M16.5 4 L16.5 16"
+        },
+        {
+          "id": "affirmation",
+          "name": {"fr": "point d'affirmation", "en": "affirmation point"},
+          "about": {
+            "fr": "un accent qui affirme ou répète un accent ou un élément passé : une barre au-dessus",
+            "en": "an accent affirming or repeating an earlier accent or element: a bar above"
+          },
+          "sign": "M5.5 3.2 L14.5 3.2"
+        },
+        {
+          "id": "warning",
+          "name": {"fr": "point d'alerte", "en": "warning point"},
+          "about": {
+            "fr": "un accent qui annonce un événement imminent : un point en dessous",
+            "en": "an accent alerting the listener to an imminent event: a dot below"
+          },
+          "signFill": "M11.4 17.6 A1.4 1.4 0 1 0 8.6 17.6 A1.4 1.4 0 1 0 11.4 17.6"
+        }
+      ]
+    }
+  ],
+  "lanes": [
+    {
+      "id": "dynamic",
+      "name": {"fr": "Forme dynamique", "en": "Dynamic form"},
+      "about": {
+        "fr": "les fonctions de forme, l'atteinte du but et les accents (Thoresen, ch. 8), dessinés à la main jusqu'aux conteneurs (étape 5)",
+        "en": "form-building functions, goal attainment and accents (Thoresen, chapter 8), drawn by hand until containers come (stage 5)"
+      },
+      "kind": "drawn",
+      "spans": "function",
+      "emphasis": "emphasis",
+      "height": "height",
+      "goal": "goal",
+      "goalOn": ["forward", "delta", "plateau"],
+      "points": "accent",
+      "pointBase": "M5.5 6 L14.5 6 L10 14 Z"
     }
   ]
 }

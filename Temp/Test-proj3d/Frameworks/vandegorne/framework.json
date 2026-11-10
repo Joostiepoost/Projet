@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "vandegorne",
-  "version": 2,
+  "version": 3,
   "order": 40,
   "name": {"fr": "Vande Gorne : écriture", "en": "Vande Gorne: writing"},
   "about": {
@@ -230,5 +230,15 @@
         }
       ]
     }
-  ]
+  ],
+  "nodes": {
+    "name": {"fr": "nœud", "en": "node"},
+    "about": {
+      "fr": "un changement brusque et synchrone de toutes les voies : une courte résolution, unique et évidente ; trop court il passe inaperçu, trop long il devient ligne (ch. 3)",
+      "en": "a sudden, synchronous change of every voice: a short, single, obvious resolution; too short it goes unheard, too long it becomes a line (chapter 3)"
+    },
+    "short": 0.02,
+    "long": 0.25,
+    "window": 0.05
+  }
 }
