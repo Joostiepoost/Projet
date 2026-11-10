@@ -183,6 +183,7 @@ private:
     void paintFrameworkMarks (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha);
     /** Seam signs (junctions, with the mixing relation beside them and the
         ending of the box before on their bracket) and end signs (stage 4c). */
+    static juce::Path fadeGaps (float endX, float endY, float length);
     void paintSeams (juce::Graphics&, const TrackRow&);
     /** A package's SVG path, parsed once. */
     const juce::Path& signPath (const juce::String& svg);

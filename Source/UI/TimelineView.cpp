@@ -1004,6 +1004,19 @@ juce::String TimelineView::getTooltip()
     return {};
 }
 
+juce::Path TimelineView::fadeGaps (float endX, float endY, float length)
+{
+    // The line before an end bracket turning to dashes: shorter dashes and
+    // longer gaps towards the bracket, with a stub left on the corner. In
+    // sign units, as fractions of the length (16 by default).
+    static constexpr float gaps[][2] = { { 16.0f, 13.5f }, { 9.5f, 7.0f }, { 4.5f, 1.0f } };
+    juce::Path p;
+    const float k = length / 16.0f;
+    for (auto& gap : gaps)
+        p.addRectangle (endX - gap[0] * k, endY - 1.8f, (gap[0] - gap[1]) * k, 3.6f);   // the stroke and its smoothing
+    return p;
+}
+
 void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
 {
     juce::Array<const Framework::Category*> seamCats, endCats;
@@ -1020,7 +1033,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
     juce::StringArray combined;                     // boxes whose ending went into a seam sign
 
     auto draw = [&] (const juce::Path& path, juce::Point<float> anchor, float anchorX, bool solid, float alpha,
-                     const juce::String& boxId, const juce::String& tip, bool seam)
+                     const juce::String& boxId, const juce::String& tip, bool seam, const juce::Path& cut)
     {
         const auto b = path.getBounds();
         const auto xform = juce::AffineTransform::translation (-anchorX, -b.getCentreY()).scaled (scale).translated (anchor);
@@ -1043,6 +1056,15 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
             g.setColour (Theme::accent.withAlpha (0.45f * alpha));
             g.fillPath (dashed);
         }
+        juce::Graphics::ScopedSaveState state (g);
+        if (! cut.isEmpty())                        // gaps cut out of the line (a fading ending)
+        {
+            juce::Path keep;
+            keep.setUsingNonZeroWinding (false);
+            keep.addRectangle (area.expanded (4.0f));
+            keep.addPath (cut, xform);
+            g.reduceClipRegion (keep);
+        }
         g.setColour (Theme::accent.withAlpha ((solid ? 1.0f : 0.75f) * alpha));
         g.strokePath (path, juce::PathStrokeType (1.25f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), xform);
         signHits.push_back ({ area, boxId, tip, seam });
@@ -1057,11 +1079,11 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
         const auto join = project.joinBefore (box);
         if (join.isValid() && ! seamCats.isEmpty())
         {
-            juce::Path main, all;
+            juce::Path main, all, cut;
             juce::StringArray tips;
             bool own = false;
             const Framework::Value* first = nullptr;
-            float cursor = 0.0f;
+            float nextX = 0.0f;
             for (auto* c : seamCats)
             {
                 const auto v = project.frameworkValue (box, *c);
@@ -1077,14 +1099,14 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
                     first = val;
                     own = v.isOwn();
                     main = path;
-                    cursor = path.getBounds().getRight() + 5.0f;
+                    nextX = path.getBounds().getRight() + 5.0f;
                 }
                 else
                 {
                     const auto pb = path.getBounds();
-                    path.applyTransform (juce::AffineTransform::translation (cursor - pb.getX(), 0.0f));
+                    path.applyTransform (juce::AffineTransform::translation (nextX - pb.getX(), 0.0f));
                     all.addPath (path);
-                    cursor += pb.getWidth() + 5.0f;
+                    nextX += pb.getWidth() + 5.0f;
                 }
             }
             for (auto* c : seamCats)
@@ -1095,11 +1117,18 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
             if (first != nullptr && first->endX >= 0.0f && ! endCats.isEmpty())
             {
                 const auto ev = project.frameworkValue (join.before, *endCats[0]);
-                if (auto* ending = framework.findValue (*endCats[0], ev.value); ending != nullptr && ending->seamSign.isNotEmpty())
+                if (auto* ending = framework.findValue (*endCats[0], ev.value);
+                    ending != nullptr && (ending->seamSign.isNotEmpty() || ending->seamFade > 0.0f))
                 {
-                    auto mark = signPath (ending->seamSign);
-                    mark.applyTransform (juce::AffineTransform::translation (first->endX, first->endY));
-                    main.addPath (mark);
+                    if (ending->seamSign.isNotEmpty())
+                    {
+                        auto mark = signPath (ending->seamSign);
+                        mark.applyTransform (juce::AffineTransform::translation (first->endX, first->endY));
+                        main.addPath (mark);
+                    }
+                    if (ending->seamFade > 0.0f)
+                        cut = fadeGaps (first->fadeX >= 0.0f ? juce::jmin (first->fadeX, first->endX) : first->endX,
+                                        first->endY, ending->seamFade);
                     combined.add (join.before[IDs::id].toString());
                     tips.add (framework.text (endCats[0]->name) + " of " + join.before[IDs::name].toString().quoted() + ": "
                               + framework.valueName (*endCats[0], ev.value));
@@ -1110,11 +1139,18 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
                 const double tEnd = juce::jmin (Project::boxEnd (join.before), Project::boxEnd (box));
                 const float x = timeToX ((Project::boxStart (box) + tEnd) / 2.0);
                 all.addPath (main);
-                draw (all, { x, centreY }, main.getBounds().getCentreX(), own, alpha, box[IDs::id].toString(), tips.joinIntoString ("\n"), true);
+                draw (all, { x, centreY }, main.getBounds().getCentreX(), own, alpha, box[IDs::id].toString(), tips.joinIntoString ("\n"), true, cut);
             }
         }
 
-        // == How the box ends, on its own (when no seam sign took it)
+    }
+
+    // == How each box ends, on its own (when no seam sign took it; after all
+    // the seams, since a box may come before the one it ends into)
+    for (auto box : row.track)
+    {
+        float alpha = project.effectiveMute (row.track) ? 0.5f : 1.0f;
+        if (highlight.isActive() && ! matchesHighlight (box)) alpha *= 0.3f;
         for (int k = 0; k < endCats.size(); ++k)
         {
             auto* c = endCats[k];
@@ -1125,7 +1161,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
             const auto& path = signPath (val->sign);
             const float x = timeToX (Project::boxEnd (box)) + 2.0f;
             draw (path, { x, centreY + (float) k * 15.0f }, path.getBounds().getRight(), true, alpha, box[IDs::id].toString(),
-                  framework.text (c->name) + ": " + framework.valueName (*c, v.value), false);
+                  framework.text (c->name) + ": " + framework.valueName (*c, v.value), false, {});
         }
     }
 }

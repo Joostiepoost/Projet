@@ -68,7 +68,9 @@ public:
         juce::String curve;                     // a peak shape: "soft" (rounded) or "hard"
         juce::String sign;                      // an SVG path drawn for it on the timeline (a seam or an end sign)
         juce::String seamSign;                  // an end value's mark on the end bracket of a seam sign, from (0, 0)
+        float seamFade = 0.0f;                  // and how much of the line before that bracket turns to dashes
         float endX = -1.0f, endY = -1.0f;       // a seam sign's end bracket of the box before (where seamSign goes)
+        float fadeX = -1.0f;                    // where a fading ending stops on its line, if before endX
         Condition onlyWith;
     };
 

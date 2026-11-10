@@ -118,11 +118,13 @@ namespace
         x.curve = v["curve"].toString().trim().toLowerCase();
         x.sign = v["sign"].toString().trim();
         x.seamSign = v["seamSign"].toString().trim();
+        x.seamFade = juce::jlimit (0.0f, 40.0f, (float) (double) v.getProperty ("seamFade", 0.0));
         if (auto* at = v["endAt"].getArray(); at != nullptr && at->size() >= 2)
         {
             x.endX = (float) (double) at->getUnchecked (0);
             x.endY = (float) (double) at->getUnchecked (1);
         }
+        if (v.hasProperty ("fadeAt")) x.fadeX = (float) (double) v["fadeAt"];
         x.onlyWith = readCondition (v["onlyWith"]);
         return x;
     }

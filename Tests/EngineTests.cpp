@@ -1139,6 +1139,9 @@ void testJunctions()
            "every kind has its sign; the end bracket where it has one");
     check (ending->atEnd && ending->mark == Framework::Mark::end && fw.valuesOf (*ending).size() == 6
            && fw.findValue (*ending, "conclusive")->seamSign.isNotEmpty(), "endings: at the end, with signs and seam marks");
+    check (fw.findValue (*ending, "vague")->seamFade > 0.0f && fw.findValue (*ending, "vague")->seamSign.isEmpty()
+           && fw.findValue (*ending, "open")->seamFade == 0.0f && fw.findValue (*junction, "hinged")->fadeX == 27.0f
+           && fw.findValue (*junction, "joint")->fadeX < 0.0f, "a vague ending fades its line in a seam sign, up to the hinge");
     check (Framework::marksFor (*junction) == juce::Array<Framework::Mark> { Framework::Mark::none, Framework::Mark::seam, Framework::Mark::badge, Framework::Mark::label }
            && Framework::marksFor (*ending).contains (Framework::Mark::end) && ! Framework::marksFor (*profile).contains (Framework::Mark::end),
            "the marks that suit joins and endings");

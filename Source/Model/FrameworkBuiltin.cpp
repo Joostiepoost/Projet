@@ -874,7 +874,7 @@ The operations of your structuring language, from the RK1 research: 10 primitive
 R"PKG({
   "projet": "framework package",
   "id": "thoresen",
-  "version": 1,
+  "version": 2,
   "order": 30,
   "name": {"fr": "Thoresen : champs temporels", "en": "Thoresen: time-fields"},
   "about": {
@@ -954,7 +954,8 @@ R"PKG({
             "en": "the end of one coincides with the start of the next (an overlap up to 8 s)"
           },
           "sign": "M0 15 L33 15 L33 7 M27 7 L27 15 L60 15",
-          "endAt": [33, 15]
+          "endAt": [33, 15],
+          "fadeAt": 27
         },
         {
           "id": "overlapping",
@@ -993,8 +994,8 @@ R"PKG({
           "id": "vague",
           "name": {"fr": "vague", "en": "vague"},
           "about": {"fr": "on ne sait pas bien où le champ s'arrête", "en": "it is unclear where the field ends"},
-          "sign": "M0 15 L30 15 M16 10 L23 17 M23 10 L16 17",
-          "seamSign": "M-9 -4 L-3 2 M-3 -4 L-9 2"
+          "sign": "M0 15 L13.4 15 M17.1 15 L19.9 15 M23.6 15 L24.9 15 M29.4 15 L29.6 15",
+          "seamFade": 16
         },
         {
           "id": "open",
@@ -1050,7 +1051,7 @@ Lasse Thoresen's time-field conjunctions (*Emergent Musical Forms*, 6.3), betwee
 
 **Ending.** How a box ends: vague, open, conclusive, cut, disjointed, deferred, or not marked.
 
-**Signs.** Drawn at the top of the lane, after Thoresen's figures 6.2 and 6.3. Where a box with an ending meets the next box, the two make one sign, the ending's mark on the first box's bracket (his figure 6.4). A junction found from the timing has a dashed frame; a chosen one a solid frame. Each value's `sign` is an SVG path: a junction's in a 60 by 20 box with `endAt` where the first box's bracket ends, an ending's `seamSign` drawn from that point.
+**Signs.** Drawn at the top of the lane, after Thoresen's figures 6.2 and 6.3. Where a box with an ending meets the next box, the two make one sign, the ending's mark on the first box's bracket (his figure 6.4). A junction found from the timing has a dashed frame; a chosen one a solid frame. Each value's `sign` is an SVG path: a junction's in a 60 by 20 box with `endAt` where the first box's bracket ends, an ending's `seamSign` drawn from that point. An ending's `seamFade` turns that much of the line before the bracket into dashes instead (the vague ending), stopping at the junction's `fadeAt` if it has one (where the next box begins, for hinged).
 )HELP"),
         make ("vandegorne",
 R"PKG({
