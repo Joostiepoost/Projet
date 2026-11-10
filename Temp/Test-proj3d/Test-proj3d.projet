@@ -5,9 +5,9 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 11.696415733297403,
-  "pixelsPerSecond": 49.706124225989939,
-  "playhead": 22.297887306919158,
+  "viewStart": 0.363541291597015,
+  "pixelsPerSecond": 33.846739791087451,
+  "playhead": 17.839072617391583,
   "activeLayer": "81cac3b3253744b181420ef3183983b0",
   "fwLanguage": "en",
   "frameLength": 20.672460937499999,
@@ -71,11 +71,11 @@
               "id": "8647d5f9457e4c7d8f60fa6e336f965e",
               "kind": "text",
               "name": "Text",
-              "start": 8.150328234070804,
+              "start": 7.953415813807863,
               "length": 7.418733137228652,
               "opacity": 0.72,
               "notes": "",
-              "propStart": "0.213625",
+              "propStart": "0.207056",
               "propLength": "0.247489",
               "propFrame": "span",
               "propLock": true,
@@ -165,7 +165,16 @@
           "kind": "lane",
           "lane": "composition.energies",
           "name": "Energies",
-          "height": 90,
+          "height": 68,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "2942484f6c9b4fc1b9bc84e6150b021a",
+          "kind": "lane",
+          "lane": "schaeffer.typology",
+          "name": "Typology",
+          "height": 30,
           "visible": true
         },
         {
@@ -183,7 +192,16 @@
           "kind": "lane",
           "lane": "thoresen.dynamic",
           "name": "Dynamic form",
-          "height": 90,
+          "height": 108,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "3f2ad81975f444718c99b679408f4d51",
+          "kind": "lane",
+          "lane": "composition.semiotic",
+          "name": "Semiotic profile",
+          "height": 73,
           "visible": true
         }
       ]
@@ -203,7 +221,8 @@
           "id": "2a25143223f54408ac65cb44f52d7c3d",
           "name": "L1a_GP",
           "frame": "span",
-          "expr": "0.685851"
+          "expr": "0.685851",
+          "colour": 8
         }
       ]
     },
@@ -279,7 +298,16 @@
       ]
     },
     {
-      "type": "NODES"
+      "type": "NODES",
+      "children": [
+        {
+          "type": "NODE",
+          "id": "b041d8c1be614e96a25643800a53d53a",
+          "folderId": "50ce766bc1d04434a106c7656522f450",
+          "start": 12.647070611994462,
+          "length": 9.083639881672919
+        }
+      ]
     }
   ]
 }
