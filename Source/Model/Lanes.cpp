@@ -48,18 +48,31 @@ namespace Lanes
         std::vector<Placed> out;
         for (auto item : project.drawnItems (laneKey))
             if (Project::isSpan (item)) out.push_back ({ item, 0 });
+        // Shorter spans first, so they sit above the longer ones that sum
+        // them up (Thoresen draws a hierarchy that way); then by start.
         std::stable_sort (out.begin(), out.end(), [] (const Placed& a, const Placed& b)
-                          { return (double) a.item[IDs::start] < (double) b.item[IDs::start]; });
-        std::vector<double> rowEnds;
+        {
+            const double la = (double) a.item[IDs::end] - (double) a.item[IDs::start];
+            const double lb = (double) b.item[IDs::end] - (double) b.item[IDs::start];
+            if (std::abs (la - lb) > 1.0e-9) return la < lb;
+            return (double) a.item[IDs::start] < (double) b.item[IDs::start];
+        });
+        std::vector<std::vector<std::pair<double, double>>> taken;
         for (auto& p : out)
         {
             const double s = p.item[IDs::start], e = p.item[IDs::end];
             size_t r = 0;
-            while (r < rowEnds.size() && rowEnds[r] > s + 1.0e-9) ++r;
-            if (r == rowEnds.size()) rowEnds.push_back (e); else rowEnds[r] = e;
+            for (; r < taken.size(); ++r)
+            {
+                bool clash = false;
+                for (auto& iv : taken[r]) clash = clash || (s < iv.second - 1.0e-9 && e > iv.first + 1.0e-9);
+                if (! clash) break;
+            }
+            if (r == taken.size()) taken.emplace_back();
+            taken[r].push_back ({ s, e });
             p.row = (int) r;
         }
-        rows = juce::jmax (1, (int) rowEnds.size());
+        rows = juce::jmax (1, (int) taken.size());
         return out;
     }
 

@@ -77,6 +77,9 @@ public:
         juce::String shape;                     // (4d.2) a span kind's shape in a drawn lane: forward, backward,
                                                 // presence, neutral, delta
         juce::String stroke;                    // (4d.2) an emphasis: dashed, solid or bold
+        float size = -1.0f;                     // a height's share of the row (low 0.6, high 1)
+        float early = -1.0f;                    // a goal's: the main slope arrives this early (a blunted goal)
+        juce::String signFill;                  // a filled part of the sign (an SVG path, beside the stroked `sign`)
     };
 
     struct Axis { juce::String id; Name name; };
@@ -169,8 +172,9 @@ public:
         juce::Array<double> weightValues;
         double defaultWeight = 1.0;
         // drawn (4d.2): what you draw in it, as categories "on": "lane" (keys)
-        juce::String spans, emphasis, goal, points;
+        juce::String spans, emphasis, goal, points, height;
         juce::StringArray goalOn;               // the span kinds (ids) that can reach a goal
+        juce::String pointBase;                 // the filled sign under every point (Thoresen's weighted point, a triangle)
         double weightFor (const juce::String& valueId) const
         {
             const int i = weightIds.indexOf (valueId);

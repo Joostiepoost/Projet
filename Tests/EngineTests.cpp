@@ -757,7 +757,7 @@ void testFramework()
            && packages[3].id == "vandegorne" && packages[4].id == "rk1",
            "5 packages in order: composition, schaeffer, thoresen, vandegorne, rk1");
     for (auto& p : packages) check (p.warnings.isEmpty(), p.id + " loads without warnings " + p.warnings.joinIntoString ("; "));
-    check (fw.getCategories().size() == 18, "18 categories, got " + juce::String (fw.getCategories().size()));
+    check (fw.getCategories().size() == 19, "19 categories, got " + juce::String (fw.getCategories().size()));
     auto* energy = fw.findCategory ("composition.energy");
     auto* energy2 = fw.findCategory ("composition.energy2");
     auto* level = fw.findCategory ("composition.level");
@@ -819,7 +819,7 @@ void testFramework()
 
     // == Packages that are broken or odd
     check (! fw.addPackage ("{ not json", "broken", error) && error.isNotEmpty(), "a broken package is refused");
-    check (fw.getPackages().size() == 5 && fw.getCategories().size() == 18, "and nothing changes");
+    check (fw.getPackages().size() == 5 && fw.getCategories().size() == 19, "and nothing changes");
     check (! fw.addPackage ("[ 1, 2 ]", "list", error), "a file that holds no package is refused");
     check (fw.addPackage (R"({ "categories": [ { "name": "no id" }, { "id": "a", "kind": "colour" },
                                               { "id": "b", "kind": "tags", "along": true }, { "id": "b" },
@@ -828,7 +828,7 @@ void testFramework()
     check (odd != nullptr && odd->categories.size() == 2 && odd->warnings.size() == 5,
            "its id from the folder; bad categories left out, with warnings: " + (odd != nullptr ? odd->warnings.joinIntoString (" | ") : juce::String()));
     fw.removePackage ("oddone");
-    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 18, "removed");
+    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 19, "removed");
 
     // == A new framework needs only a folder: the example package
     const juce::File example (juce::String (PROJET_SOURCE_DIR) + "/Examples/Frameworks/example");
@@ -847,7 +847,7 @@ void testFramework()
     check (motion->kind == Framework::Kind::choice && motion->control == "buttons" && motion->along && motion->folders
            && materials->kind == Framework::Kind::tags && density->kind == Framework::Kind::number && source->kind == Framework::Kind::text,
            "kinds and settings");
-    check (fw.getCategories().size() == 22 && fw.getCategories()[18].key() == "example.motion", "after the builtins (order 60)");
+    check (fw.getCategories().size() == 23 && fw.getCategories()[19].key() == "example.motion", "after the builtins (order 60)");
     check (fw.valuesOf (*energy).size() == 11 && fw.findValue (*energy, "example-pulsation") != nullptr
            && fw.findValue (*energy, "example-pulsation")->from == "example" && fw.valuesOf (*energy2).size() == 11,
            "it adds an energy, which the second energy shares");
@@ -1429,8 +1429,9 @@ void testDynamicForm()
     auto fw = Framework::builtIn();
     auto* lane = fw.findLane ("thoresen.dynamic");
     check (lane != nullptr && lane->kind == Framework::Lane::Kind::drawn && lane->spans == "thoresen.function" && lane->emphasis == "thoresen.emphasis"
-           && lane->goal == "thoresen.goal" && lane->points == "thoresen.accent" && lane->goalOn.joinIntoString (",") == "forward,delta",
-           "a drawn lane: spans, emphasis, goals (on forward spans and deltas) and accent points");
+           && lane->height == "thoresen.height" && lane->goal == "thoresen.goal" && lane->points == "thoresen.accent"
+           && lane->goalOn.joinIntoString (",") == "forward,delta,plateau" && lane->pointBase.isNotEmpty(),
+           "a drawn lane: spans, emphasis, heights, goals (on forward spans and deltas) and accent points on a filled triangle");
     if (lane == nullptr) return;
     auto* function = fw.findCategory ("thoresen.function");
     auto* emphasis = fw.findCategory ("thoresen.emphasis");
@@ -1441,14 +1442,18 @@ void testDynamicForm()
     juce::StringArray shapes, strokes;
     for (auto& v : fw.valuesOf (*function)) shapes.add (v.shape);
     for (auto& v : fw.valuesOf (*emphasis)) strokes.add (v.stroke);
-    check (shapes.joinIntoString (",") == "forward,presence,backward,neutral,delta" && strokes.joinIntoString (",") == "dashed,solid,bold"
-           && emphasis->defaultValue == "average", "five functions with their shapes; faint, average (the default), emphasised");
+    check (shapes.joinIntoString (",") == "forward,presence,backward,neutral,wavering,delta,plateau" && strokes.joinIntoString (",") == "dashed,solid,bold"
+           && emphasis->defaultValue == "average", "seven functions with their shapes (figures 8.1, 8.2, 8.5, 8.1.3-4); faint, average (the default), emphasised");
+    auto* height = fw.findCategory ("thoresen.height");
+    check (height != nullptr && height->defaultValue == "high" && fw.findValue (*height, "low")->size == 0.6f && fw.findValue (*height, "high")->size == 1.0f,
+           "two heights, low and high (8.1.3)");
     check (fw.valuesOf (*goal).size() == 5 && fw.valuesOf (*accent).size() == 7 && accent->kind == Framework::Kind::tags,
            "five goal kinds, seven accent functions (tags: they combine)");
     bool signs = true;
     for (auto& v : fw.valuesOf (*goal)) signs = signs && v.sign.isNotEmpty();
-    for (auto& v : fw.valuesOf (*accent)) signs = signs && v.sign.isNotEmpty();
-    check (signs, "goals and accents have signs");
+    for (auto& v : fw.valuesOf (*accent)) signs = signs && (v.id == "accent" || v.sign.isNotEmpty() || v.signFill.isNotEmpty());
+    check (signs && fw.findValue (*goal, "blunted")->early > 0.0f && fw.findValue (*goal, "attained")->early < 0.0f
+           && fw.findValue (*accent, "warning")->signFill.isNotEmpty(), "goals and accents have signs; a blunted goal arrives early");
     check (function->laneOnly && ! function->forBoxes() && accent->laneOnly && Framework::marksFor (*function).size() == 1,
            "lane categories: never on boxes, no marks");
     const auto& rules = fw.getNodeRules();
@@ -1474,6 +1479,12 @@ void testDynamicForm()
     for (auto& pl : placed) rowOf[pl.item[IDs::id].toString()] = pl.row;
     check (rows == 2 && rowOf[s1[IDs::id].toString()] == 0 && rowOf[s2[IDs::id].toString()] == 1 && rowOf[s3[IDs::id].toString()] == 0,
            "overlapping spans stack; touching ones share a row");
+    auto longSpan = p.addSpan ("thoresen.dynamic", 0.0, 20.0, "forward");
+    const auto placed2 = Lanes::stack (p, "thoresen.dynamic", rows);
+    for (auto& pl : placed2) rowOf[pl.item[IDs::id].toString()] = pl.row;
+    check (rows == 3 && rowOf[longSpan[IDs::id].toString()] == 2 && rowOf[s3[IDs::id].toString()] == 0,
+           "a longer span sits below the shorter ones it sums up");
+    p.removeItem (longSpan);
     const auto id = s2[IDs::id].toString();
     p.removeItem (s2);
     check (! p.findItem (id).isValid(), "removed");
