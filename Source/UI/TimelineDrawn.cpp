@@ -62,7 +62,7 @@ TimelineView::DrawnGeometry TimelineView::drawnGeometry (const LayerRow& row, in
 {
     DrawnGeometry g;
     g.pointsTop = (float) row.y + 1.0f;
-    g.pointsH = juce::jlimit (9.0f, 16.0f, (float) row.h * 0.32f);
+    g.pointsH = juce::jlimit (9.0f, 22.0f, (float) row.h * 0.25f);
     g.rowsTop = g.pointsTop + g.pointsH + 1.0f;
     g.rows = juce::jmax (1, rows);
     g.rowH = juce::jmax (4.0f, ((float) (row.y + row.h) - 2.0f - g.rowsTop) / (float) g.rows);
@@ -105,7 +105,7 @@ void TimelineView::paintSpan (juce::Graphics& g, const Framework::Lane& lane, co
     if (auto* goal = framework.findCategory (lane.goal); goal != nullptr && lane.goalOn.contains (span[IDs::value].toString()))
         goalValue = framework.findValue (*goal, span[IDs::goal].toString());
 
-    const float markH = lane.goal.isNotEmpty() ? juce::jlimit (5.0f, 10.0f, r.getHeight() * 0.32f) : 0.0f;
+    const float markH = lane.goal.isNotEmpty() ? juce::jlimit (5.0f, 14.0f, r.getHeight() * 0.3f) : 0.0f;
     auto area = r.withTrimmedTop (markH);
     area = area.withTop (area.getBottom() - area.getHeight() * size);
     const float l = area.getX(), rt = area.getRight(), top = area.getY(), bottom = area.getBottom(), w = area.getWidth();
@@ -603,7 +603,7 @@ bool TimelineView::isInside (const juce::ValueTree& track, const juce::ValueTree
 void TimelineView::paintNodes (juce::Graphics& g)
 {
     const auto& rules = framework.getNodeRules();
-    if (project.getNodes().getNumChildren() == 0) return;
+    if (project.getNodes().getNumChildren() == 0 && dragMode != DragMode::drawNode) return;
     const auto rs = rows();
     const auto layers = rulerRows();
     juce::Graphics::ScopedSaveState ss (g);
@@ -620,10 +620,11 @@ void TimelineView::paintNodes (juce::Graphics& g)
             const bool selected = node[IDs::id].toString() == selectedNodeId;
             const auto check = rules.present ? Lanes::checkNode (project, rules, node) : Lanes::NodeCheck();
             const bool flagged = check.tooShort || check.tooLong || ! check.still.isEmpty();
-            const auto edge = (flagged ? Theme::accent : Theme::signs).withAlpha (selected ? 0.95f : 0.6f);
+            const auto colour = flagged ? Theme::nodesFlagged : Theme::nodes;
+            const auto edge = colour.withAlpha (selected ? 0.95f : 0.6f);
             auto band = [&] (float top, float bottom)
             {
-                g.setColour (Theme::signs.withAlpha (selected ? 0.2f : 0.1f));
+                g.setColour (Theme::nodes.withAlpha (selected ? 0.22f : 0.11f));
                 g.fillRect (x0, top, x1 - x0, bottom - top);
                 g.setColour (edge);
                 g.fillRect (x0, top, 1.0f, bottom - top);
@@ -641,7 +642,7 @@ void TimelineView::paintNodes (juce::Graphics& g)
             const float cx = (x0 + x1) / 2.0f, cy = (float) fr.y + 6.0f;
             diamond.addQuadrilateral (cx, cy - 4.0f, cx + 4.0f, cy, cx, cy + 4.0f, cx - 4.0f, cy);
             if (cy < (float) rulerHeight()) continue;
-            g.setColour (flagged ? Theme::accent : Theme::signs);
+            g.setColour (selected ? colour.brighter (0.3f) : colour);
             g.fillPath (diamond);
             if (flagged)
             {
@@ -656,9 +657,18 @@ void TimelineView::paintNodes (juce::Graphics& g)
         for (auto& fr : rs)
             if (fr.track == drawFolder)
             {
+                // The node being drawn: across the folder's tracks, with its length.
                 const float x0 = timeToX (juce::jmin (drawStart, drawEnd)), x1 = timeToX (juce::jmax (drawStart, drawEnd));
-                g.setColour (Theme::accent.withAlpha (0.3f));
-                g.fillRect (x0, (float) fr.y, juce::jmax (1.0f, x1 - x0), (float) fr.h);
+                float bottom = (float) (fr.y + fr.h);
+                for (auto& r : rs) if (r.y > fr.y && isInside (r.track, fr.track)) bottom = juce::jmax (bottom, (float) (r.y + r.h));
+                const float top = juce::jmax ((float) fr.y, (float) rulerHeight());
+                g.setColour (Theme::nodes.withAlpha (0.25f));
+                g.fillRect (x0, top, juce::jmax (1.0f, x1 - x0), bottom - top);
+                g.setColour (Theme::nodes);
+                g.drawRect (juce::Rectangle<float> (x0, top, juce::jmax (1.0f, x1 - x0), bottom - top), 1.0f);
+                g.setFont (Theme::font (10.5f));
+                g.drawText (TimeFormat::format (std::abs (drawEnd - drawStart)), juce::Rectangle<float> (x1 + 4.0f, (float) fr.y, 90.0f, (float) fr.h).toNearestInt(),
+                            juce::Justification::centredLeft, false);
             }
 }
 

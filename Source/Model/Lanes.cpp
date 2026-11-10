@@ -130,9 +130,10 @@ namespace Lanes
 
     int heightFor (const Framework& fw, const Framework::Lane& lane, int size)
     {
-        if (lane.kind == Framework::Lane::Kind::drawn) return size <= 0 ? 40 : (size == 1 ? 64 : 90);   // accents above, spans below
-        const int perRow = size <= 0 ? 5 : (size == 1 ? (lane.kind == Framework::Lane::Kind::scale ? 11 : 10) : 15);
-        return juce::jlimit (12, 90, rowCount (fw, lane) * perRow + 4);
+        // Small, medium (room for the rows' names and the signs), large (twice that).
+        if (lane.kind == Framework::Lane::Kind::drawn) return size <= 0 ? 40 : (size == 1 ? 90 : 180);   // accents above, spans below
+        const int perRow = size <= 0 ? 5 : (size == 1 ? 15 : 30);
+        return juce::jlimit (12, 240, rowCount (fw, lane) * perRow + 4);
     }
 
     std::vector<Piece> piecesOf (Project& project, const juce::ValueTree& box, const Framework::Category& c)

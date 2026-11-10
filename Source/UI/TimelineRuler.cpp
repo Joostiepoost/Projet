@@ -12,6 +12,8 @@ namespace
     const juce::Colour seriesColour (0xff8fd6c9);
     const juce::Colour layerBackground (0xff1b1a17);
     constexpr int minLayerHeight = 12, maxLayerHeight = 90;
+    constexpr int maxLaneHeight = 240;                  // overview lanes may be much taller (4d)
+    int maxHeightFor (const juce::ValueTree& layer)     { return Project::isLaneLayer (layer) ? maxLaneHeight : maxLayerHeight; }
     constexpr int sizeSmall = 16, sizeMedium = 24, sizeLarge = 36;
 
     juce::String sizeName (int h)  { return h <= 18 ? "S" : (h <= 30 ? "M" : "L"); }
@@ -26,7 +28,7 @@ std::vector<TimelineView::LayerRow> TimelineView::rulerRows() const
     for (auto l : project.getRulers())
     {
         if (! (bool) l.getProperty (IDs::visible, true)) continue;
-        const int h = juce::jlimit (minLayerHeight, maxLayerHeight, (int) l.getProperty (IDs::height, 24));
+        const int h = juce::jlimit (minLayerHeight, maxHeightFor (l), (int) l.getProperty (IDs::height, 24));
         out.push_back ({ l, y, h, Project::isTimeLayer (l), Project::isLaneLayer (l) });
         y += h;
     }
@@ -297,7 +299,7 @@ void TimelineView::paintProportionLayer (juce::Graphics& g, const LayerRow& row)
         const double t = project.markTime (m);
         if (t < 0.0) continue;
         const float x = timeToX (t);
-        g.setColour (Theme::accent);
+        g.setColour (Theme::markColour ((int) m.getProperty (IDs::colour, 0)));
         g.fillRect (x - 1.0f, (float) y0, 2.0f, (float) h - 1.0f);
         if (! roomForLabels) continue;
         g.setFont (Theme::font (10.0f, true));
@@ -345,7 +347,7 @@ void TimelineView::paintMarksInLanes (juce::Graphics& g)
         const double t = project.markTime (m);
         if (t < 0.0) continue;
         const float x = timeToX (t);
-        g.setColour (Theme::accent.withAlpha (m == dragMark ? 0.9f : 0.45f));
+        g.setColour (Theme::markColour ((int) m.getProperty (IDs::colour, 0)).withAlpha (m == dragMark ? 0.9f : 0.5f));
         g.drawDashedLine ({ x, top, x, bottom }, dashes, 2, 1.2f);
     }
 }
@@ -354,12 +356,14 @@ void TimelineView::paintMarksInLanes (juce::Graphics& g)
 
 bool TimelineView::rulerMouseMove (const juce::MouseEvent& e)
 {
+    // A layer's lower edge, across the whole width: drag it to change the height.
+    for (auto& r : rulerRows())
+        if (r.layer.isValid() && std::abs (e.y - (r.y + r.h)) <= 3) { setMouseCursor (juce::MouseCursor::UpDownResizeCursor); return true; }
     if (e.y >= rulerHeight()) return false;
     const auto row = layerAt (e.y);
     if (e.x < headerWidth)
     {
-        const bool onEdge = row.layer.isValid() && std::abs (e.y - (row.y + row.h)) <= 3;
-        setMouseCursor (onEdge ? juce::MouseCursor::UpDownResizeCursor : juce::MouseCursor::PointingHandCursor);
+        setMouseCursor (juce::MouseCursor::PointingHandCursor);
         return true;
     }
     if (row.lane) { setMouseCursor (juce::MouseCursor::PointingHandCursor); return true; }
@@ -375,6 +379,17 @@ bool TimelineView::rulerMouseMove (const juce::MouseEvent& e)
 
 bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
 {
+    // Resize a layer from its lower edge, anywhere along it.
+    if (! e.mods.isPopupMenu())
+        for (auto& r : rulerRows())
+            if (r.layer.isValid() && std::abs (e.y - (r.y + r.h)) <= 3)
+            {
+                dragMode = DragMode::layerHeight;
+                dragLayer = r.layer;
+                dragLayerStartHeight = r.h;
+                return true;
+            }
+
     if (e.y >= rulerHeight()) return false;
     const auto row = layerAt (e.y);
 
@@ -384,16 +399,9 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
         return true;
     }
 
-    // The name column: resize from the lower edge, else the layer's menu.
+    // The name column: the layer's menu.
     if (e.x < headerWidth)
     {
-        if (std::abs (e.y - (row.y + row.h)) <= 3 && ! e.mods.isPopupMenu())
-        {
-            dragMode = DragMode::layerHeight;
-            dragLayer = row.layer;
-            dragLayerStartHeight = row.h;
-            return true;
-        }
         if (! row.time && ! row.lane) project.setActiveLayer (row.layer);
         repaint();
         showLayerMenu (row.layer);
@@ -473,7 +481,7 @@ bool TimelineView::rulerMouseDrag (const juce::MouseEvent& e)
     if (dragMode == DragMode::layerHeight)
     {
         {
-            const int h = juce::jlimit (minLayerHeight, maxLayerHeight, dragLayerStartHeight + e.getDistanceFromDragStartY());
+            const int h = juce::jlimit (minLayerHeight, maxHeightFor (dragLayer), dragLayerStartHeight + e.getDistanceFromDragStartY());
             dragLayer.setProperty (IDs::height, h, nullptr);
             repaint();
             return true;
@@ -806,6 +814,10 @@ void TimelineView::showMarkMenu (juce::ValueTree mark)
     m.addItem (1, "Rename...");
     m.addItem (2, "Set its proportion...");
     m.addItem (3, "Move it to the playhead");
+    juce::PopupMenu colours;
+    for (int i = 0; i < Theme::numMarkColours; ++i)
+        colours.addColouredItem (100 + i, Theme::markColourName (i), Theme::markColour (i), true, (int) mark.getProperty (IDs::colour, 0) == i);
+    m.addSubMenu ("Colour", colours);
     m.addSeparator();
     m.addItem (4, "Pin the selected boxes' start here", anyBound);
     m.addItem (5, "Pin the selected boxes' end here", anyBound);
@@ -841,6 +853,12 @@ void TimelineView::showMarkMenu (juce::ValueTree mark)
                 }
         }
         else if (r == 6) { p.getUndoManager().beginNewTransaction ("Delete mark"); p.removeMark (mark); }
+        else if (r >= 100 && r < 100 + Theme::numMarkColours)
+        {
+            p.getUndoManager().beginNewTransaction ("Mark colour");
+            if (r == 100) mark.removeProperty (IDs::colour, p.um());
+            else mark.setProperty (IDs::colour, r - 100, p.um());
+        }
         safe->repaint();
     });
 }

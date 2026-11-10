@@ -150,7 +150,7 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 
 ### Ruler layers, marks, series and ratios (stage 3b)
 
-**Layers.** The ruler is a stack of **time** layers and **proportion** layers, each proportion layer with its own frame, divisions and series. Click a layer's name for its menu. **Drag a layer's lower edge** (in the name column) to make it taller or thinner.
+**Layers.** The ruler is a stack of **time** layers and **proportion** layers, each proportion layer with its own frame, divisions and series. Click a layer's name for its menu. **Drag a layer's lower edge** (anywhere along it: the cursor changes) to make it taller or thinner; lanes can grow to 240 pixels.
 - The **ruler panel** (layer menu > *Ruler layers panel...*) lists the layers top to bottom: drag the dots to reorder, the eye shows or hides, **S M L** sizes, **x** deletes. Click a layer to see its details below: name, frame, snapping, divisions (1/2 to 1/20 and your own), series, and its marks. *Done* goes back.
 - **Time layers**: add as many as you like (*+ Time layer*, or a layer's menu). Each counts from the start of the piece, the span, or a box (*Count from*): a layer counting from a box reads the time inside it (negative before it) and follows the box. Clicking any time layer moves the playhead. The last time layer cannot be deleted.
 - The proportion layer you last clicked is the **active** one (a small square before its name): its grid shows through the tracks, and *Use as the ruler's frame* and new box proportions refer to it.
@@ -169,6 +169,7 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 - **Box proportions can name marks**: start `a1`, length `a2 - a1`, or `a1 + 1/12`. Move the mark and the box follows. A mark's own proportion can name other marks too.
 - **Pinning**: drop a box edge on a mark (it snaps more strongly to marks) and a box with proportions is pinned there (the readout says *pinned to a1*); or right-click > *Pin the start/end to a mark*.
 - Renaming a mark renames it in every proportion; deleting it leaves the boxes where they are.
+- **Colour**: right-click a mark > *Colour* (amber, the rulers', by default; red, orange, green, teal, blue, purple, pink, white), or the swatch beside it in the ruler panel. The mark's pill and its line through the tracks take it.
 
 **Ratio splits of boxes**: right-click a box > *Split by a ratio...*: cut it into parts (3:8, 1:1:1, 2:3:5:8 ...) or put marks in it.
 
@@ -266,7 +267,7 @@ A folder's writing type and time-feel show at the left of its lane. Boxes never 
 - **Typology** (schaeffer): one row each for balanced, redundant and eccentric types, drawn the same way.
 - **Semiotic profile** (composition): abstract at the top, concrete at the bottom; a band from the most concrete to the most abstract level present at each moment, and a line for their average weighted by role (F 3, M 2, B 1). Changes along boxes and folder levels count.
 
-Muted tracks are left out. **Click a row** (a family, a zone, a level) to highlight the boxes behind it; click again to stop, or *Show all* in the lane's menu. *Size* gives a lane room for its row names (medium) or less or more.
+Muted tracks are left out. **Click a row** (a family, a zone, a level) to highlight the boxes behind it; click again to stop, or *Show all* in the lane's menu. *Size* (or S M L in the ruler panel): small, medium (room for the row names and the signs) or large (twice that); or drag the lane's lower edge to any height.
 
 In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": "fusion" }` gives that value to the boxes of a folder that has it; `folders`: `"only"` puts a category on folders alone. `lanes`: `[ { "id", "name", "about", "kind": "rows", "category": "energy", "second": "energy2", "rows": "groups" } ]` (or `"rows": "values"`), or `"kind": "scale"` with `"weightBy": { "category": "role", "weights": { "F": 3, "M": 2, "B": 1 }, "default": 2 }`.
 
@@ -283,7 +284,7 @@ In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": 
 
 **Nodes** (Vande Gorne, chapter 3): a sudden, synchronous change of every voice of a section, a short resolution.
 - **Drag on a folder's lane** to place one (or right-click it: *Add a node here*). It is drawn as a narrow band across the folder's tracks and the lanes, with a small diamond on the folder's row. Drag it or its edges to change it; right-click it to delete it, or select it and press Delete.
-- **Select it** and the panel says how long it is against the stretch before it (since the previous node, or the folder's first box), and names the folder's tracks that do not change within it (a box starting or ending there, up to 50 ms outside). It is flagged (amber, with a !) when shorter than 2% of that stretch (it may go unheard), longer than 25% (it becomes a line), or when a voice does not change. Muted and empty tracks are left out.
+- **Select it** and the panel says how long it is against the stretch before it (since the previous node, or the folder's first box), and names the folder's tracks that do not change within it (a box starting or ending there, up to 50 ms outside). It is drawn in a soft purple, and flagged (rose, with a !) when shorter than 2% of that stretch (it may go unheard), longer than 25% (it becomes a line), or when a voice does not change. Muted and empty tracks are left out.
 - The numbers are in `Frameworks/vandegorne/framework.json` (`nodes`: `short`, `long`, `window`). Deleting a folder deletes its nodes.
 
 In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ "kind": "drawn", "spans": "function", "emphasis": "emphasis", "height": "height", "goal": "goal", "goalOn": ["forward", "delta", "plateau"], "points": "accent", "pointBase": "M5.5 6 L14.5 6 L10 14 Z" }` names them. A span kind's `shape` is `forward`, `backward`, `presence`, `neutral`, `wavering`, `delta` or `plateau`; an emphasis' `stroke` is `dashed`, `solid` or `bold`; a height's `size` its share of the row; a goal's `sign` an SVG path drawn upwards from the high corner at 0, 0 (10 units: the space above the span), and `early` for a blunted goal (where the main slope arrives); an accent's `sign` (stroked) and `signFill` (filled) are paths in a 20 by 20 box around the point at 10, 10, over the lane's filled `pointBase`.
@@ -322,7 +323,8 @@ In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ 
 - A delta: drag its handle to move the peak; a delta with a plateau: both handles.
 - Click for accents; right-click one to combine functions. Move and resize things (with and without Shift); Delete; undo.
 - Apply a ruler preset: what you drew stays. Save, quit, reopen.
-- Nodes: drag on a folder's lane; select it and read the panel; make it very short and very long (the !); add a box on a track that does not change there and see it named; mute that track; a second node (the stretch now counts from the first); delete the folder (its nodes go; undo brings them back).
+- Nodes: drag on a folder's lane (a purple band with its length shows while you drag, from the first node on); select it and read the panel; make it very short and very long (the !); add a box on a track that does not change there and see it named; mute that track; a second node (the stretch now counts from the first); delete the folder (its nodes go; undo brings them back).
+- Mark colours: right-click a mark > *Colour*; the swatch in the ruler panel; undo.
 - Panel headings and folder names with accents (*Vande Gorne : écriture*, a folder named Mé-son) show in capitals without accents.
 
 **Worth testing in stage 4d.1**:
@@ -333,6 +335,7 @@ In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ 
 - Add the three lanes (a ruler layer's menu > *Add a lane below*, or *+ Lane...* in the ruler panel). Give boxes energies, second energies, types, levels (also along a box) and roles, and watch the lanes; overlap boxes (thicker bars); mute a track (it leaves the lanes).
 - Click a lane row: the boxes behind it are highlighted; click again. Sizes S, M, L (menu and panel); reorder and hide lanes; save a ruler preset with lanes and apply it.
 - Signs in light green; drag a box below the last track (a new track; one undo).
+- Lane sizes: S, M, L (menu and panel), and drag a lane's lower edge.
 - Save, quit, reopen.
 
 **Worth testing in stage 4c**:
