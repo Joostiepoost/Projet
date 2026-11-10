@@ -5,14 +5,14 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 0.0,
-  "pixelsPerSecond": 34.045393744305429,
-  "playhead": 15.088770271189009,
+  "viewStart": 11.696415733297403,
+  "pixelsPerSecond": 49.706124225989939,
+  "playhead": 22.297887306919158,
   "activeLayer": "81cac3b3253744b181420ef3183983b0",
   "fwLanguage": "en",
   "frameLength": 20.672460937499999,
   "spanStart": 1.746702753986958,
-  "spanEnd": 31.709835174697076,
+  "spanEnd": 31.722714363507595,
   "fwDisplay": "composition.role=strip;composition.level=label",
   "children": [
     {
@@ -50,8 +50,8 @@
               "id": "a2438d464e584cafaa1349d14c16fea4",
               "kind": "text",
               "name": "Text",
-              "start": 2.420124155142418,
-              "length": 8.120638111793276,
+              "start": 2.420413614910934,
+              "length": 8.124128642423893,
               "opacity": 1.0,
               "notes": "",
               "fw.composition.role": "F",
@@ -71,8 +71,8 @@
               "id": "8647d5f9457e4c7d8f60fa6e336f965e",
               "kind": "text",
               "name": "Text",
-              "start": 8.147576917361157,
-              "length": 7.415545679669126,
+              "start": 8.150328234070804,
+              "length": 7.418733137228652,
               "opacity": 0.72,
               "notes": "",
               "propStart": "0.213625",
@@ -100,19 +100,27 @@
               "id": "da978678499a49918e2949fd43acb4e8",
               "kind": "text",
               "name": "Text",
-              "start": 18.868492708678453,
-              "length": 11.807511666764393,
+              "start": 19.489324169592567,
+              "length": 10.234979427943117,
               "opacity": 1.0,
               "notes": "",
               "fw.thoresen.ending": "vague",
               "propStart": "L1a",
-              "propLength": "0.394068",
+              "propLength": "0.341439",
               "propFrame": "span",
               "propLock": true,
               "fw.example.density": 1.0,
               "fw.composition.profile": "delta",
               "fw.composition.peak": 33.0,
-              "fw.composition.energy": "accumulation-corpuscules"
+              "fw.composition.energy": "accumulation-corpuscules",
+              "fw.example.motion": "circling",
+              "fw.composition.level": "ison",
+              "fw.composition.role": "F",
+              "fw.composition.peakshape": "soft",
+              "fw.schaeffer.type": "Ax",
+              "fw.thoresen.junction": "hinged",
+              "fw.vandegorne.mixing": "complementarity",
+              "fw.example.materials": "wood"
             }
           ]
         },
@@ -168,6 +176,15 @@
           "height": 90,
           "visible": true,
           "frame": "da978678499a49918e2949fd43acb4e8"
+        },
+        {
+          "type": "LAYER",
+          "id": "9f8b1b5824434d2986be1eb3d3890db0",
+          "kind": "lane",
+          "lane": "thoresen.dynamic",
+          "name": "Dynamic form",
+          "height": 90,
+          "visible": true
         }
       ]
     },
@@ -179,9 +196,90 @@
           "id": "de2c62a372ee4885b332b0faffcc2d47",
           "name": "L1a",
           "frame": "span",
-          "expr": "4/7"
+          "expr": "0.591894"
+        },
+        {
+          "type": "MARK",
+          "id": "2a25143223f54408ac65cb44f52d7c3d",
+          "name": "L1a_GP",
+          "frame": "span",
+          "expr": "0.685851"
         }
       ]
+    },
+    {
+      "type": "DRAWN",
+      "children": [
+        {
+          "type": "ITEM",
+          "id": "321f65f17ae94a14aa0e6967c1be4b7d",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 19.481701055010753,
+          "end": 22.251346695029145,
+          "value": "forward",
+          "goal": "partial",
+          "emphasis": "emphasised"
+        },
+        {
+          "type": "ITEM",
+          "id": "3fe3e7ab04964dd8bff92dc7d3199886",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 15.063650496524787,
+          "end": 18.608514947234987,
+          "value": "presence"
+        },
+        {
+          "type": "ITEM",
+          "id": "132e558d067b497f88ba7005102aeef6",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 30.319243237662516,
+          "end": 34.059387264558204,
+          "value": "wavering"
+        },
+        {
+          "type": "ITEM",
+          "id": "690da10c44ba4d1d9c6b4a43c10c727a",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 22.288006137157662,
+          "end": 29.47828993633463,
+          "value": "backward",
+          "size": "high",
+          "emphasis": "faint"
+        },
+        {
+          "type": "ITEM",
+          "id": "5f2d11544d6c4d1fa9798bd40fa79392",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 31.289212721775144,
+          "end": 35.536330171553153,
+          "value": "delta",
+          "goalAt": 0.305034851187725
+        },
+        {
+          "type": "ITEM",
+          "id": "4f4cddbc94844997b09a789a39a14f08",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 22.72089544848404,
+          "value": "release"
+        },
+        {
+          "type": "ITEM",
+          "id": "094701b8b83d4cb8ae1d8bcd2563b602",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 22.298850702180957,
+          "value": "goal"
+        }
+      ]
+    },
+    {
+      "type": "NODES"
     }
   ]
 }
