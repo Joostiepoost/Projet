@@ -5,12 +5,12 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 0.363541291597015,
-  "pixelsPerSecond": 33.846739791087451,
-  "playhead": 17.839072617391583,
-  "activeLayer": "81cac3b3253744b181420ef3183983b0",
+  "viewStart": 0.0,
+  "pixelsPerSecond": 17.711504138875497,
+  "playhead": 18.009027716179222,
+  "activeLayer": "309b72b2cf8d4f09940a2d6bb62c65b9",
   "fwLanguage": "en",
-  "frameLength": 20.672460937499999,
+  "frameLength": 210.099004712476187,
   "spanStart": 1.746702753986958,
   "spanEnd": 31.722714363507595,
   "fwDisplay": "composition.role=strip;composition.level=label",
@@ -143,8 +143,20 @@
           "id": "b569d4b4eae34bb1a8cc56f3f871cca3",
           "kind": "time",
           "name": "Time",
-          "height": 78,
+          "height": 52,
           "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "309b72b2cf8d4f09940a2d6bb62c65b9",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "piece",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
         },
         {
           "type": "LAYER",
@@ -165,7 +177,7 @@
           "kind": "lane",
           "lane": "composition.energies",
           "name": "Energies",
-          "height": 68,
+          "height": 240,
           "visible": true
         },
         {
@@ -174,7 +186,7 @@
           "kind": "lane",
           "lane": "schaeffer.typology",
           "name": "Typology",
-          "height": 30,
+          "height": 202,
           "visible": true
         },
         {
@@ -182,7 +194,7 @@
           "id": "f46128827bc14623b2d33d888a120769",
           "kind": "time",
           "name": "Time",
-          "height": 90,
+          "height": 47,
           "visible": true,
           "frame": "da978678499a49918e2949fd43acb4e8"
         },
@@ -192,7 +204,7 @@
           "kind": "lane",
           "lane": "thoresen.dynamic",
           "name": "Dynamic form",
-          "height": 108,
+          "height": 172,
           "visible": true
         },
         {
@@ -201,7 +213,7 @@
           "kind": "lane",
           "lane": "composition.semiotic",
           "name": "Semiotic profile",
-          "height": 73,
+          "height": 198,
           "visible": true
         }
       ]
@@ -245,18 +257,21 @@
           "id": "3fe3e7ab04964dd8bff92dc7d3199886",
           "lane": "thoresen.dynamic",
           "kind": "span",
-          "start": 15.063650496524787,
-          "end": 18.608514947234987,
-          "value": "presence"
+          "start": 13.737107397795214,
+          "end": 17.281971848505414,
+          "value": "presence",
+          "emphasis": "emphasised",
+          "size": "low"
         },
         {
           "type": "ITEM",
           "id": "132e558d067b497f88ba7005102aeef6",
           "lane": "thoresen.dynamic",
           "kind": "span",
-          "start": 30.319243237662516,
-          "end": 34.059387264558204,
-          "value": "wavering"
+          "start": 30.860629806127491,
+          "end": 34.600773833023183,
+          "value": "wavering",
+          "emphasis": "faint"
         },
         {
           "type": "ITEM",
@@ -274,8 +289,8 @@
           "id": "5f2d11544d6c4d1fa9798bd40fa79392",
           "lane": "thoresen.dynamic",
           "kind": "span",
-          "start": 31.289212721775144,
-          "end": 35.536330171553153,
+          "start": 28.997622399005717,
+          "end": 33.244739848783723,
           "value": "delta",
           "goalAt": 0.305034851187725
         },
@@ -294,6 +309,22 @@
           "kind": "point",
           "start": 22.298850702180957,
           "value": "goal"
+        },
+        {
+          "type": "ITEM",
+          "id": "dbdf8bf484fb4b20b9872fc86e7eea39",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 13.737107397795214,
+          "value": "affirmation"
+        },
+        {
+          "type": "ITEM",
+          "id": "34c6a40d54264e88a6ea72abe959d046",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 15.776212754871306,
+          "value": "separation"
         }
       ]
     },
@@ -306,6 +337,13 @@
           "folderId": "50ce766bc1d04434a106c7656522f450",
           "start": 12.647070611994462,
           "length": 9.083639881672919
+        },
+        {
+          "type": "NODE",
+          "id": "5fdea7ae34264f59ae70c566c0e79690",
+          "folderId": "50ce766bc1d04434a106c7656522f450",
+          "start": 33.935173660985306,
+          "length": 12.75349405289829
         }
       ]
     }
