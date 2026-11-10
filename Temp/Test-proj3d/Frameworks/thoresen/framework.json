@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "thoresen",
-  "version": 1,
+  "version": 2,
   "order": 30,
   "name": {"fr": "Thoresen : champs temporels", "en": "Thoresen: time-fields"},
   "about": {
@@ -81,7 +81,8 @@
             "en": "the end of one coincides with the start of the next (an overlap up to 8 s)"
           },
           "sign": "M0 15 L33 15 L33 7 M27 7 L27 15 L60 15",
-          "endAt": [33, 15]
+          "endAt": [33, 15],
+          "fadeAt": 27
         },
         {
           "id": "overlapping",
@@ -120,8 +121,8 @@
           "id": "vague",
           "name": {"fr": "vague", "en": "vague"},
           "about": {"fr": "on ne sait pas bien où le champ s'arrête", "en": "it is unclear where the field ends"},
-          "sign": "M0 15 L30 15 M16 10 L23 17 M23 10 L16 17",
-          "seamSign": "M-9 -4 L-3 2 M-3 -4 L-9 2"
+          "sign": "M0 15 L13.4 15 M17.1 15 L19.9 15 M23.6 15 L24.9 15 M29.4 15 L29.6 15",
+          "seamFade": 16
         },
         {
           "id": "open",
