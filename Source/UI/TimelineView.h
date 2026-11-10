@@ -34,7 +34,9 @@
 
 class TimelineView : public juce::Component,
                      public juce::FileDragAndDropTarget,
-                     public juce::TooltipClient
+                     public juce::TooltipClient,
+                     private juce::ScrollBar::Listener,
+                     private juce::AsyncUpdater
 {
 public:
     TimelineView (Project&, projet::SoundPool&, const Framework&);
@@ -149,6 +151,18 @@ private:
     std::vector<LayerRow> rulerRows() const;
     /** Where the tracks begin. */
     int rulerHeight() const;
+    /** Vertical scrolling. The ruler stays at the top while it takes up to
+        half the view, and the tracks scroll under it; taller (big lanes), the
+        ruler and the tracks scroll together as one page. */
+    bool rulerPinned() const                        { return rulerHeight() <= getHeight() / 2; }
+    int rulerTop() const                            { return rulerPinned() ? 0 : -scrollY; }
+    int rulerBottom() const                         { return rulerTop() + rulerHeight(); }
+    int tracksTop() const                           { return juce::jmax (0, rulerBottom()); }
+    int maxScroll() const;
+    juce::ScrollBar vScroll { true };
+    void updateScrollBar();
+    void scrollBarMoved (juce::ScrollBar*, double newRangeStart) override;
+    void handleAsyncUpdate() override               { updateScrollBar(); }
     LayerRow layerAt (int y) const;
 
     struct Tick { double time = 0.0; Proportion::Division division; float height = 0.0f; bool labelled = false;
