@@ -15,6 +15,7 @@ namespace Theme
     inline const juce::Colour text         { 0xffe8e6e1 };
     inline const juce::Colour textMuted    { 0xffa19f97 };
     inline const juce::Colour accent       { 0xffe8b04b };     // selection, playhead
+    inline const juce::Colour signs        { 0xffa3e49c };     // junction, ending and mixing signs (stage 4c)
     inline const juce::Colour laneEven     { 0xff16171a };
     inline const juce::Colour laneOdd      { 0xff18191d };
 

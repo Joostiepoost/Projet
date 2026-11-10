@@ -93,7 +93,7 @@ Every piece is a folder:
 ### Tracks and boxes
 
 - **Ruler**: click or drag to move the playhead.
-- **Boxes**: click to select; **Shift-click** adds to the selection, **Cmd-click** toggles one box; drag on an empty lane to select with a rectangle. Dragging a selected box moves the whole selection, also to other tracks. **Cmd-A** selects every box, **Esc** deselects. Boxes may overlap.
+- **Boxes**: click to select; **Shift-click** adds to the selection, **Cmd-click** toggles one box; drag on an empty lane to select with a rectangle. Dragging a selected box moves the whole selection, also to other tracks; drag it below the last track and a new track is made for it (one undo step). **Cmd-A** selects every box, **Esc** deselects. Boxes may overlap.
 - **Edges**: drag to trim. The sound stays in place under the box (the left edge moves into or out of the sound).
 - **Fades**: drag the small white squares at the top corners.
 - Moving and trimming snap to box edges, the playhead and 0:00; hold **Shift** to move freely.

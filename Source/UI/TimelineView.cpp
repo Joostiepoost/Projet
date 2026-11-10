@@ -491,6 +491,40 @@ void TimelineView::paint (juce::Graphics& g)
             g.fillRect (trackDrop.indent + 4, trackDrop.lineY - 1, getWidth() - trackDrop.indent - 4, 3);
     }
 
+    // A move dropped below the last track: the new track(s) it would make
+    if (dragMode == DragMode::move && newTracksBelow > 0 && ! rs.empty())
+    {
+        constexpr int previewHeight = 56;
+        const int y0 = rs.back().y + rs.back().h;
+        const auto area = juce::Rectangle<int> (0, y0, getWidth(), previewHeight * newTracksBelow);
+        g.setColour (Theme::header);
+        g.fillRect (area.withWidth (headerWidth));
+        g.setColour (Theme::accent.withAlpha (0.08f));
+        g.fillRect (area);
+        g.setColour (Theme::accent.withAlpha (0.6f));
+        g.drawRect (area, 1);
+        g.setFont (Theme::font (12.5f));
+        g.drawText (newTracksBelow == 1 ? "New track" : juce::String (newTracksBelow) + " new tracks",
+                    area.withWidth (headerWidth).reduced (12, 0).withHeight (previewHeight), juce::Justification::centredLeft);
+        int lanesCount = 0;
+        for (auto& r : rs) if (! r.folder) ++lanesCount;
+        juce::Graphics::ScopedSaveState s (g);
+        g.reduceClipRegion (area.withTrimmedLeft (headerWidth));
+        for (auto& m : moving)
+        {
+            const int k = m.track + newTrackDelta - lanesCount;
+            if (m.track < 0 || k < 0) continue;
+            const float x0 = timeToX (Project::boxStart (m.box)), x1 = timeToX (Project::boxEnd (m.box));
+            const auto r = juce::Rectangle<float> (x0, (float) (y0 + k * previewHeight + 4), juce::jmax (2.0f, x1 - x0), (float) previewHeight - 8.0f);
+            juce::Path outline, dashed;
+            outline.addRoundedRectangle (r, 4.0f);
+            const float dashes[] = { 4.0f, 3.0f };
+            juce::PathStrokeType (1.2f).createDashedStroke (dashed, outline, dashes, 2);
+            g.setColour (Theme::accent.withAlpha (0.9f));
+            g.fillPath (dashed);
+        }
+    }
+
     // The proportion of the edge being moved
     if (readout.isNotEmpty())
     {
@@ -1044,7 +1078,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
         g.fillRoundedRectangle (area, 3.0f);
         if (solid)
         {
-            g.setColour (Theme::accent.withAlpha (0.8f * alpha));
+            g.setColour (Theme::signs.withAlpha (0.8f * alpha));
             g.drawRoundedRectangle (area.reduced (0.5f), 3.0f, 1.0f);
         }
         else
@@ -1053,7 +1087,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
             edge.addRoundedRectangle (area.reduced (0.5f), 3.0f);
             const float dashes[] = { 2.5f, 2.0f };
             juce::PathStrokeType (1.0f).createDashedStroke (dashed, edge, dashes, 2);
-            g.setColour (Theme::accent.withAlpha (0.45f * alpha));
+            g.setColour (Theme::signs.withAlpha (0.45f * alpha));
             g.fillPath (dashed);
         }
         juce::Graphics::ScopedSaveState state (g);
@@ -1065,7 +1099,7 @@ void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
             keep.addPath (cut, xform);
             g.reduceClipRegion (keep);
         }
-        g.setColour (Theme::accent.withAlpha ((solid ? 1.0f : 0.75f) * alpha));
+        g.setColour (Theme::signs.withAlpha ((solid ? 1.0f : 0.75f) * alpha));
         g.strokePath (path, juce::PathStrokeType (1.25f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), xform);
         signHits.push_back ({ area, boxId, tip, seam });
     };
@@ -1709,9 +1743,26 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
             for (auto& m : moving) delta = juce::jmax (delta, -m.start);   // nothing before 0:00
 
             std::vector<juce::ValueTree> lanes;
-            for (auto& r : rows()) if (! r.folder) lanes.push_back (r.track);
+            const auto rs = rows();
+            for (auto& r : rs) if (! r.folder) lanes.push_back (r.track);
             auto row = rowAt (juce::jlimit (rulerHeight(), getHeight() - 1, e.y));
-            if (row.track.isValid() && ! row.folder)
+            newTracksBelow = 0;
+            if (! rs.empty() && ! lanes.empty() && e.y >= rs.back().y + rs.back().h)
+            {
+                // Below the last track: the grabbed box goes to a new track
+                // there (the others keep their distance from it); made on release.
+                int grabbedTrack = -1;
+                bool folded = false;
+                for (auto& m : moving) { if (m.box == dragBox) grabbedTrack = m.track; folded = folded || m.track < 0; }
+                if (grabbedTrack >= 0 && ! folded)
+                {
+                    const int trackDelta = (int) lanes.size() - grabbedTrack;
+                    for (auto& m : moving)
+                        newTracksBelow = juce::jmax (newTracksBelow, m.track + trackDelta - ((int) lanes.size() - 1));
+                    newTrackDelta = trackDelta;
+                }
+            }
+            else if (row.track.isValid() && ! row.folder)
             {
                 int grabbedTrack = -1;
                 for (auto& m : moving) if (m.box == dragBox) grabbedTrack = m.track;
@@ -1821,6 +1872,22 @@ void TimelineView::mouseUp (const juce::MouseEvent& e)
         selectBox (dragBox);
     clickedSelectedBox = false;
     if (dragMode == DragMode::lasso) { lasso = {}; repaint(); }
+
+    if (dragMode == DragMode::move && newTracksBelow > 0)
+    {
+        // Still within the move's undo step.
+        std::vector<juce::ValueTree> lanes;
+        for (auto& r : rows()) if (! r.folder) lanes.push_back (r.track);
+        for (int i = 0; i < newTracksBelow; ++i) lanes.push_back (project.addTrack());
+        for (auto& m : moving)
+        {
+            const int to = m.track + newTrackDelta;
+            if (m.track < 0 || ! juce::isPositiveAndBelow (to, (int) lanes.size())) continue;
+            project.moveBox (m.box, lanes[(size_t) to], Project::boxStart (m.box));
+        }
+        if (dragBox.isValid()) selectedTrackId = dragBox.getParent()[IDs::id].toString();
+    }
+    newTracksBelow = 0;
 
     if (dragMode == DragMode::track && draggedTrack.isValid() && e.mouseWasDraggedSinceMouseDown())
     {
