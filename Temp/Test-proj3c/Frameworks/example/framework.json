@@ -1,8 +1,16 @@
 {
   "projet": "framework package",
   "id": "example",
-  "version": 1,
-  
+  "version": 2,
+  "order": 60,
+  "name": { "fr": "Exemple", "en": "Example" },
+  "about": {
+    "fr": "Un petit cadre pour essayer : un choix, des étiquettes, un nombre, un texte, et une valeur ajoutée aux énergies du cadre de composition.",
+    "en": "A small framework to try things with: a choice, tags, a number, a text, and a value added to the energies of the composition framework."
+  },
+  "categories": [
+    {
+      "id": "motion",
       "name": { "fr": "Mouvement", "en": "Motion" },
       "about": { "fr": "où va le son", "en": "where the sound goes" },
       "kind": "choice",
@@ -23,13 +31,24 @@
       "kind": "tags",
       "mark": "label",
       "values": [
-        { "id": "metal", " "air", "en": "air" } },
+        { "id": "metal", "name": { "fr": "métal", "en": "metal" } },
+        { "id": "wood",  "name": { "fr": "bois", "en": "wood" } },
+        { "id": "glass", "name": { "fr": "verre", "en": "glass" } },
+        { "id": "skin",  "name": { "fr": "peau", "en": "skin" } },
+        { "id": "air",   "name": { "fr": "air", "en": "air" } },
         { "id": "voice", "name": { "fr": "voix", "en": "voice" } },
         { "id": "synth", "name": { "fr": "synthèse", "en": "synthesis" } }
       ]
     },
     {
-      "id": 
+      "id": "density",
+      "name": { "fr": "Densité", "en": "Density" },
+      "about": { "fr": "de vide (0) à saturé (10)", "en": "from empty (0) to saturated (10)" },
+      "kind": "number",
+      "min": 0, "max": 10, "step": 1,
+      "mark": "strip",
+      "colour": "#c49a4a"
+    },
     {
       "id": "source",
       "name": { "fr": "Source", "en": "Source" },
@@ -44,6 +63,7 @@
       "values": [
         { "id": "example-pulsation",
           "name": { "fr": "Pulsation (exemple)", "en": "Pulsation (example)" },
+          "glyph": "example-pulse",
           "groups": [ "loi" ],
           "details": { "fr": [ "tempo", "régularité" ], "en": [ "tempo", "regularity" ] } }
       ]
