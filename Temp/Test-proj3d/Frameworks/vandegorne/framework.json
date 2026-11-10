@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "vandegorne",
-  "version": 1,
+  "version": 2,
   "order": 40,
   "name": {"fr": "Vande Gorne : écriture", "en": "Vande Gorne: writing"},
   "about": {
@@ -62,6 +62,171 @@
           },
           "sign": "M0 10 Q2.5 4 5 10 Q7.5 16 10 10 L20 10",
           "onlyWith": {"category": "thoresen.junction", "values": ["hinged"]}
+        }
+      ]
+    },
+    {
+      "id": "writing",
+      "name": {"fr": "Type d'écriture", "en": "Writing type"},
+      "about": {
+        "fr": "comment les voix du dossier se mêlent (Vande Gorne, ch. 3) ; certains impliquent une relation de mélange pour les chevauchements du dossier",
+        "en": "how the voices of the folder mix (Vande Gorne, chapter 3); some imply a mixing relation for the overlaps in the folder"
+      },
+      "kind": "choice",
+      "control": "menu",
+      "folders": "only",
+      "mark": "label",
+      "values": [
+        {
+          "id": "weaving",
+          "name": {"fr": "tissage, texture", "en": "weaving, texture"},
+          "about": {
+            "fr": "des éléments courts d'égale importance, en fusion ; un temps non linéaire, sans développement",
+            "en": "short elements of equal importance, fused; time without direction or development"
+          },
+          "implies": {"category": "vandegorne.mixing", "value": "fusion"}
+        },
+        {
+          "id": "stainedglass",
+          "name": {"fr": "vitrail, mosaïque", "en": "stained glass, mosaic"},
+          "about": {
+            "fr": "des états de polyphonie juxtaposés, comme des changements de couleur",
+            "en": "juxtaposed states of polyphony, like changes of colour"
+          }
+        },
+        {
+          "id": "complex",
+          "name": {"fr": "dessin complexe", "en": "complex drawing"},
+          "about": {
+            "fr": "des figures très formées, superposées et synchronisées en détail : mélange par complémentarité",
+            "en": "highly formed figures, superposed and synchronised in detail: mixing by complementarity"
+          },
+          "implies": {"category": "vandegorne.mixing", "value": "complementarity"}
+        },
+        {
+          "id": "lines",
+          "name": {"fr": "lignes-divergences et nœuds-convergences", "en": "diverging lines and converging nodes"},
+          "about": {
+            "fr": "des lignes parallèles qui divergent, puis convergent vers des nœuds : des changements brusques et synchrones",
+            "en": "parallel lines that diverge, then converge on nodes: sudden, synchronous changes"
+          }
+        },
+        {
+          "id": "rhythms",
+          "name": {"fr": "rythmes et vitesses", "en": "rhythms and speeds"},
+          "about": {
+            "fr": "des couches de rythmes répétés et différenciés, aux rencontres toujours renouvelées : mélange par complémentarité",
+            "en": "layers of repeated, differentiated rhythms whose meetings keep changing: mixing by complementarity"
+          },
+          "implies": {"category": "vandegorne.mixing", "value": "complementarity"}
+        },
+        {
+          "id": "melismas",
+          "name": {"fr": "mélismes sur ostinato", "en": "melismas on an ostinato"},
+          "about": {
+            "fr": "des séquences agiles et changeantes sur un fond qui se répète à grande échelle",
+            "en": "agile, changing sequences over a background that repeats on a large scale"
+          }
+        },
+        {
+          "id": "images",
+          "name": {"fr": "superposition polyphonique d'images", "en": "superposed images"},
+          "about": {
+            "fr": "une icône (un faux paysage) faite de plusieurs i-sons, développés dans le temps",
+            "en": "an icon (a false landscape) built from several I-sons, developed in time"
+          }
+        }
+      ]
+    },
+    {
+      "id": "timefelt",
+      "name": {"fr": "Temps ressenti", "en": "Time felt"},
+      "about": {
+        "fr": "comment le temps de la section est perçu (Vande Gorne, ch. 4)",
+        "en": "how the section's time is perceived (Vande Gorne, chapter 4)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "folders": "only",
+      "mark": "label",
+      "values": [
+        {
+          "id": "long",
+          "name": {"fr": "long", "en": "long"},
+          "about": {
+            "fr": "peu d'événements, des silences, de la répétition, des sons longs ou graves",
+            "en": "few events, silences, repetition, long or low sounds"
+          }
+        },
+        {
+          "id": "short",
+          "name": {"fr": "court", "en": "short"},
+          "about": {
+            "fr": "la stratégie inverse : des événements nombreux, variés, rapides",
+            "en": "the opposite: many varied, quick events"
+          }
+        },
+        {
+          "id": "suspended",
+          "name": {"fr": "suspendu", "en": "suspended"},
+          "about": {
+            "fr": "un temps gelé, hypnotique : lent, continu, sans agitation, ou fondé sur la répétition",
+            "en": "frozen, hypnotic time: slow, continuous, calm, or built on repetition"
+          }
+        }
+      ]
+    },
+    {
+      "id": "timemove",
+      "name": {"fr": "Mouvement du temps", "en": "Time movement"},
+      "about": {
+        "fr": "comment le temps évolue dans la section (Vande Gorne, ch. 4 : fixe, mobile, intermodulé)",
+        "en": "how time moves through the section (Vande Gorne, chapter 4: fixed, mobile, intermodulated)"
+      },
+      "kind": "choice",
+      "control": "menu",
+      "folders": "only",
+      "mark": "label",
+      "values": [
+        {
+          "id": "fixed",
+          "name": {"fr": "fixe", "en": "fixed"},
+          "about": {
+            "fr": "une seule perception du temps sur toute la section",
+            "en": "one perception of time through the whole section"
+          }
+        },
+        {
+          "id": "speeding",
+          "name": {"fr": "mobile : accélérant", "en": "mobile: speeding up"},
+          "about": {
+            "fr": "un profil temporel par accélération progressive",
+            "en": "a time profile of gradual speeding up"
+          }
+        },
+        {
+          "id": "slowing",
+          "name": {"fr": "mobile : ralentissant", "en": "mobile: slowing down"},
+          "about": {
+            "fr": "un profil temporel par ralentissement progressif",
+            "en": "a time profile of gradual slowing down"
+          }
+        },
+        {
+          "id": "contrasts",
+          "name": {"fr": "mobile : contrastes", "en": "mobile: contrasts"},
+          "about": {
+            "fr": "des contrastes temporels successifs et différenciés",
+            "en": "successive, differentiated contrasts of time"
+          }
+        },
+        {
+          "id": "intermodulated",
+          "name": {"fr": "intermodulé", "en": "intermodulated"},
+          "about": {
+            "fr": "une voie de commande module le temps : compression-expansion, vitesse, longueur de boucle",
+            "en": "a control channel modulates time: compression and expansion, speed, loop length"
+          }
         }
       ]
     }

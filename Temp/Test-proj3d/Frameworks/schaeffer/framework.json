@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "schaeffer",
-  "version": 2,
+  "version": 3,
   "order": 20,
   "name": {"fr": "Schaeffer", "en": "Schaeffer"},
   "about": {
@@ -309,6 +309,19 @@
           "name": {"fr": "accumulation", "en": "accumulation"}
         }
       ]
+    }
+  ],
+  "lanes": [
+    {
+      "id": "typology",
+      "name": {"fr": "Typologie", "en": "Typology"},
+      "about": {
+        "fr": "une rangée par zone (équilibrés, redondants, excentriques) : le mélange des types d'objets au fil de la pièce",
+        "en": "one row per zone (balanced, redundant, eccentric): the mix of object kinds across the piece"
+      },
+      "kind": "rows",
+      "category": "type",
+      "rows": "groups"
     }
   ]
 }

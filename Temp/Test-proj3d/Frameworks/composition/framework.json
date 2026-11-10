@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "composition",
-  "version": 4,
+  "version": 5,
   "order": 10,
   "name": {"fr": "Cadre de composition", "en": "Composition framework"},
   "about": {
@@ -406,6 +406,31 @@
         {"id": "hard", "name": {"fr": "dur", "en": "hard"}, "curve": "hard"},
         {"id": "soft", "name": {"fr": "doux", "en": "soft"}, "curve": "soft"}
       ]
+    }
+  ],
+  "lanes": [
+    {
+      "id": "energies",
+      "name": {"fr": "Énergies", "en": "Energies"},
+      "about": {
+        "fr": "une rangée par famille : où les boîtes ont une énergie de cette famille (la seconde énergie plus claire)",
+        "en": "one row per family: where boxes have an energy of that family (the second energy lighter)"
+      },
+      "kind": "rows",
+      "category": "energy",
+      "second": "energy2",
+      "rows": "groups"
+    },
+    {
+      "id": "semiotic",
+      "name": {"fr": "Profil sémiotique", "en": "Semiotic profile"},
+      "about": {
+        "fr": "du niveau le plus concret au plus abstrait présent à chaque instant, et leur moyenne pondérée par le rôle (F 3, M 2, B 1)",
+        "en": "from the most concrete to the most abstract level present at each moment, and their average weighted by role (F 3, M 2, B 1)"
+      },
+      "kind": "scale",
+      "category": "level",
+      "weightBy": {"category": "role", "weights": {"F": 3, "M": 2, "B": 1}, "default": 2}
     }
   ]
 }

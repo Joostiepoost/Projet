@@ -1,0 +1,162 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj3d",
+  "sampleRate": 48000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 27.310385176364228,
+  "playhead": 0.0,
+  "activeLayer": "81cac3b3253744b181420ef3183983b0",
+  "fwLanguage": "en",
+  "frameLength": 20.672460937499999,
+  "spanStart": 1.746702753986958,
+  "spanEnd": 31.709835174697076,
+  "fwDisplay": "composition.role=strip;composition.level=label",
+  "children": [
+    {
+      "type": "SOUNDS"
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "03dbcd44b71e436fbe4c300cfb2f866e",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "a2438d464e584cafaa1349d14c16fea4",
+              "kind": "text",
+              "name": "Text",
+              "start": 2.420124155142418,
+              "length": 8.120638111793276,
+              "opacity": 1.0,
+              "notes": "",
+              "fw.composition.role": "F",
+              "fw.thoresen.ending": "vague",
+              "fw.composition.profile": "decrescendo",
+              "fw.composition.level": "ison",
+              "propStart": "0.022475",
+              "propLength": "0.271021",
+              "propFrame": "span",
+              "propLock": true,
+              "fw.composition.energy": "percussion-resonance",
+              "fw.composition.energy2": "flux",
+              "fw.composition.role.along": "0.6:M:0.3"
+            },
+            {
+              "type": "BOX",
+              "id": "8647d5f9457e4c7d8f60fa6e336f965e",
+              "kind": "text",
+              "name": "Text",
+              "start": 8.071051077158664,
+              "length": 7.415545679669126,
+              "opacity": 0.72,
+              "notes": "",
+              "propStart": "0.211071",
+              "propLength": "0.247489",
+              "propFrame": "span",
+              "propLock": true,
+              "fw.composition.energy": "frottement-granulation",
+              "fw.composition.role.along": "0.5:B:0.25",
+              "fw.composition.level": "meson"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "afb9a0f537da4b42b0cd54e24e9119b5",
+          "name": "Track 2",
+          "colour": 1,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "da978678499a49918e2949fd43acb4e8",
+              "kind": "text",
+              "name": "Text",
+              "start": 19.40481565721921,
+              "length": 11.807511666764393,
+              "opacity": 1.0,
+              "notes": "",
+              "fw.thoresen.ending": "vague",
+              "propStart": "L1a",
+              "propLength": "0.394068",
+              "propFrame": "span",
+              "propLock": true,
+              "fw.example.density": 1.0,
+              "fw.composition.profile": "delta",
+              "fw.composition.peak": 33.0,
+              "fw.composition.energy": "accumulation-corpuscules"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "id": "b569d4b4eae34bb1a8cc56f3f871cca3",
+          "kind": "time",
+          "name": "Time",
+          "height": 78,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "81cac3b3253744b181420ef3183983b0",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "span",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true,
+          "series": "fibonacci:8"
+        },
+        {
+          "type": "LAYER",
+          "id": "aa8ac556e90448aaa558facb6894fd18",
+          "kind": "lane",
+          "lane": "composition.energies",
+          "name": "Energies",
+          "height": 90,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "f46128827bc14623b2d33d888a120769",
+          "kind": "time",
+          "name": "Time",
+          "height": 90,
+          "visible": true,
+          "frame": "da978678499a49918e2949fd43acb4e8"
+        }
+      ]
+    },
+    {
+      "type": "MARKS",
+      "children": [
+        {
+          "type": "MARK",
+          "id": "de2c62a372ee4885b332b0faffcc2d47",
+          "name": "L1a",
+          "frame": "span",
+          "expr": "0.589328"
+        }
+      ]
+    }
+  ]
+}

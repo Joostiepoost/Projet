@@ -8,6 +8,8 @@
 
 **Dynamic profile.** The box's intensity envelope, with Schaeffer's names (*Traité*, 31.4) and Vande Gorne's where she has one: flat, resonance (attack-resonance), crescendo (reversed sound), decrescendo, delta, hollow (reversed delta), mordent. The energy glyph is drawn inside the profile, so a bounce can live in a delta. A delta or a hollow profile also has a **peak position** (in % of the box: an asymmetric delta) and a **hard or soft peak**.
 
+**Lanes.** Two overview lanes, added in the ruler panel (*Add lane*): **Energies**, one row per family, with a bar wherever a box has an energy of that family (the second energy lighter, the bar thicker where more boxes sound at once); and the **Semiotic profile**, a band from the most concrete to the most abstract level present at each moment, with a line for their average weighted by role (F 3, M 2, B 1). Muted tracks are left out. The `lanes` list in `framework.json` declares them.
+
 **Glyphs.** The energies are drawn on the boxes by `glyphs.js`, this package's drawing script (JavaScript, sandboxed: no files or network). Edit it to change the shapes; each value's `glyph` field names the shape it uses.
 
 Edit `framework.json` to rename, translate or add values, then *Framework > Reload frameworks*.
