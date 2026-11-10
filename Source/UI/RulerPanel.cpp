@@ -537,8 +537,27 @@ public:
             if (m[IDs::frame].toString() != ref) continue;
             auto* name = place (std::make_unique<juce::TextEditor>(), 0, y, 64, 24);
             name->setText (m[IDs::name].toString(), false);
-            auto* expr = place (std::make_unique<juce::TextEditor>(), 68, y, w - 68 - 92, 24);
+            auto* expr = place (std::make_unique<juce::TextEditor>(), 68, y, w - 68 - 92 - 24, 24);
             expr->setText (m[IDs::expr].toString(), false);
+            // Its colour (on the ruler and through the tracks)
+            auto* swatch = place (std::make_unique<juce::TextButton>(), w - 88 - 22, y + 3, 18, 18);
+            swatch->setColour (juce::TextButton::buttonColourId, Theme::markColour ((int) m.getProperty (IDs::colour, 0)));
+            swatch->setTooltip ("Its colour");
+            swatch->onClick = [this, m, swatch] () mutable
+            {
+                juce::PopupMenu menu;
+                for (int i = 0; i < Theme::numMarkColours; ++i)
+                    menu.addColouredItem (1 + i, Theme::markColourName (i), Theme::markColour (i), true, (int) m.getProperty (IDs::colour, 0) == i);
+                juce::Component::SafePointer<RulerPanel> safe (&owner);
+                menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (swatch), [safe, m] (int r) mutable
+                {
+                    if (safe == nullptr || r <= 0) return;
+                    auto& um = safe->project.getUndoManager();
+                    um.beginNewTransaction ("Mark colour");
+                    if (r == 1) m.removeProperty (IDs::colour, &um); else m.setProperty (IDs::colour, r - 1, &um);
+                    safe->refresh();
+                });
+            };
             expr->setFont (Theme::mono (12.0f));
             auto* when = place (std::make_unique<juce::Label> (juce::String(), TimeFormat::format (juce::jmax (0.0, p.markTime (m)), 1)), w - 88, y, 64, 24);
             styleLabel (*when, 11.0f, Theme::text);

@@ -16,6 +16,8 @@ namespace Theme
     inline const juce::Colour textMuted    { 0xffa19f97 };
     inline const juce::Colour accent       { 0xffe8b04b };     // selection, playhead
     inline const juce::Colour signs        { 0xffa3e49c };     // junction, ending and mixing signs (stage 4c)
+    inline const juce::Colour nodes        { 0xffb9a8e6 };     // nodes on folders (4d.2): a soft purple
+    inline const juce::Colour nodesFlagged { 0xffe8a3bd };     // a node out of balance, or a voice that does not change
     inline const juce::Colour laneEven     { 0xff16171a };
     inline const juce::Colour laneOdd      { 0xff18191d };
 
@@ -23,6 +25,10 @@ namespace Theme
     juce::Colour trackColour (int index);
     constexpr int numTrackColours = 8;
     const char* trackColourName (int index);
+    /** Named marks' colours (on the ruler and through the tracks): 0 is the amber of the rulers. */
+    juce::Colour markColour (int index);
+    constexpr int numMarkColours = 9;
+    const char* markColourName (int index);
 
     juce::Font font (float height, bool bold = false);
     juce::Font mono (float height);

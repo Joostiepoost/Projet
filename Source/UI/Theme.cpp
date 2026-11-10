@@ -18,6 +18,19 @@ const char* trackColourName (int index)
     return names[((index % numTrackColours) + numTrackColours) % numTrackColours];
 }
 
+juce::Colour markColour (int index)
+{
+    static const juce::uint32 palette[numMarkColours] = { 0xffe8b04b, 0xffe8645a, 0xffef9a4a, 0xff8fd17a, 0xff5ec4b6,
+                                                          0xff6fa8ef, 0xffb08cf0, 0xffee8fc4, 0xffe6e6e6 };
+    return juce::Colour (palette[((index % numMarkColours) + numMarkColours) % numMarkColours]);
+}
+
+const char* markColourName (int index)
+{
+    static const char* names[numMarkColours] = { "Amber (the rulers')", "Red", "Orange", "Green", "Teal", "Blue", "Purple", "Pink", "White" };
+    return names[((index % numMarkColours) + numMarkColours) % numMarkColours];
+}
+
 juce::Font font (float height, bool bold)
 {
     return juce::Font (juce::FontOptions (height, bold ? juce::Font::bold : juce::Font::plain));
