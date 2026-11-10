@@ -32,7 +32,8 @@
 #include "../Model/Glyphs.h"
 
 class TimelineView : public juce::Component,
-                     public juce::FileDragAndDropTarget
+                     public juce::FileDragAndDropTarget,
+                     public juce::TooltipClient
 {
 public:
     TimelineView (Project&, projet::SoundPool&, const Framework&);
@@ -45,6 +46,8 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    /** Over a seam or end sign: what it says (stage 4c). */
+    juce::String getTooltip() override;
 
     void mouseMove (const juce::MouseEvent&) override;
     void mouseDown (const juce::MouseEvent&) override;
@@ -178,6 +181,24 @@ private:
     juce::Colour boxColour (const juce::ValueTree& box, const TrackRow& row);
     /** Each category's mark: strips along the bottom, badges at the bottom right, labels at the bottom left. */
     void paintFrameworkMarks (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha);
+    /** Seam signs (junctions, with the mixing relation beside them and the
+        ending of the box before on their bracket) and end signs (stage 4c). */
+    void paintSeams (juce::Graphics&, const TrackRow&);
+    /** A package's SVG path, parsed once. */
+    const juce::Path& signPath (const juce::String& svg);
+    std::map<juce::String, juce::Path> signCache;
+    struct SignHit
+    {
+        juce::Rectangle<float> area;
+        juce::String boxId, tip;
+        bool seam = true;                       // a seam (the later box's join); else an end sign
+    };
+    std::vector<SignHit> signHits;
+    const SignHit* signAt (juce::Point<float>) const;
+    /** The menu of a sign: the joins of the later box, or the box's ending. */
+    void showSignMenu (const SignHit&);
+    /** "gap 1.20 s", "overlap 30 ms" */
+    static juce::String describeGap (double gap);
     /** The fill pattern of the box's first filled value (hatched, dotted, outline). */
     void paintFrameworkFill (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha);
     /** The energy glyphs in the band above the strips, shaped by the profile. */
@@ -185,8 +206,10 @@ private:
     /** How a box's weighted value (the role) changes its drawing. */
     struct Weight { float alphaFactor = 1.0f; bool emphasis = false; };
     Weight weightFor (const juce::ValueTree& box) const;
-    /** The framework submenus of the box menu (ids from boxMenuBase). */
-    void addFrameworkMenus (juce::PopupMenu&, const juce::Array<juce::ValueTree>& boxes);
+    /** The framework submenus of the box menu (ids from boxMenuBase); `only`
+        keeps some categories (the sign menus). */
+    void addFrameworkMenus (juce::PopupMenu&, const juce::Array<juce::ValueTree>& boxes,
+                            std::function<bool (const Framework::Category&)> only = {});
     void applyFrameworkMenu (int result, const juce::Array<juce::ValueTree>& boxes);
     static constexpr int boxMenuBase = 20000, folderMenuBase = 100000, menuStride = 500;
 

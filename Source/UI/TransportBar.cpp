@@ -13,6 +13,9 @@ TransportBar::TransportBar()
     zoomOut.onClick = [this] { if (onZoomOut) onZoomOut(); };
     zoomFit.onClick = [this] { if (onZoomFit) onZoomFit(); };
     importButton.onClick = [this] { if (onImport) onImport(); };
+    panelButton.onClick = [this] { if (onTogglePanel) onTogglePanel(); };
+    panelButton.setToggleState (true, juce::dontSendNotification);
+    panelButton.setTooltip ("Show or hide the panel on the right (Cmd-Alt-I)");
 
     playButton.setTooltip ("Play / stop (Space)");
     startButton.setTooltip ("Back to the start (Return)");
@@ -21,7 +24,7 @@ TransportBar::TransportBar()
     zoomFit.setTooltip ("Show the whole piece (Cmd-0)");
     importButton.setTooltip ("Import sounds (Cmd-I)");
 
-    for (auto* b : { &playButton, &startButton, &zoomIn, &zoomOut, &zoomFit, &importButton })
+    for (auto* b : { &playButton, &startButton, &zoomIn, &zoomOut, &zoomFit, &importButton, &panelButton })
         addAndMakeVisible (*b);
 
     nameLabel.setFont (Theme::font (15.0f, true));
@@ -108,6 +111,8 @@ void TransportBar::resized()
     importButton.setBounds (r.removeFromLeft (86));
     r.removeFromLeft (16);
     r.removeFromRight (140);
+    panelButton.setBounds (r.removeFromRight (56));
+    r.removeFromRight (12);
     zoomFit.setBounds (r.removeFromRight (44));
     r.removeFromRight (4);
     zoomIn.setBounds (r.removeFromRight (30));

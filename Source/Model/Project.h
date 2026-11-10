@@ -7,6 +7,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <map>
 #include "Identifiers.h"
 #include "Proportion.h"
 #include "Framework.h"
@@ -235,14 +236,43 @@ public:
         categories folders can give), else the category's default. */
     struct FrameworkValue
     {
-        enum class From { none, own, folder, defaultValue };
+        enum class From { none, own, folder, defaultValue, timing };
         juce::String value;
         From from = From::none;
         bool isOwn() const noexcept                 { return from == From::own; }
         bool fromFolder() const noexcept            { return from == From::folder; }
         bool isDefault() const noexcept             { return from == From::defaultValue; }
+        bool fromTiming() const noexcept            { return from == From::timing; }
     };
+    /** Also: a join's value found from the timing (stage 4c), and nothing
+        while the category (or its value) does not apply ("only with"). */
     FrameworkValue frameworkValue (const juce::ValueTree& box, const Framework::Category&);
+
+    /** The framework the project's values are read with (for "only with"
+        conditions, and for what a split keeps on each side). May be null. */
+    void setFramework (const Framework* f)          { framework = f; joinsValid = false; }
+    const Framework* getFramework() const noexcept  { return framework; }
+    /** True if the category applies to the box ("only with"). */
+    bool applies (const juce::ValueTree& box, const Framework::Category&);
+    /** True if this value of the category applies to the box. */
+    bool valueApplies (const juce::ValueTree& box, const Framework::Category&, const juce::String& valueId);
+
+    //== Joins (stage 4c) =======================================================
+    /** A box and the one before it on the same track: the box that starts
+        most recently before it. The gap is negative for an overlap; covered
+        means a box on another track (not muted) spans the whole gap. */
+    struct Join
+    {
+        juce::ValueTree before;
+        double gap = 0.0;
+        bool covered = false;
+        bool isValid() const noexcept               { return before.isValid(); }
+    };
+    Join joinBefore (const juce::ValueTree& box);
+    /** The box whose join-before is this one (invalid if none). */
+    juce::ValueTree boxAfter (const juce::ValueTree& box);
+    /** What the category's timing rules make of a join ("" if none fits). */
+    static juce::String derivedValue (const Framework::Category&, const Join&);
     /** The value of the nearest folder around `track` (or `track` itself, if a
         folder) that has one; "" if none. */
     juce::String folderValue (const juce::ValueTree& track, const juce::Identifier& property);
@@ -281,6 +311,14 @@ private:
     void freezePieceLengthFor (const juce::String& ref);
 
     bool applying = false, loading = false;
+
+    const Framework* framework = nullptr;
+    struct JoinInfo { juce::String before, after; double gap = 0.0; bool covered = false; };
+    std::map<juce::String, JoinInfo> joins;      // by box id; rebuilt after a change
+    bool joinsValid = false;
+    int conditionDepth = 0;
+    void buildJoins();
+    bool holds (const juce::ValueTree& box, const Framework::Condition&);
 
     void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override  { changed(); }
     void valueTreeChildAdded (juce::ValueTree&, juce::ValueTree&) override               { changed(); }

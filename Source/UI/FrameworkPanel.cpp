@@ -232,7 +232,8 @@ public:
             packageHeading (fw.text (p.name), y, w);
             for (auto& key : p.categories)
                 if (auto* c = fw.findCategory (key))
-                    y = category (*c, y, w) + 6;
+                    if (appliesToAny (*c))
+                        y = category (*c, y, w) + 6;
             y += 4;
         }
 
@@ -259,6 +260,33 @@ private:
             case Framework::Kind::text:   return text (c, y, w);
         }
         return y;
+    }
+
+    /** "Only with": the category applies to at least one selected box. */
+    bool appliesToAny (const Framework::Category& c) const
+    {
+        for (auto b : owner.boxes) if (owner.project.applies (b, c)) return true;
+        return false;
+    }
+
+    /** The join with the box before (stage 4c): which box, the gap, remarks. */
+    int joinNote (const Framework::Category& c, int y, int w)
+    {
+        auto& fw = owner.framework;
+        if (owner.boxes.size() > 1) return note ("Each selected box: its join with the box before it on its track.", y, w);
+        const auto join = owner.project.joinBefore (owner.boxes.getFirst());
+        if (! join.isValid()) return note ("No box before it on this track.", y, w);
+        auto text = "After " + join.before[IDs::name].toString().quoted() + " (" + describeGap (join.gap) + (join.covered ? ", spanned by another track" : "") + ")";
+        for (auto& n : c.notes)
+            if (join.gap >= n.from && join.gap < n.to) text << ": " << fw.text (n.text);
+        return note (text + ".", y, w);
+    }
+
+    static juce::String describeGap (double gap)
+    {
+        const double a = std::abs (gap);
+        const auto amount = a < 1.0 ? juce::String (juce::roundToInt (a * 1000.0)) + " ms" : juce::String (a, 2) + " s";
+        return (gap < 0.0 ? "overlap " : "gap ") + amount;
     }
 
     /** The own value all selected boxes share ("" and `mixed` when they differ). */
@@ -317,6 +345,7 @@ private:
         if (c.hasTwoNames) line = fw.valueName (c, v.value);
         else if (aboutToo) line = fw.text (value->about);
         if (v.isDefault()) line = (line.isEmpty() ? fw.valueName (c, v.value) : line) + " (the default)";
+        if (v.fromTiming()) line = fw.valueName (c, v.value) + " (from the timing): " + fw.text (value->about);
         if (line.isNotEmpty()) y = note (line, y, w);
         const auto details = fw.valueDetails (*value);
         if (! details.isEmpty())
@@ -383,17 +412,39 @@ private:
         const auto own = commonOwn (c, mixed);
         const auto eff = commonEffective (c, effMixed);
         const bool second = c.hasTwoNames && fw.getNaming (fw.source (c).key()) == "second";
+        if (c.between)
+        {
+            y = joinNote (c, y, w);
+            if (owner.boxes.size() == 1 && ! owner.project.joinBefore (owner.boxes.getFirst()).isValid()) return y;   // nothing to join
+        }
 
-        const int n = juce::jmax (1, values.size());
-        const int perRow = juce::jlimit (1, n, (w + 4) / 64);
+        // The values that apply ("only with"), as wide as their names need.
+        juce::Array<int> shown;
+        int widest = 0;
+        auto labelOf = [&] (const Framework::Value& v)
+        {
+            return second && ! v.name2.isEmpty() ? fw.text (v.name2) : v.label.isNotEmpty() ? v.label : fw.text (v.name);
+        };
+        for (int i = 0; i < values.size(); ++i)
+        {
+            bool fits = false;
+            for (auto b : owner.boxes) fits = fits || owner.project.valueApplies (b, c, values.getReference (i).id);
+            if (! fits) continue;
+            shown.add (i);
+            // (buttons squeeze their text a little, so 80% of its width is enough)
+            widest = juce::jmax (widest, juce::GlyphArrangement::getStringWidthInt (Theme::font (12.0f), labelOf (values.getReference (i))) * 8 / 10 + 10);
+        }
+        const int n = juce::jmax (1, shown.size());
+        const int perRow = juce::jlimit (1, n, (w + 4) / juce::jmax (64, widest + 4));
         const int rowsNeeded = (n + perRow - 1) / perRow;
         const int bw = (w - (perRow - 1) * 4) / perRow;
         const auto key = c.key();
         const auto undo = fw.text (c.name);
-        for (int i = 0; i < values.size(); ++i)
+        for (int k = 0; k < shown.size(); ++k)
         {
-            const auto& v = values.getReference (i);
-            const auto label = second && ! v.name2.isEmpty() ? fw.text (v.name2) : v.label.isNotEmpty() ? v.label : fw.text (v.name);
+            const int i = k;
+            const auto& v = values.getReference (shown[k]);
+            const auto label = labelOf (v);
             auto* b = place (std::make_unique<juce::TextButton> (label), (i % perRow) * (bw + 4), y + (i / perRow) * 28, bw, 24);
             const bool on = ! effMixed && eff.value == v.id;
             const auto colour = col (fw.valueColours (c, v.id).colour, Theme::accent);
@@ -420,7 +471,25 @@ private:
             };
         }
         y += rowsNeeded * 28;
-        if (! effMixed && eff.value.isEmpty() && ! mixed) y = note ("None yet.", y, w);
+        if (c.between)
+        {
+            // A chosen join stays until it goes back to the timing.
+            bool anyOwn = false;
+            for (auto b : owner.boxes) anyOwn = anyOwn || b[c.property()].toString().isNotEmpty();
+            if (anyOwn)
+            {
+                auto* back = place (std::make_unique<juce::TextButton> ("From the timing"), 0, y, juce::jmin (w, 130), 22);
+                back->setTooltip ("Forget the chosen value: follow what the timing says again");
+                back->onClick = [this, key, undo] { owner.setValue (key, {}, undo); };
+                y += 26;
+                if (owner.boxes.size() == 1)
+                {
+                    const auto derived = Project::derivedValue (c, owner.project.joinBefore (owner.boxes.getFirst()));
+                    if (derived.isNotEmpty() && derived != own) y = note ("Chosen; the timing says " + fw.valueName (c, derived) + ".", y, w);
+                }
+            }
+        }
+        if (! effMixed && eff.value.isEmpty() && ! mixed && ! c.between) y = note ("None yet.", y, w);
         y = describe (c, eff, effMixed || mixed, y, w, true);
         return alongOrHint (c, y, w);
     }
@@ -800,7 +869,13 @@ void FrameworkPanel::setValue (const juce::String& key, const juce::var& value, 
     auto* c = framework.findCategory (key);
     if (c == nullptr) return;
     if (newTransaction) project.getUndoManager().beginNewTransaction (undoName);
-    for (auto b : boxes) project.setFrameworkValue (b, *c, value);
+    const auto id = value.toString();
+    for (auto b : boxes)
+    {
+        // Only where it applies ("only with": a mixing relation on overlaps).
+        if (! project.applies (b, *c) || (c->kind == Framework::Kind::choice && id.isNotEmpty() && ! project.valueApplies (b, *c, id))) continue;
+        project.setFrameworkValue (b, *c, value);
+    }
 }
 
 void FrameworkPanel::setTag (const juce::String& key, const juce::String& tag, bool on)

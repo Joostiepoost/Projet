@@ -54,6 +54,7 @@ void Project::resetToDefault (const juce::String& name, double sampleRate)
 
 void Project::changed()
 {
+    joinsValid = false;
     if (! applying && ! loading)
         applyProportions();
     if (onChanged) onChanged();
@@ -383,6 +384,15 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
         if (leftText.isEmpty()) box.removeProperty (alongId, &undoManager);
         else if (leftText != box[alongId].toString()) box.setProperty (alongId, leftText, &undoManager);
     }
+
+    // Stage 4c: the join with the box before stays with the left part (the
+    // right one now follows it closely); how the box ends goes with the right.
+    if (framework != nullptr)
+        for (auto& c : framework->getCategories())
+        {
+            if (c.between) right.removeProperty (c.property(), nullptr);
+            if (c.atEnd && box.hasProperty (c.property())) box.removeProperty (c.property(), &undoManager);
+        }
 
     rewriteProportions (right, t, end - t, nullptr);
     rewriteProportions (box, start, t - start, &undoManager);
@@ -885,8 +895,23 @@ juce::String Project::folderValue (const juce::ValueTree& track, const juce::Ide
 Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, const Framework::Category& c)
 {
     FrameworkValue v;
+    if (! applies (box, c)) return v;
     const auto& own = box[c.property()];
-    if (! own.isVoid() && own.toString().isNotEmpty()) { v.value = own.toString(); v.from = FrameworkValue::From::own; return v; }
+    if (! own.isVoid() && own.toString().isNotEmpty())
+    {
+        if (! valueApplies (box, c, own.toString())) return v;
+        v.value = own.toString();
+        v.from = FrameworkValue::From::own;
+        return v;
+    }
+    if (c.between)
+    {
+        // A join without a value of its own: what the timing says.
+        v.value = derivedValue (c, joinBefore (box));
+        if (v.value.isNotEmpty() && valueApplies (box, c, v.value)) v.from = FrameworkValue::From::timing;
+        else v.value = {};
+        return v;
+    }
     if (c.folders && box.getParent().isValid())
     {
         v.value = folderValue (box.getParent(), c.property());
@@ -894,6 +919,107 @@ Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, con
     }
     if (c.defaultValue.isNotEmpty()) { v.value = c.defaultValue; v.from = FrameworkValue::From::defaultValue; }
     return v;
+}
+
+bool Project::holds (const juce::ValueTree& box, const Framework::Condition& cond)
+{
+    if (! cond.isSet() || framework == nullptr) return true;
+    auto* other = framework->findCategory (cond.category);
+    if (other == nullptr || conditionDepth > 4) return true;     // a loop of conditions is not followed
+    ++conditionDepth;
+    const auto v = frameworkValue (box, *other);
+    --conditionDepth;
+    return cond.values.contains (v.value);
+}
+
+bool Project::applies (const juce::ValueTree& box, const Framework::Category& c)
+{
+    return holds (box, c.onlyWith);
+}
+
+bool Project::valueApplies (const juce::ValueTree& box, const Framework::Category& c, const juce::String& valueId)
+{
+    if (framework == nullptr) return true;
+    auto* value = framework->findValue (c, valueId);
+    return value == nullptr || holds (box, value->onlyWith);
+}
+
+juce::String Project::derivedValue (const Framework::Category& c, const Join& join)
+{
+    if (! join.isValid()) return {};
+    for (auto& rule : c.derive)
+    {
+        if (join.gap < rule.from || join.gap >= rule.to) continue;
+        if (rule.covered >= 0 && join.covered != (rule.covered == 1)) continue;
+        return rule.value;
+    }
+    return {};
+}
+
+void Project::buildJoins()
+{
+    joins.clear();
+    joinsValid = true;
+    constexpr double eps = 1.0e-9;
+
+    // Every box that sounds or plans a sound, with its track, for "covered".
+    struct Span { double start, end; juce::String track; };
+    std::vector<Span> spans;
+    for (auto t : getTracks())
+    {
+        if (isFolder (t) || effectiveMute (t)) continue;
+        const auto trackId = t[IDs::id].toString();
+        for (auto b : t)
+            if (b.hasType (IDs::BOX)) spans.push_back ({ boxStart (b), boxEnd (b), trackId });
+    }
+
+    for (auto t : getTracks())
+    {
+        if (isFolder (t)) continue;
+        std::vector<juce::ValueTree> boxes;
+        for (auto b : t) if (b.hasType (IDs::BOX)) boxes.push_back (b);
+        // By start; boxes starting together keep their order on the track.
+        std::stable_sort (boxes.begin(), boxes.end(), [] (const juce::ValueTree& a, const juce::ValueTree& b)
+                          { return boxStart (a) < boxStart (b); });
+        const auto trackId = t[IDs::id].toString();
+        for (size_t i = 1; i < boxes.size(); ++i)
+        {
+            const auto& a = boxes[i - 1];
+            const auto& b = boxes[i];
+            JoinInfo info;
+            info.before = a[IDs::id].toString();
+            info.gap = boxStart (b) - boxEnd (a);
+            if (info.gap > 0.0)
+                for (auto& s : spans)
+                    if (s.track != trackId && s.start <= boxEnd (a) + eps && s.end >= boxStart (b) - eps) { info.covered = true; break; }
+            const auto id = b[IDs::id].toString();
+            auto& entry = joins[id];
+            entry.before = info.before;
+            entry.gap = info.gap;
+            entry.covered = info.covered;
+            joins[info.before].after = id;
+        }
+    }
+}
+
+Project::Join Project::joinBefore (const juce::ValueTree& box)
+{
+    if (! joinsValid) buildJoins();
+    Join j;
+    const auto it = joins.find (box[IDs::id].toString());
+    if (it == joins.end() || it->second.before.isEmpty()) return j;
+    j.before = box.getParent().getChildWithProperty (IDs::id, it->second.before);
+    j.gap = it->second.gap;
+    j.covered = it->second.covered;
+    return j;
+}
+
+juce::ValueTree Project::boxAfter (const juce::ValueTree& box)
+{
+    if (! joinsValid) buildJoins();
+    const auto it = joins.find (box[IDs::id].toString());
+    if (it == joins.end() || it->second.after.isEmpty()) return {};
+    return box.getParent().getChildWithProperty (IDs::id, it->second.after);
 }
 
 void Project::setFrameworkValue (juce::ValueTree target, const Framework::Category& c, const juce::var& value)

@@ -45,8 +45,8 @@ Other options:
 | 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci, harmonic, your own), ratio checking | done |
 | 4a | Framework file and box fields: energies, semiotic levels, roles, Schaeffer's type; changes along a box; colour modes, highlight, folder levels | done |
 | 4b.1 | Framework packages: the categories themselves as data (kinds, marks, groups, charts, two names, additions); library and project copies; Display and Frameworks panels; an example package | done |
-| 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | built, to test |
-| 4c | Junction and demarcation signs, mixing relations on overlaps | |
+| 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | done |
+| 4c | Junctions (from the timing or chosen), endings and mixing relations, with Thoresen's signs; the profile's peak; hiding and widening the panel | built, to test |
 | 4d | Semiotic track template, overview lanes, writing types and nodes, accents and goals | |
 | 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
 | 6 | Magnified inline expansion | |
@@ -57,7 +57,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using Projet (stages 1–4b.2)
+## Using Projet (stages 1–4c)
 
 ### The project folder
 
@@ -175,9 +175,11 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 
 ### Frameworks: packages of categories (stages 4a, 4b)
 
-Boxes can carry the vocabulary of composition frameworks. Projet ships three **packages**:
-- **Composition framework** (`composition`): **energy** (Vande Gorne's energy models, in families) and a **second energy**, the **semiotic level** (I-son, Di-son, métonymique, Mé-son), the **role** (F / M / B: Thoresen's layer functions or Vande Gorne's figure and ground) and the **dynamic profile** (the box's intensity envelope, with Schaeffer's names). It also ships a `glyphs.js`: the energies' shapes, drawn on the boxes.
+Boxes can carry the vocabulary of composition frameworks. Projet ships five **packages**:
+- **Composition framework** (`composition`): **energy** (Vande Gorne's energy models, in families) and a **second energy**, the **semiotic level** (I-son, Di-son, métonymique, Mé-son), the **role** (F / M / B: Thoresen's layer functions or Vande Gorne's figure and ground) and the **dynamic profile** (the box's intensity envelope, with Schaeffer's names, and for a delta its peak position and a hard or soft peak). It also ships a `glyphs.js`: the energies' shapes, drawn on the boxes.
 - **Schaeffer** (`schaeffer`): the **type**, from his typology (29 types in a chart).
+- **Thoresen: time-fields** (`thoresen`): the **junction** with the box before and the **ending** of each box (stage 4c).
+- **Vande Gorne: writing** (`vandegorne`): the **mixing relation** on overlaps (stage 4c).
 - **Structuring language (RK1)** (`rk1`): no categories yet; it carries the operations of your structuring language for stage 8.
 
 Nothing about the categories is built into Projet: a package declares them (what kind of value, how it is chosen, how it shows on the boxes), and the Framework tab, the menus, the colour modes, the highlight and the marks follow whatever the project's packages declare. **A new framework needs only a folder**: see `Examples/Frameworks/example` (a choice, tags, a number, a text, and an energy added to the composition framework).
@@ -185,7 +187,7 @@ Nothing about the categories is built into Projet: a package declares them (what
 **Where packages live.**
 - Each project keeps **its own copies** in `Frameworks/` inside the project folder, so a piece stays readable whatever happens elsewhere.
 - The **library** (`~/Library/Application Support/Projet/Frameworks`) holds packages for new projects: a new project gets a copy of each.
-- Projet's own packages are written to the library the first time it runs.
+- Projet's own packages are written to the library the first time it runs; a package Projet starts shipping later (Thoresen and Vande Gorne, in 4c) is added to the library once, and one you remove from the library stays removed.
 - **Projects from stage 4a** convert by themselves when opened: their `framework.json` becomes packages (kept as `framework-4a.json`), and their boxes, folders and colour mode keep their values. The app's 4a `framework.json` became the library the same way.
 
 **The Framework tab** (select boxes, then **Framework** at the top of the panel on the right) shows the categories package by package:
@@ -222,10 +224,27 @@ Nothing about the categories is built into Projet: a package declares them (what
 
 **Figure and ground.** When a category's values carry different `weight`s (the roles: F 3, M 2, B 1), a box with the lightest value recedes (drawn fainter) and one with the heaviest comes forward (a stronger edge). Both this and the fills switch off in *Display*.
 
+### Junctions, endings and mixing relations (stage 4c)
+
+**Junction with the box before.** Every box (but the first on a track) joins the one before it on its track, the box that starts most recently before it. Projet works out the kind from the timing, after Thoresen's time-field positioning (*Emergent Musical Forms*, 6.3.1): **separate** (a gap of 0.5 s or more), **bridged** (such a gap spanned by a box on another track that is not muted), **joint** (20 ms to 0.5 s), **close** (within 20 ms), **hinged** (an overlap up to 8 s), **overlapping** (a longer one); **superimposed** is only chosen. Choose another kind and it stays, whatever the timing does, until *From the timing*. The Framework tab says which box it joins and the gap or overlap (between 20 and 50 ms it notes Vande Gorne's remark: the attack blurs).
+
+**Ending.** How a box ends (Thoresen's demarcation, 6.3.2): vague, open, conclusive, cut, disjointed, deferred, or not marked.
+
+**Mixing relation.** On a hinged, overlapping or superimposed junction (Vande Gorne, chapter 3): fusion, complementarity, rejection; on a hinged one also relay of energy and indirect metamorphosis. It is only offered where it applies, and a chosen one waits, unshown, while the junction is not an overlap.
+
+**Signs.** At the top of the lane, where a box meets the one before it, Thoresen's sign for the junction (figure 6.2), with the mixing relation's sign beside it. When the box before has an ending, its mark sits on that box's bracket in the same sign, as in his figure 6.4; a box with nothing after it gets its ending's sign at its own end. A junction found from the timing has a dashed frame, a chosen one a solid frame. Hover over a sign for what it says; click it to select the box it belongs to (the later one); right-click it for its kinds and *From the timing*. The junction, ending and mixing relation are also in the box's right-click menu, and in *Display* (at the seam, at the end, as a badge or label, or not shown) and *Highlight* (every hinged junction, those found from the timing included).
+
+**The profile's peak.** A delta or hollow profile gets a **peak position** (in % of the box: an asymmetric delta, a slow approach and a quick fall) and a **hard or soft peak** (angular, or rounded); the energy glyph follows.
+
+**Splitting** a box keeps its junction on the left part (the right part now joins it closely) and its ending on the right part.
+
+**The panel on the right** can be hidden: the small » at its top left, *View > Hide panel*, Cmd-Alt-I, or the **Panel** button at the top (which brings it back). It also comes back by itself for *Display...* and *Frameworks...*. Drag its left edge to make it wider or narrower. Both are remembered.
+
 **Writing a package.** A folder (named as the package's id) with a `framework.json` and, if you like, a `help.md`. Copy `Examples/Frameworks/example` and edit it. Names can be `{ "fr": ..., "en": ... }` or plain text; colours are `"#rrggbb"`.
-- The package: `id` (lower case letters, digits, `-`, `_`), `version` (raise it when you change it), `order` (its place: Projet's are 10, 20, 90), `name`, `about`, `categories`, and `additions` (values, or groups, for another package's category: `{ "category": "composition.energy", "values": [ ... ] }`; your additions survive an update of that package).
-- A category: `id`, `name`, `about`; `kind`: `choice`, `tags`, `number` or `text`; `control` (a choice): `menu`, `buttons` or `chart` (by default a chart if it has one, buttons up to 5 values, else a menu); `mark`: `none`, `strip` (choice, number), `badge`, `label`, `glyph` (choice); `along`: true (a choice that can change along a box); `folders`: true (folders can give it); `default` (a value a box has when it has none) and `showDefault`: false; `valuesFrom` (another category whose values it uses, like the second energy); `groups`: `{ "name": ..., "list": [ { "id", "name", "colour" } ] }`; `details` (what the values' details are, such as *Variation factors*); `names`: `{ "first": ..., "second": ... }` (what the two names of the values are); `chart`: `{ "rows": [ { "id", "name" } ], "columns": [ ... ], "caption": ... }`; for a number `min`, `max`, `step`, `unit`, `colour`.
-- A value: `id`, `name`, `name2` (a second name), `label` (short, for badges), `about`, `colour` (else its first group's), `groups`, `row` and `col` (in the chart), `weight` (differing weights set boxes forward or back), `fill` (`solid`, `hatched`, `dotted`, `outline`), `glyph` (the shape it draws, by default its id), `env` (an intensity envelope as `[[t, a], ...]`, both 0–1: the profiles), `details` (`{ "fr": [ ... ], "en": [ ... ] }`).
+- The package: `id` (lower case letters, digits, `-`, `_`), `version` (raise it when you change it), `order` (its place: Projet's are 10, 20, 30, 40, 90), `name`, `about`, `categories`, and `additions` (values, or groups, for another package's category: `{ "category": "composition.energy", "values": [ ... ] }`; your additions survive an update of that package).
+- A category: `id`, `name`, `about`; `kind`: `choice`, `tags`, `number` or `text`; `control` (a choice): `menu`, `buttons` or `chart` (by default a chart if it has one, buttons up to 5 values, else a menu); `mark`: `none`, `strip` (choice, number), `badge`, `label`, `glyph` (choice); `along`: true (a choice that can change along a box); `folders`: true (folders can give it); `default` (a value a box has when it has none) and `showDefault`: false; `valuesFrom` (another category whose values it uses, like the second energy); `groups`: `{ "name": ..., "list": [ { "id", "name", "colour" } ] }`; `details` (what the values' details are, such as *Variation factors*); `names`: `{ "first": ..., "second": ... }` (what the two names of the values are); `chart`: `{ "rows": [ { "id", "name" } ], "columns": [ ... ], "caption": ... }`; for a number `min`, `max`, `step`, `unit`, `colour` (and a `default`).
+- Joins and conditions (4c): `between`: `"previous"` (the value belongs to the join with the box before, stored on the later box; mark `seam`); `derive`: timing rules, the first that fits wins: `[ { "value": "separate", "from": 0.5, "covered": false }, ... ]` (`from` and `to` bound the gap in seconds, negative for an overlap; `covered`: spanned by a box on another track); `notes`: `[ { "from": 0.02, "to": 0.05, "text": ... } ]` (remarks on a range of gaps); `atEnd`: true (the value describes how the box ends; mark `end`; a split gives it to the right part); `onlyWith`: `{ "category": "thoresen.junction", "values": [ ... ] }` (the category applies only while another has one of these values; also on a value); `envelope`: `"peak"` (a number moving the peak of the box's profile, in its range) or `"shape"` (a choice whose values have a `curve`: `"soft"` or `"hard"`).
+- A value: `id`, `name`, `name2` (a second name), `label` (short, for badges), `about`, `colour` (else its first group's), `groups`, `row` and `col` (in the chart), `weight` (differing weights set boxes forward or back), `fill` (`solid`, `hatched`, `dotted`, `outline`), `glyph` (the shape it draws, by default its id), `env` (an intensity envelope as `[[t, a], ...]`, both 0–1: the profiles) and `peak` (the index of its point a peak position moves), `details` (`{ "fr": [ ... ], "en": [ ... ] }`), and for signs (4c) `sign` (an SVG path: a seam sign in a 60 by 20 box, with `endAt`: `[x, y]` where the first box's bracket ends; or an end sign), `seamSign` (an ending's mark drawn from that point when it sits in a seam sign), `onlyWith`.
 - `glyphs.js` next to `framework.json` draws the shapes of `glyph`-marked values: one object `glyphs`, each entry a function `(w, h, rand)` returning strokes (`{ pts: [x,y, ...], close, fill, faint, width, alpha }` or `{ dots: [x,y,r, ...] }`) in a `w` by `h` band. `rand()` is seeded, so shapes repeat exactly; the profile is applied by Projet afterwards. The composition package's `glyphs.js` documents the format; an added value can bring its own shape (the example package's *Pulsation*).
 - Boxes store values under `fw.<package>.<category>` (ids, never names): renaming or translating breaks nothing, and an id no package knows is kept and shown with a question mark.
 
@@ -244,6 +263,7 @@ Nothing about the categories is built into Projet: a package declares them (what
 - **A text box selected**: name, kind, opacity, times, notes.
 - **Box / Framework** (top of the panel, when boxes are selected): the box's own settings, or its framework values (see above).
 - **Display** and **Frameworks**: the framework's display settings and packages (*Done* goes back).
+- **Hide it** with the » at its top left, *View > Hide panel* or Cmd-Alt-I; the **Panel** button at the top brings it back. Drag its left edge to change its width.
 - **A sound box selected**: name, kind, sound, gain (−60 to +12 dB; double-click for 0), fade in and out with their shapes (linear, equal power, S-curve), **opacity** (visual only: overlapping boxes show through), start, end, length and offset into the sound, and the sound (copy, original, rates).
 - **Nothing selected**: the project: sample rate, number of tracks, boxes and sounds, size of the copies, length, folder; the format for new imports and the Vorbis quality.
 
@@ -253,6 +273,17 @@ Nothing about the categories is built into Projet: a package declares them (what
 - Overlapping boxes simply add up; their fades make the crossfade. For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+
+**Worth testing in stage 4c**:
+- Open a project from 4b: the status line says Thoresen and Vande Gorne are new in the library. *Framework > Frameworks...*: *Use in this project* for both; for composition, *Library: take Projet's v4*, then *Take the library's (v4)*.
+- Junction signs appear at the seams, dashed (from the timing). Move boxes closer, further, over each other, and watch the kinds change: separate, joint, close, hinged, overlapping; a box on another track spanning a gap makes it bridged (not when that track is muted).
+- Click a sign (the later box is selected); hover over it; right-click it and choose a kind (the frame turns solid; it stays when you move the box); *From the timing* brings back what the timing says.
+- Give boxes endings: where the next box joins it, the mark sits on the junction sign; on the last box of a track it stands at its end. Split a box with a junction and an ending.
+- Mixing relations: only on overlaps; relay of energy and indirect metamorphosis only on hinged ones; turn a hinged junction into a separate one and back (the relation waits, unshown).
+- A delta profile on a rebond: move the peak position, switch hard and soft.
+- *Display*: junction, ending and mixing relation as badges or labels, or not shown; *Highlight* hinged junctions.
+- The panel: hide it (», *View > Hide panel*, Cmd-Alt-I), bring it back (Panel button), drag its edge; quit and reopen (both remembered); *Display...* and *Frameworks...* bring a hidden panel back.
+- Save, quit, reopen; a new project gets all five packages.
 
 **Worth testing in stage 4b.2**:
 - First, in a project from 4b.1: *Framework > Frameworks...*, composition says *Projet's v3* — *Library: take Projet's v3*, then *Take the library's (v3)*. The glyphs appear (a v2 copy has no glyphs or profile; fills and weight already work).

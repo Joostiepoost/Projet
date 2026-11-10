@@ -351,6 +351,7 @@ void TimelineView::paint (juce::Graphics& g)
 {
     g.fillAll (Theme::background);
     auto rs = rows();
+    signHits.clear();
 
     // Lanes
     for (size_t i = 0; i < rs.size(); ++i)
@@ -439,6 +440,10 @@ void TimelineView::paint (juce::Graphics& g)
                     else g.strokePath (corner, juce::PathStrokeType (1.0f));
                 }
             }
+
+        // Seam and end signs, over the boxes (stage 4c).
+        for (auto& r : rs)
+            if (! r.folder) paintSeams (g, r);
 
         if (project.getContentEnd() <= 0.0)
         {
@@ -863,7 +868,29 @@ void TimelineView::paintGlyphs (juce::Graphics& g, const juce::ValueTree& box, j
         if (val == nullptr || val->env.isEmpty()) continue;
         bool flat = true;
         for (int i = 1; i < val->env.size(); i += 2) flat = flat && std::abs (val->env[i] - 1.0f) < 1.0e-6f;
-        if (! flat) { env = val->env; envKey = c.key() + "=" + v.value; }
+        if (! flat)
+        {
+            env = val->env;
+            envKey = c.key() + "=" + v.value;
+            // Its peak moved, its peak rounded (stage 4c).
+            double peakAt = -1.0;
+            bool soft = false;
+            for (auto& shaper : framework.getCategories())
+            {
+                if (shaper.envelope.isEmpty()) continue;
+                const auto sv = project.frameworkValue (box, shaper);
+                if (sv.value.isEmpty()) continue;
+                if (shaper.envelope == "peak" && val->peak >= 0)
+                    peakAt = juce::jlimit (0.0, 1.0, (sv.value.getDoubleValue() - shaper.minimum) / (shaper.maximum - shaper.minimum));
+                else if (shaper.envelope == "shape")
+                    if (auto* shape = framework.findValue (shaper, sv.value)) soft = shape->curve == "soft";
+            }
+            if (peakAt >= 0.0 || soft)
+            {
+                env = Framework::shapeEnvelope (env, val->peak, peakAt, soft);
+                envKey << "|" << juce::String (peakAt, 3) << (soft ? "s" : "h");
+            }
+        }
         break;
     }
 
@@ -944,6 +971,179 @@ void TimelineView::paintGlyphs (juce::Graphics& g, const juce::ValueTree& box, j
                                                                      juce::PathStrokeType::rounded), xform);
         }
     }
+}
+
+juce::String TimelineView::describeGap (double gap)
+{
+    const double a = std::abs (gap);
+    const auto amount = a < 1.0 ? juce::String (juce::roundToInt (a * 1000.0)) + " ms" : juce::String (a, 2) + " s";
+    return (gap < 0.0 ? "overlap " : "gap ") + amount;
+}
+
+const juce::Path& TimelineView::signPath (const juce::String& svg)
+{
+    auto it = signCache.find (svg);
+    if (it == signCache.end())
+    {
+        if (signCache.size() > 200) signCache.clear();
+        it = signCache.emplace (svg, juce::Drawable::parseSVGPath (svg)).first;
+    }
+    return it->second;
+}
+
+const TimelineView::SignHit* TimelineView::signAt (juce::Point<float> p) const
+{
+    for (auto it = signHits.rbegin(); it != signHits.rend(); ++it)
+        if (it->area.contains (p)) return &*it;
+    return nullptr;
+}
+
+juce::String TimelineView::getTooltip()
+{
+    if (auto* hit = signAt (getMouseXYRelative().toFloat())) return hit->tip;
+    return {};
+}
+
+void TimelineView::paintSeams (juce::Graphics& g, const TrackRow& row)
+{
+    juce::Array<const Framework::Category*> seamCats, endCats;
+    for (auto& c : framework.getCategories())
+    {
+        const auto m = markFor (c);
+        if (m == Framework::Mark::seam && c.between) seamCats.add (&c);
+        else if (m == Framework::Mark::end && ! c.between) endCats.add (&c);
+    }
+    if (seamCats.isEmpty() && endCats.isEmpty()) return;
+
+    constexpr float scale = 0.75f;                  // sign units (a 60 by 20 box) to pixels
+    const float centreY = (float) row.y + 5.0f;     // across the top edge of the boxes
+    juce::StringArray combined;                     // boxes whose ending went into a seam sign
+
+    auto draw = [&] (const juce::Path& path, juce::Point<float> anchor, float anchorX, bool solid, float alpha,
+                     const juce::String& boxId, const juce::String& tip, bool seam)
+    {
+        const auto b = path.getBounds();
+        const auto xform = juce::AffineTransform::translation (-anchorX, -b.getCentreY()).scaled (scale).translated (anchor);
+        const auto drawn = b.transformedBy (xform);
+        const auto area = juce::Rectangle<float> (drawn.getX() - 4.0f, anchor.y - 7.0f, drawn.getWidth() + 8.0f, 14.0f);
+        if (area.getRight() < (float) headerWidth || area.getX() > (float) getWidth()) return;
+        g.setColour (Theme::background.withAlpha (0.9f));
+        g.fillRoundedRectangle (area, 3.0f);
+        if (solid)
+        {
+            g.setColour (Theme::accent.withAlpha (0.8f * alpha));
+            g.drawRoundedRectangle (area.reduced (0.5f), 3.0f, 1.0f);
+        }
+        else
+        {
+            juce::Path edge, dashed;
+            edge.addRoundedRectangle (area.reduced (0.5f), 3.0f);
+            const float dashes[] = { 2.5f, 2.0f };
+            juce::PathStrokeType (1.0f).createDashedStroke (dashed, edge, dashes, 2);
+            g.setColour (Theme::accent.withAlpha (0.45f * alpha));
+            g.fillPath (dashed);
+        }
+        g.setColour (Theme::accent.withAlpha ((solid ? 1.0f : 0.75f) * alpha));
+        g.strokePath (path, juce::PathStrokeType (1.25f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), xform);
+        signHits.push_back ({ area, boxId, tip, seam });
+    };
+
+    for (auto box : row.track)
+    {
+        float alpha = project.effectiveMute (row.track) ? 0.5f : 1.0f;
+        if (highlight.isActive() && ! matchesHighlight (box)) alpha *= 0.3f;
+
+        // == The seam with the box before
+        const auto join = project.joinBefore (box);
+        if (join.isValid() && ! seamCats.isEmpty())
+        {
+            juce::Path main, all;
+            juce::StringArray tips;
+            bool own = false;
+            const Framework::Value* first = nullptr;
+            float cursor = 0.0f;
+            for (auto* c : seamCats)
+            {
+                const auto v = project.frameworkValue (box, *c);
+                if (v.value.isEmpty()) continue;
+                auto* val = framework.findValue (*c, v.value);
+                auto tip = framework.valueName (*c, v.value);
+                if (first == nullptr) tip << (v.isOwn() ? " (chosen; " : " (from the timing; ") << describeGap (join.gap) << ")";
+                tips.add (juce::String (framework.text (c->name)) + ": " + tip);
+                if (val == nullptr || val->sign.isEmpty()) continue;
+                auto path = signPath (val->sign);
+                if (first == nullptr)
+                {
+                    first = val;
+                    own = v.isOwn();
+                    main = path;
+                    cursor = path.getBounds().getRight() + 5.0f;
+                }
+                else
+                {
+                    const auto pb = path.getBounds();
+                    path.applyTransform (juce::AffineTransform::translation (cursor - pb.getX(), 0.0f));
+                    all.addPath (path);
+                    cursor += pb.getWidth() + 5.0f;
+                }
+            }
+            for (auto* c : seamCats)
+                for (auto& note : c->notes)
+                    if (join.gap >= note.from && join.gap < note.to) tips.add (framework.text (note.text));
+
+            // The ending of the box before, on its bracket (Thoresen's figure 6.4).
+            if (first != nullptr && first->endX >= 0.0f && ! endCats.isEmpty())
+            {
+                const auto ev = project.frameworkValue (join.before, *endCats[0]);
+                if (auto* ending = framework.findValue (*endCats[0], ev.value); ending != nullptr && ending->seamSign.isNotEmpty())
+                {
+                    auto mark = signPath (ending->seamSign);
+                    mark.applyTransform (juce::AffineTransform::translation (first->endX, first->endY));
+                    main.addPath (mark);
+                    combined.add (join.before[IDs::id].toString());
+                    tips.add (framework.text (endCats[0]->name) + " of " + join.before[IDs::name].toString().quoted() + ": "
+                              + framework.valueName (*endCats[0], ev.value));
+                }
+            }
+            if (! main.isEmpty())
+            {
+                const double tEnd = juce::jmin (Project::boxEnd (join.before), Project::boxEnd (box));
+                const float x = timeToX ((Project::boxStart (box) + tEnd) / 2.0);
+                all.addPath (main);
+                draw (all, { x, centreY }, main.getBounds().getCentreX(), own, alpha, box[IDs::id].toString(), tips.joinIntoString ("\n"), true);
+            }
+        }
+
+        // == How the box ends, on its own (when no seam sign took it)
+        for (int k = 0; k < endCats.size(); ++k)
+        {
+            auto* c = endCats[k];
+            if (k == 0 && combined.contains (box[IDs::id].toString())) continue;
+            const auto v = project.frameworkValue (box, *c);
+            auto* val = framework.findValue (*c, v.value);
+            if (val == nullptr || val->sign.isEmpty()) continue;
+            const auto& path = signPath (val->sign);
+            const float x = timeToX (Project::boxEnd (box)) + 2.0f;
+            draw (path, { x, centreY + (float) k * 15.0f }, path.getBounds().getRight(), true, alpha, box[IDs::id].toString(),
+                  framework.text (c->name) + ": " + framework.valueName (*c, v.value), false);
+        }
+    }
+}
+
+void TimelineView::showSignMenu (const SignHit& hit)
+{
+    auto box = project.findBox (hit.boxId);
+    if (! box.isValid()) return;
+    juce::PopupMenu m;
+    const bool seam = hit.seam;
+    addFrameworkMenus (m, { box }, [seam] (const Framework::Category& c) { return seam ? c.between : c.atEnd; });
+    if (m.getNumItems() == 0) return;
+    juce::Component::SafePointer<TimelineView> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options(), [safe, box] (int r)
+    {
+        if (safe == nullptr || r == 0) return;
+        if (r >= boxMenuBase && r < folderMenuBase) { safe->applyFrameworkMenu (r, { box }); safe->repaint(); }
+    });
 }
 
 void TimelineView::paintFrameworkMarks (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha)
@@ -1153,14 +1353,19 @@ bool TimelineView::matchesHighlight (const juce::ValueTree& box)
     return true;
 }
 
-void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce::ValueTree>& boxes)
+void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce::ValueTree>& boxes,
+                                      std::function<bool (const Framework::Category&)> only)
 {
     // Ids: boxMenuBase + category index * menuStride + 1 + value index (+0 = none).
     for (auto& c : framework.getCategories())
     {
         if (c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) continue;
+        if (only && ! only (c)) continue;
         const auto& values = framework.valuesOf (c);
         if (values.isEmpty() || values.size() >= menuStride - 1) continue;
+        bool applies = false;                       // "only with": for at least one of the boxes
+        for (auto b : boxes) applies = applies || project.applies (b, c);
+        if (! applies) continue;
         const int base = boxMenuBase + c.index * menuStride;
 
         // What the boxes have now: a choice they share, the tags all of them have.
@@ -1183,13 +1388,25 @@ void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce
         juce::PopupMenu sub;
         if (c.kind == Framework::Kind::choice)
         {
-            const auto none = c.defaultValue.isNotEmpty() ? "None (the default, " + framework.valueLabel (c, c.defaultValue) + ")"
-                            : c.folders ? juce::String ("None (or the folder's)") : juce::String ("None");
+            auto none = c.defaultValue.isNotEmpty() ? "None (the default, " + framework.valueLabel (c, c.defaultValue) + ")"
+                      : c.folders ? juce::String ("None (or the folder's)") : juce::String ("None");
+            if (c.between)
+            {
+                none = "From the timing";
+                if (boxes.size() == 1)
+                {
+                    const auto derived = Project::derivedValue (c, project.joinBefore (boxes.getFirst()));
+                    if (derived.isNotEmpty()) none << " (" << framework.valueName (c, derived) << ")";
+                }
+            }
             sub.addItem (base, none, true, ! mixed && common.isEmpty());
         }
         auto addValue = [&] (int i)
         {
             const auto& v = values.getReference (i);
+            bool fits = false;
+            for (auto b : boxes) fits = fits || project.valueApplies (b, c, v.id);
+            if (! fits) return;
             auto text = framework.valueName (c, v.id);
             if (v.label.isNotEmpty() && ! text.startsWith (v.label)) text = v.label + "   " + text;
             const bool ticked = c.kind == Framework::Kind::choice ? (! mixed && common == v.id) : allTags.contains (v.id);
@@ -1237,7 +1454,10 @@ void TimelineView::applyFrameworkMenu (int r, const juce::Array<juce::ValueTree>
         return;
     }
     for (auto b : boxes)
+    {
+        if (! project.applies (b, c) || (id.isNotEmpty() && ! project.valueApplies (b, c, id))) continue;
         project.setFrameworkValue (b, c, id == c.defaultValue ? juce::String() : id);
+    }
 }
 
 void TimelineView::paintWaveform (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r)
@@ -1338,7 +1558,19 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
-    // Lanes
+    // Lanes: a seam or end sign selects its box (the later one, for a seam).
+    if (auto* hit = signAt (e.position))
+    {
+        const auto copy = *hit;
+        auto signBox = project.findBox (copy.boxId);
+        if (signBox.isValid())
+        {
+            selectBox (signBox);
+            if (e.mods.isPopupMenu()) showSignMenu (copy);
+            return;
+        }
+    }
+
     Zone zone;
     auto box = boxAt (e.position, zone);
     auto row = rowAt (e.y);

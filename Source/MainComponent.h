@@ -43,7 +43,8 @@ public:
         cmdUndo, cmdRedo, cmdDelete, cmdDuplicate, cmdDeselect,
         cmdPlayStop, cmdToStart, cmdZoomIn, cmdZoomOut, cmdZoomFit,
         cmdAddTrack, cmdAudioSettings, cmdShortcuts,
-        cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow
+        cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow,
+        cmdTogglePanel
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -96,6 +97,31 @@ private:
     void addPackageFolder();
     juce::StringArray namingKeys;           // the categories of the Framework menu's name submenus
     static constexpr int highlightBase = 40000;
+
+    //== The panel on the right (stage 4c) ======================================
+    /** Shown or hidden (remembered as an app setting). */
+    void setPanelShown (bool);
+    bool panelShown = true;
+    int panelWidth = 320;
+    static constexpr int minPanelWidth = 260;
+    int maxPanelWidth() const   { return juce::jmax (minPanelWidth, juce::jmin (720, getWidth() - 480)); }
+    /** The panel's left edge: drag to make it wider or narrower. */
+    struct EdgeDragger : juce::Component
+    {
+        std::function<int()> getWidth_;
+        std::function<void (int)> onWidth;
+        std::function<void()> onDone;
+        int startWidth = 0;
+        EdgeDragger()                                           { setMouseCursor (juce::MouseCursor::LeftRightResizeCursor); setRepaintsOnMouseActivity (true); }
+        void paint (juce::Graphics& g) override
+        {
+            g.setColour (isMouseOverOrDragging() ? Theme::accent.withAlpha (0.6f) : Theme::line);
+            g.fillRect (getWidth() / 2, 0, isMouseOverOrDragging() ? 2 : 1, getHeight());
+        }
+        void mouseDown (const juce::MouseEvent&) override      { startWidth = getWidth_ ? getWidth_() : 0; }
+        void mouseDrag (const juce::MouseEvent& e) override     { if (onWidth) onWidth (startWidth - e.getDistanceFromDragStartX()); }
+        void mouseUp (const juce::MouseEvent&) override         { if (onDone) onDone(); }
+    } panelEdge;
 
     //== Sounds =================================================================
     void importDialog();
@@ -165,6 +191,7 @@ private:
     std::vector<std::shared_ptr<ImportBatch>> batches;
     bool dirty = false, suppressDirty = false;
     juce::String lastStatus;
+    juce::String libraryNotice;         // what the library gained at start (shown once a project is open)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

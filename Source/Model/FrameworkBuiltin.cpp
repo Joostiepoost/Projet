@@ -35,7 +35,7 @@ const juce::Array<Framework::Builtin>& Framework::builtins()
 R"PKG({
   "projet": "framework package",
   "id": "composition",
-  "version": 3,
+  "version": 4,
   "order": 10,
   "name": {"fr": "Cadre de composition", "en": "Composition framework"},
   "about": {
@@ -389,14 +389,16 @@ R"PKG({
           "id": "delta",
           "label": "<>",
           "name": {"fr": "delta", "en": "delta"},
-          "env": [[0, 0.06], [0.5, 1], [1, 0.06]]
+          "env": [[0, 0.06], [0.5, 1], [1, 0.06]],
+          "peak": 1
         },
         {
           "id": "hollow",
           "label": "><",
           "name": {"fr": "en creux", "en": "hollow"},
           "name2": {"fr": "delta inversé", "en": "reversed delta"},
-          "env": [[0, 1], [0.5, 0.15], [1, 1]]
+          "env": [[0, 1], [0.5, 0.15], [1, 1]],
+          "peak": 1
         },
         {
           "id": "mordent",
@@ -404,6 +406,39 @@ R"PKG({
           "name": {"fr": "mordant", "en": "mordent"},
           "env": [[0, 1], [0.07, 1], [0.2, 0.4], [1, 0.35]]
         }
+      ]
+    },
+    {
+      "id": "peak",
+      "name": {"fr": "Position du pic", "en": "Peak position"},
+      "about": {
+        "fr": "où se trouve le pic du profil (delta, en creux), en % de la boîte : un delta asymétrique",
+        "en": "where the profile's peak sits (delta, hollow), in % of the box: an asymmetric delta"
+      },
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 50,
+      "envelope": "peak",
+      "onlyWith": {"category": "profile", "values": ["delta", "hollow"]},
+      "mark": "none"
+    },
+    {
+      "id": "peakshape",
+      "name": {"fr": "Pic", "en": "Peak"},
+      "about": {"fr": "un pic dur (anguleux) ou doux (arrondi)", "en": "a hard (angular) or soft (rounded) peak"},
+      "kind": "choice",
+      "control": "buttons",
+      "mark": "none",
+      "default": "hard",
+      "showDefault": false,
+      "envelope": "shape",
+      "onlyWith": {"category": "profile", "values": ["delta", "hollow"]},
+      "values": [
+        {"id": "hard", "name": {"fr": "dur", "en": "hard"}, "curve": "hard"},
+        {"id": "soft", "name": {"fr": "doux", "en": "soft"}, "curve": "soft"}
       ]
     }
   ]
@@ -417,7 +452,7 @@ R"HELP(# Composition framework
 
 **Role.** Thoresen's layer functions (foreground, middleground, background) or Vande Gorne's figure and ground: F, M (the default) and B. In the Framework menu, *Role: names* chooses which names show. The role can change along a box.
 
-**Dynamic profile.** The box's intensity envelope, with Schaeffer's names (*Traité*, 31.4) and Vande Gorne's where she has one: flat, resonance (attack-resonance), crescendo (reversed sound), decrescendo, delta, hollow (reversed delta), mordent. The energy glyph is drawn inside the profile, so a bounce can live in a delta.
+**Dynamic profile.** The box's intensity envelope, with Schaeffer's names (*Traité*, 31.4) and Vande Gorne's where she has one: flat, resonance (attack-resonance), crescendo (reversed sound), decrescendo, delta, hollow (reversed delta), mordent. The energy glyph is drawn inside the profile, so a bounce can live in a delta. A delta or a hollow profile also has a **peak position** (in % of the box: an asymmetric delta) and a **hard or soft peak**.
 
 **Glyphs.** The energies are drawn on the boxes by `glyphs.js`, this package's drawing script (JavaScript, sandboxed: no files or network). Edit it to change the shapes; each value's `glyph` field names the shape it uses.
 
@@ -834,6 +869,267 @@ R"PKG({
 R"HELP(# Structuring language (RK1)
 
 The operations of your structuring language, from the RK1 research: 10 primitives and 16 macros built on them. Provisional, and not used before stage 8 (relations), where they become operations between boxes. The package has no categories yet: it only carries the operations, so they travel with the projects and the library.
+)HELP"),
+        make ("thoresen",
+R"PKG({
+  "projet": "framework package",
+  "id": "thoresen",
+  "version": 1,
+  "order": 30,
+  "name": {"fr": "Thoresen : champs temporels", "en": "Thoresen: time-fields"},
+  "about": {
+    "fr": "Les jonctions entre boîtes et leurs fins, d'après les conjonctions de champs temporels de Lasse Thoresen (Emergent Musical Forms, 6.3).",
+    "en": "The junctions between boxes and how boxes end, after Lasse Thoresen's time-field conjunctions (Emergent Musical Forms, 6.3)."
+  },
+  "categories": [
+    {
+      "id": "junction",
+      "name": {"fr": "Jonction avec la boîte précédente", "en": "Junction with the box before"},
+      "about": {
+        "fr": "comment la boîte s'enchaîne à la précédente sur la même piste (positionnement des champs temporels, 6.3.1) : trouvé d'après le minutage, ou choisi",
+        "en": "how the box follows the one before it on the same track (time-field positioning, 6.3.1): found from the timing, or chosen"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "between": "previous",
+      "mark": "seam",
+      "derive": [
+        {"value": "separate", "from": 0.5, "covered": false},
+        {"value": "bridged", "from": 0.5, "covered": true},
+        {"value": "joint", "from": 0.02},
+        {"value": "close", "from": -0.02},
+        {"value": "hinged", "from": -8},
+        {"value": "overlapping"}
+      ],
+      "notes": [
+        {
+          "from": 0.02,
+          "to": 0.05,
+          "text": {
+            "fr": "entre 20 et 50 ms, l'attaque se brouille (Vande Gorne)",
+            "en": "between 20 and 50 ms the attack blurs (Vande Gorne)"
+          }
+        }
+      ],
+      "values": [
+        {
+          "id": "separate",
+          "name": {"fr": "séparé", "en": "separate"},
+          "about": {"fr": "un silence perceptible entre les deux", "en": "a noticeable silence between them"},
+          "sign": "M0 15 L20 15 L20 7 M40 7 L40 15 L60 15 M26 10 L29 14 L34 5",
+          "endAt": [20, 15]
+        },
+        {
+          "id": "bridged",
+          "name": {"fr": "ponté", "en": "bridged"},
+          "about": {
+            "fr": "un écart franchi par une transition ou un fond ininterrompu (une boîte sur une autre piste)",
+            "en": "a gap spanned by a transition or an uninterrupted background (a box on another track)"
+          },
+          "sign": "M0 15 L20 15 L20 7 M40 7 L40 15 L60 15 M26 12 L34 9",
+          "endAt": [20, 15]
+        },
+        {
+          "id": "joint",
+          "name": {"fr": "joint", "en": "joint"},
+          "about": {
+            "fr": "la suivante commence juste après la fin de la première",
+            "en": "the next begins just after the first has ended"
+          },
+          "sign": "M0 15 L27 15 L27 7 M33 7 L33 15 L60 15",
+          "endAt": [27, 15]
+        },
+        {
+          "id": "close",
+          "name": {"fr": "serré", "en": "close"},
+          "about": {"fr": "une succession très serrée (à 20 ms près)", "en": "a very tight succession (within 20 ms)"},
+          "sign": "M0 15 L60 15 M30 15 L30 7",
+          "endAt": [30, 15]
+        },
+        {
+          "id": "hinged",
+          "name": {"fr": "charnière", "en": "hinged"},
+          "about": {
+            "fr": "la fin de l'une coïncide avec le début de la suivante (un chevauchement jusqu'à 8 s)",
+            "en": "the end of one coincides with the start of the next (an overlap up to 8 s)"
+          },
+          "sign": "M0 15 L33 15 L33 7 M27 7 L27 15 L60 15",
+          "endAt": [33, 15]
+        },
+        {
+          "id": "overlapping",
+          "name": {"fr": "chevauchant", "en": "overlapping"},
+          "about": {
+            "fr": "la suivante commence bien avant la fin de la première",
+            "en": "the next begins well before the first has ended"
+          },
+          "sign": "M0 11 L40 11 L40 5 M20 9 L20 17 L60 17",
+          "endAt": [40, 11]
+        },
+        {
+          "id": "superimposed",
+          "name": {"fr": "superposé", "en": "superimposed"},
+          "about": {
+            "fr": "en couches, l'une sur l'autre (seulement choisi)",
+            "en": "in layers, one over the other (chosen only)"
+          },
+          "sign": "M8 3 L8 8 L28 8 L28 3 M32 3 L32 8 L52 8 L52 3 M0 17 L12 17 L12 12 M18 12 L18 17 L42 17 L42 12 M48 12 L48 17 L60 17"
+        }
+      ]
+    },
+    {
+      "id": "ending",
+      "name": {"fr": "Fin", "en": "Ending"},
+      "about": {
+        "fr": "comment la boîte se termine (démarcation des champs temporels, 6.3.2)",
+        "en": "how the box ends (time-field demarcation, 6.3.2)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "atEnd": true,
+      "mark": "end",
+      "values": [
+        {
+          "id": "vague",
+          "name": {"fr": "vague", "en": "vague"},
+          "about": {"fr": "on ne sait pas bien où le champ s'arrête", "en": "it is unclear where the field ends"},
+          "sign": "M0 15 L30 15 M16 10 L23 17 M23 10 L16 17",
+          "seamSign": "M-9 -4 L-3 2 M-3 -4 L-9 2"
+        },
+        {
+          "id": "open",
+          "name": {"fr": "ouverte", "en": "open"},
+          "about": {
+            "fr": "une fin arrondie, qui suggère une suite",
+            "en": "a rounded ending that suggests a continuation"
+          },
+          "sign": "M0 15 L22 15 M22 9 L22 20",
+          "seamSign": "M0 0 L0 5"
+        },
+        {
+          "id": "conclusive",
+          "name": {"fr": "conclusive", "en": "conclusive"},
+          "about": {"fr": "une fin nette, comme une cadence parfaite", "en": "a definite ending, like a full cadence"},
+          "sign": "M0 15 L20 15 M20 9 L20 20 M24 9 L24 20",
+          "seamSign": "M0 0 L0 5 M-4 -7 L-4 5"
+        },
+        {
+          "id": "cut",
+          "name": {"fr": "coupée", "en": "cut"},
+          "about": {
+            "fr": "une fin soudaine, ou un raccourci inattendu",
+            "en": "a sudden ending, or an unexpected abbreviation"
+          },
+          "sign": "M0 15 L22 15 L22 10 M20.5 6 A1.5 1.5 0 1 0 23.5 6 A1.5 1.5 0 1 0 20.5 6",
+          "seamSign": "M-1.5 -11 A1.5 1.5 0 1 0 1.5 -11 A1.5 1.5 0 1 0 -1.5 -11"
+        },
+        {
+          "id": "disjointed",
+          "name": {"fr": "disloquée", "en": "disjointed"},
+          "about": {"fr": "une fin très abrupte, fragmentée", "en": "a very abrupt, fragmented ending"},
+          "sign": "M0 15 L22 15 L22 10 M19 3 L25 9 M25 3 L19 9",
+          "seamSign": "M-3 -15 L3 -9 M3 -15 L-3 -9"
+        },
+        {
+          "id": "deferred",
+          "name": {"fr": "différée", "en": "deferred"},
+          "about": {"fr": "le champ se prolonge de façon inattendue", "en": "the field is unexpectedly prolonged"},
+          "sign": "M0 15 L14 15 C22 15 24 6 19 6 C14 6 15 15 24 15 L30 15",
+          "seamSign": "M-16 0 C-8 0 -6 -9 -11 -9 C-16 -9 -15 0 -6 0"
+        }
+      ]
+    }
+  ]
+}
+)PKG",
+R"HELP(# Thoresen: time-fields
+
+Lasse Thoresen's time-field conjunctions (*Emergent Musical Forms*, 6.3), between the boxes of a track.
+
+**Junction with the box before.** How a box follows the one before it on the same track (the one that starts most recently before it): separate (a noticeable silence), bridged (a gap spanned by a box on another track that is not muted), joint (just after), close (within 20 ms), hinged (an overlap up to 8 s), overlapping (a longer one), superimposed (chosen only). Projet finds it from the timing until you choose one; *From the timing* goes back. The rules and thresholds are in `framework.json` (`derive`): edit them, or add kinds of your own.
+
+**Ending.** How a box ends: vague, open, conclusive, cut, disjointed, deferred, or not marked.
+
+**Signs.** Drawn at the top of the lane, after Thoresen's figures 6.2 and 6.3. Where a box with an ending meets the next box, the two make one sign, the ending's mark on the first box's bracket (his figure 6.4). A junction found from the timing has a dashed frame; a chosen one a solid frame. Each value's `sign` is an SVG path: a junction's in a 60 by 20 box with `endAt` where the first box's bracket ends, an ending's `seamSign` drawn from that point.
+)HELP"),
+        make ("vandegorne",
+R"PKG({
+  "projet": "framework package",
+  "id": "vandegorne",
+  "version": 1,
+  "order": 40,
+  "name": {"fr": "Vande Gorne : écriture", "en": "Vande Gorne: writing"},
+  "about": {
+    "fr": "Les relations de mélange sur les chevauchements, d'après Annette Vande Gorne (Techniques d'écriture sur support, ch. 3).",
+    "en": "Mixing relations on overlaps, after Annette Vande Gorne (writing techniques for fixed media, chapter 3)."
+  },
+  "categories": [
+    {
+      "id": "mixing",
+      "name": {"fr": "Relation de mélange", "en": "Mixing relation"},
+      "about": {
+        "fr": "sur un chevauchement avec la boîte précédente : comment les deux sons se mêlent",
+        "en": "on an overlap with the box before: how the two sounds mix"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "between": "previous",
+      "mark": "seam",
+      "onlyWith": {"category": "thoresen.junction", "values": ["hinged", "overlapping", "superimposed"]},
+      "values": [
+        {
+          "id": "fusion",
+          "name": {"fr": "fusion", "en": "fusion"},
+          "about": {"fr": "un nouveau son naît des deux", "en": "a new sound arises from both"},
+          "sign": "M0 5 L10 10 L20 10 M0 15 L10 10"
+        },
+        {
+          "id": "complementarity",
+          "name": {"fr": "complémentarité", "en": "complementarity"},
+          "about": {"fr": "chacun garde son identité, comme des voix", "en": "each keeps its identity, like voices"},
+          "sign": "M0 7 L5 7 M10 7 L15 7 M5 13 L10 13 M15 13 L20 13"
+        },
+        {
+          "id": "rejection",
+          "name": {"fr": "rejet", "en": "rejection"},
+          "about": {
+            "fr": "l'un masque l'autre, ou le démasque en disparaissant",
+            "en": "one masks the other, or unmasks it as it goes"
+          },
+          "sign": "M4 3 Q10 10 4 17 M16 3 Q10 10 16 17"
+        },
+        {
+          "id": "relay",
+          "name": {"fr": "relais d'énergie", "en": "relay of energy"},
+          "about": {
+            "fr": "un fondu-enchaîné où un son lance l'autre, sans fusion",
+            "en": "a crossfade where one sound launches the next, without fusion"
+          },
+          "sign": "M0 10 L16 10 M11 5 L16 10 L11 15",
+          "onlyWith": {"category": "thoresen.junction", "values": ["hinged"]}
+        },
+        {
+          "id": "metamorphosis",
+          "name": {"fr": "métamorphose indirecte", "en": "indirect metamorphosis"},
+          "about": {
+            "fr": "un fondu-enchaîné par un point d'équilibre, la même énergie",
+            "en": "a crossfade through a point of balance, the same energy"
+          },
+          "sign": "M0 10 Q2.5 4 5 10 Q7.5 16 10 10 L20 10",
+          "onlyWith": {"category": "thoresen.junction", "values": ["hinged"]}
+        }
+      ]
+    }
+  ]
+}
+)PKG",
+R"HELP(# Vande Gorne: writing
+
+Annette Vande Gorne's mixing relations (*Techniques d'écriture sur support*, chapter 3), on the overlaps between the boxes of a track.
+
+**Mixing relation.** Offered when the junction with the box before is hinged, overlapping or superimposed: fusion (a new sound arises from both), complementarity (each keeps its identity), rejection (one masks the other, or unmasks it as it goes). On a hinged overlap used as a crossfade, also relay of energy (one sound launches the next, without fusion) and indirect metamorphosis (through a point of balance, the same energy). Its sign sits beside the junction sign.
+
+Between boxes on different tracks, mixing relations come with the relations of stage 8.
 )HELP")
     };
     return list;
