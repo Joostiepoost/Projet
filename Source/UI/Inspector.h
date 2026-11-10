@@ -39,6 +39,8 @@ public:
     PackagesPanel& getPackagesPanel()               { return packagesPanel; }
     /** After the framework was reloaded: rebuild what shows it. */
     void frameworkChanged();
+    /** Shown when no box is selected and this returns a title (a selected node, 4d.2). */
+    std::function<std::pair<juce::String, juce::String>()> extraInfo;
     /** Re-reads the model (after any change). */
     void refresh();
     /** Saves notes being typed. */
@@ -83,7 +85,7 @@ private:
     juce::TextButton boxTab { "Box" }, frameworkTab { "Framework" };
     juce::TextButton hideButton { juce::String::fromUTF8 ("\xc2\xbb") };   // the panel goes, the timeline widens
     bool showFramework = false;
-    bool isBoxMode() const                          { return mode == Mode::sound || mode == Mode::text || mode == Mode::several; }
+    bool isBoxMode() const                          { return (mode == Mode::sound || mode == Mode::text || mode == Mode::several) && selectionSize > 0; }
 
     juce::Label title;
     juce::Label nameLabel { {}, "Name" }, kindLabel { {}, "Kind" }, soundLabel { {}, "Sound" };

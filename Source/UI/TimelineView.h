@@ -127,7 +127,9 @@ public:
 
 private:
     enum class DragMode { none, locate, move, trimStart, trimEnd, fadeIn, fadeOut, lasso,
-                          span, frameStart, frameEnd, track, layerHeight, mark };
+                          span, frameStart, frameEnd, track, layerHeight, mark,
+                          drawSpan, itemMove, itemStart, itemEnd, itemGoal,      // drawn lanes (4d.2)
+                          drawNode, nodeMove, nodeStart, nodeEnd };
     enum class Zone { none, body, startEdge, endEdge, fadeInHandle, fadeOutHandle };
 
     struct TrackRow { juce::ValueTree track; int y = 0, h = 0, depth = 0; bool folder = false; };
@@ -206,6 +208,38 @@ private:
     void paintLaneLayer (juce::Graphics&, const LayerRow&);
     /** Clicking a lane highlights what it shows there (a family, a zone, a level). */
     void laneClicked (const LayerRow&, const juce::MouseEvent&);
+
+    //== Drawn lanes and nodes (stage 4d.2: TimelineDrawn.cpp) =================
+public:
+    /** The selected drawn span or point, or node (one at a time; selecting a box clears it). */
+    juce::ValueTree getSelectedItem();
+    juce::ValueTree getSelectedNode();
+    bool hasDrawnSelection()                        { return getSelectedItem().isValid() || getSelectedNode().isValid(); }
+    /** Deletes the selected span, point or node (undoable). */
+    void deleteDrawnSelection();
+    /** What a node says: its title and the panel's text. */
+    std::pair<juce::String, juce::String> describeNode (const juce::ValueTree& node);
+private:
+    juce::String selectedItemId, selectedNodeId;
+    juce::ValueTree dragItem, dragNode, drawLayer, drawFolder;
+    double dragFrom = 0.0, dragTo = 0.0, drawStart = 0.0, drawEnd = 0.0;
+    struct DrawnGeometry { float pointsTop = 0, pointsH = 0, rowsTop = 0, rowH = 0; int rows = 1; };
+    DrawnGeometry drawnGeometry (const LayerRow&, int rows) const;
+    juce::Rectangle<float> spanRect (const DrawnGeometry&, const juce::ValueTree& span, int row) const;
+    void paintDrawnLane (juce::Graphics&, const LayerRow&, const Framework::Lane&);
+    void paintSpan (juce::Graphics&, const Framework::Lane&, const juce::ValueTree& span, juce::Rectangle<float> r, bool selected);
+    bool drawnMouseDown (const LayerRow&, const Framework::Lane&, const juce::MouseEvent&);
+    bool drawnMouseDrag (const juce::MouseEvent&);
+    bool drawnMouseUp (const juce::MouseEvent&);
+    void showItemMenu (juce::ValueTree item, const Framework::Lane&);
+    void showNewSpanMenu (const Framework::Lane&, double a, double b);
+    void showNewPointMenu (const Framework::Lane&, double t);
+    void selectDrawn (const juce::String& itemId, const juce::String& nodeId);
+    // Nodes
+    bool isInside (const juce::ValueTree& track, const juce::ValueTree& folder);
+    void paintNodes (juce::Graphics&);
+    bool nodeMouseDown (const TrackRow&, const juce::MouseEvent&);
+    void showNodeMenu (juce::ValueTree node, const juce::ValueTree& folder, double t);
     /** A package's SVG path, parsed once. */
     const juce::Path& signPath (const juce::String& svg);
     std::map<juce::String, juce::Path> signCache;

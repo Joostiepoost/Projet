@@ -75,6 +75,7 @@ target_sources(Projet PRIVATE
     Source/UI/Theme.cpp
     Source/UI/TimelineView.cpp
     Source/UI/TimelineRuler.cpp
+    Source/UI/TimelineDrawn.cpp
     Source/UI/Inspector.cpp
     Source/UI/RulerPanel.cpp
     Source/UI/FrameworkPanel.cpp

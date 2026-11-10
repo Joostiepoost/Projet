@@ -43,6 +43,70 @@ namespace Lanes
         }
     }
 
+    std::vector<Placed> stack (Project& project, const juce::String& laneKey, int& rows)
+    {
+        std::vector<Placed> out;
+        for (auto item : project.drawnItems (laneKey))
+            if (Project::isSpan (item)) out.push_back ({ item, 0 });
+        std::stable_sort (out.begin(), out.end(), [] (const Placed& a, const Placed& b)
+                          { return (double) a.item[IDs::start] < (double) b.item[IDs::start]; });
+        std::vector<double> rowEnds;
+        for (auto& p : out)
+        {
+            const double s = p.item[IDs::start], e = p.item[IDs::end];
+            size_t r = 0;
+            while (r < rowEnds.size() && rowEnds[r] > s + 1.0e-9) ++r;
+            if (r == rowEnds.size()) rowEnds.push_back (e); else rowEnds[r] = e;
+            p.row = (int) r;
+        }
+        rows = juce::jmax (1, (int) rowEnds.size());
+        return out;
+    }
+
+    NodeCheck checkNode (Project& project, const Framework::NodeRules& rules, const juce::ValueTree& node)
+    {
+        NodeCheck out;
+        auto folder = project.findTrack (node[IDs::folderId].toString());
+        if (! folder.isValid()) return out;
+        const double s = node[IDs::start], e = s + (double) node[IDs::length];
+
+        // The voices: tracks in the folder that sound and have boxes.
+        double first = 1.0e300;
+        for (auto t : project.tracksIn (folder))
+        {
+            bool any = false, changes = false;
+            for (auto b : t)
+            {
+                if (! b.hasType (IDs::BOX)) continue;
+                any = true;
+                const double bs = Project::boxStart (b), be = Project::boxEnd (b);
+                first = juce::jmin (first, bs);
+                auto within = [&] (double x) { return x >= s - rules.window && x <= e + rules.window; };
+                changes = changes || within (bs) || within (be);
+            }
+            if (! any || project.effectiveMute (t)) continue;
+            ++out.tracks;
+            if (! changes) out.still.add (t[IDs::name].toString());
+        }
+
+        // The stretch before it.
+        double from = first < s ? first : 0.0;
+        for (auto other : project.nodesOf (folder))
+        {
+            if (other == node) continue;
+            const double os = other[IDs::start], oe = os + (double) other[IDs::length];
+            if (os < s && oe <= s + 1.0e-9) from = juce::jmax (from, oe);
+        }
+        out.stretch = s - from;
+        if (out.stretch > 1.0e-9)
+        {
+            out.ratio = (e - s) / out.stretch;
+            out.tooShort = out.ratio < rules.shortRatio;
+            out.tooLong = out.ratio > rules.longRatio;
+        }
+        return out;
+    }
+
     int rowCount (const Framework& fw, const Framework::Lane& lane)
     {
         auto* c = fw.findCategory (lane.category);
@@ -53,6 +117,7 @@ namespace Lanes
 
     int heightFor (const Framework& fw, const Framework::Lane& lane, int size)
     {
+        if (lane.kind == Framework::Lane::Kind::drawn) return size <= 0 ? 40 : (size == 1 ? 64 : 90);   // accents above, spans below
         const int perRow = size <= 0 ? 5 : (size == 1 ? (lane.kind == Framework::Lane::Kind::scale ? 11 : 10) : 15);
         return juce::jlimit (12, 90, rowCount (fw, lane) * perRow + 4);
     }

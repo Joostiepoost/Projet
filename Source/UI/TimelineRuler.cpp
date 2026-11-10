@@ -402,8 +402,10 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
 
     if (row.lane)
     {
+        auto* lane = framework.findLane (row.layer[IDs::lane].toString());
+        if (lane != nullptr && lane->kind == Framework::Lane::Kind::drawn && drawnMouseDown (row, *lane, e)) return true;
         if (e.mods.isPopupMenu()) showLayerMenu (row.layer);
-        else laneClicked (row, e);
+        else if (lane == nullptr || lane->kind != Framework::Lane::Kind::drawn) laneClicked (row, e);
         return true;
     }
 
@@ -464,6 +466,7 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
 
 bool TimelineView::rulerMouseDrag (const juce::MouseEvent& e)
 {
+    if (drawnMouseDrag (e)) return true;            // drawn lanes and nodes (4d.2)
     const bool snapping = ! e.mods.isShiftDown();
     const double t = juce::jmax (0.0, xToTime (e.position.x));
 
@@ -1042,7 +1045,7 @@ void TimelineView::paintLaneLayer (juce::Graphics& g, const LayerRow& row)
     auto* lane = framework.findLane (key);
     // The name on the first row, beside that row's label (the labels sit on the right).
     int nameW = headerWidth - 18;
-    if (lane != nullptr)
+    if (lane != nullptr && lane->kind != Framework::Lane::Kind::drawn)
         if (auto* c = framework.findCategory (lane->category))
         {
             juce::String firstLabel;
@@ -1068,6 +1071,8 @@ void TimelineView::paintLaneLayer (juce::Graphics& g, const LayerRow& row)
                     headerWidth + 8, y0, getWidth() - headerWidth - 16, h, juce::Justification::centredLeft, true);
         return;
     }
+
+    if (lane->kind == Framework::Lane::Kind::drawn) { paintDrawnLane (g, row, *lane); return; }
 
     const auto& data = laneData (*lane);
     const float top = (float) y0 + 2.0f, avail = (float) h - 4.0f;

@@ -757,7 +757,7 @@ void testFramework()
            && packages[3].id == "vandegorne" && packages[4].id == "rk1",
            "5 packages in order: composition, schaeffer, thoresen, vandegorne, rk1");
     for (auto& p : packages) check (p.warnings.isEmpty(), p.id + " loads without warnings " + p.warnings.joinIntoString ("; "));
-    check (fw.getCategories().size() == 14, "14 categories, got " + juce::String (fw.getCategories().size()));
+    check (fw.getCategories().size() == 18, "18 categories, got " + juce::String (fw.getCategories().size()));
     auto* energy = fw.findCategory ("composition.energy");
     auto* energy2 = fw.findCategory ("composition.energy2");
     auto* level = fw.findCategory ("composition.level");
@@ -819,7 +819,7 @@ void testFramework()
 
     // == Packages that are broken or odd
     check (! fw.addPackage ("{ not json", "broken", error) && error.isNotEmpty(), "a broken package is refused");
-    check (fw.getPackages().size() == 5 && fw.getCategories().size() == 14, "and nothing changes");
+    check (fw.getPackages().size() == 5 && fw.getCategories().size() == 18, "and nothing changes");
     check (! fw.addPackage ("[ 1, 2 ]", "list", error), "a file that holds no package is refused");
     check (fw.addPackage (R"({ "categories": [ { "name": "no id" }, { "id": "a", "kind": "colour" },
                                               { "id": "b", "kind": "tags", "along": true }, { "id": "b" },
@@ -828,7 +828,7 @@ void testFramework()
     check (odd != nullptr && odd->categories.size() == 2 && odd->warnings.size() == 5,
            "its id from the folder; bad categories left out, with warnings: " + (odd != nullptr ? odd->warnings.joinIntoString (" | ") : juce::String()));
     fw.removePackage ("oddone");
-    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 14, "removed");
+    check (fw.findPackage ("oddone") == nullptr && fw.getCategories().size() == 18, "removed");
 
     // == A new framework needs only a folder: the example package
     const juce::File example (juce::String (PROJET_SOURCE_DIR) + "/Examples/Frameworks/example");
@@ -847,7 +847,7 @@ void testFramework()
     check (motion->kind == Framework::Kind::choice && motion->control == "buttons" && motion->along && motion->folders
            && materials->kind == Framework::Kind::tags && density->kind == Framework::Kind::number && source->kind == Framework::Kind::text,
            "kinds and settings");
-    check (fw.getCategories().size() == 18 && fw.getCategories()[14].key() == "example.motion", "after the builtins (order 60)");
+    check (fw.getCategories().size() == 22 && fw.getCategories()[18].key() == "example.motion", "after the builtins (order 60)");
     check (fw.valuesOf (*energy).size() == 11 && fw.findValue (*energy, "example-pulsation") != nullptr
            && fw.findValue (*energy, "example-pulsation")->from == "example" && fw.valuesOf (*energy2).size() == 11,
            "it adds an energy, which the second energy shares");
@@ -1343,7 +1343,7 @@ void testOverview()
     auto* energies = fw.findLane ("composition.energies");
     auto* semiotic = fw.findLane ("composition.semiotic");
     auto* typology = fw.findLane ("schaeffer.typology");
-    check (fw.getLanes().size() == 3 && energies != nullptr && semiotic != nullptr && typology != nullptr, "three lanes: energies, semiotic profile, typology");
+    check (fw.getLanes().size() == 4 && energies != nullptr && semiotic != nullptr && typology != nullptr, "four lanes: energies, semiotic profile, typology, dynamic form");
     if (energies == nullptr || semiotic == nullptr || typology == nullptr) return;
     check (energies->kind == Framework::Lane::Kind::rows && energies->second == "composition.energy2" && energies->byGroups
            && semiotic->kind == Framework::Lane::Kind::scale && semiotic->weightCategory == "composition.role"
@@ -1422,6 +1422,104 @@ void testOverview()
     check (q.getChangeCount() > changes, "a change counter for caches");
 }
 
+void testDynamicForm()
+{
+    line ("## 15. Dynamic form and nodes (stage 4d.2)");
+    line();
+    auto fw = Framework::builtIn();
+    auto* lane = fw.findLane ("thoresen.dynamic");
+    check (lane != nullptr && lane->kind == Framework::Lane::Kind::drawn && lane->spans == "thoresen.function" && lane->emphasis == "thoresen.emphasis"
+           && lane->goal == "thoresen.goal" && lane->points == "thoresen.accent" && lane->goalOn.joinIntoString (",") == "forward,delta",
+           "a drawn lane: spans, emphasis, goals (on forward spans and deltas) and accent points");
+    if (lane == nullptr) return;
+    auto* function = fw.findCategory ("thoresen.function");
+    auto* emphasis = fw.findCategory ("thoresen.emphasis");
+    auto* goal = fw.findCategory ("thoresen.goal");
+    auto* accent = fw.findCategory ("thoresen.accent");
+    check (function != nullptr && emphasis != nullptr && goal != nullptr && accent != nullptr, "its four categories");
+    if (function == nullptr || emphasis == nullptr || goal == nullptr || accent == nullptr) return;
+    juce::StringArray shapes, strokes;
+    for (auto& v : fw.valuesOf (*function)) shapes.add (v.shape);
+    for (auto& v : fw.valuesOf (*emphasis)) strokes.add (v.stroke);
+    check (shapes.joinIntoString (",") == "forward,presence,backward,neutral,delta" && strokes.joinIntoString (",") == "dashed,solid,bold"
+           && emphasis->defaultValue == "average", "five functions with their shapes; faint, average (the default), emphasised");
+    check (fw.valuesOf (*goal).size() == 5 && fw.valuesOf (*accent).size() == 7 && accent->kind == Framework::Kind::tags,
+           "five goal kinds, seven accent functions (tags: they combine)");
+    bool signs = true;
+    for (auto& v : fw.valuesOf (*goal)) signs = signs && v.sign.isNotEmpty();
+    for (auto& v : fw.valuesOf (*accent)) signs = signs && v.sign.isNotEmpty();
+    check (signs, "goals and accents have signs");
+    check (function->laneOnly && ! function->forBoxes() && accent->laneOnly && Framework::marksFor (*function).size() == 1,
+           "lane categories: never on boxes, no marks");
+    const auto& rules = fw.getNodeRules();
+    check (rules.present && rules.package == "vandegorne" && rules.shortRatio == 0.02 && rules.longRatio == 0.25 && rules.window == 0.05,
+           "nodes: Vande Gorne's, flagged under 2% and over 25% of the stretch before");
+
+    Project p;
+    p.resetToDefault ("dynamic");
+    p.setFramework (&fw);
+    auto box = p.addTextBox (p.getTrack (0), 0.0, 4.0, "a");
+    p.getUndoManager().beginNewTransaction ("Spans");
+    auto s1 = p.addSpan ("thoresen.dynamic", 10.0, 2.0, "forward");
+    auto s2 = p.addSpan ("thoresen.dynamic", 4.0, 12.0, "presence");
+    auto s3 = p.addSpan ("thoresen.dynamic", 12.0, 14.0, "backward");
+    auto pt = p.addPoint ("thoresen.dynamic", 10.0, "accent,goal");
+    p.addSpan ("other.lane", 0.0, 1.0, "forward");
+    check ((double) s1[IDs::start] == 2.0 && (double) s1[IDs::end] == 10.0 && Project::isSpan (s1) && ! Project::isSpan (pt)
+           && p.drawnItems ("thoresen.dynamic").size() == 4, "spans (ends in order) and points, by lane");
+    check (p.frameworkValue (box, *function).value.isEmpty(), "boxes never carry them");
+    int rows = 0;
+    const auto placed = Lanes::stack (p, "thoresen.dynamic", rows);
+    std::map<juce::String, int> rowOf;
+    for (auto& pl : placed) rowOf[pl.item[IDs::id].toString()] = pl.row;
+    check (rows == 2 && rowOf[s1[IDs::id].toString()] == 0 && rowOf[s2[IDs::id].toString()] == 1 && rowOf[s3[IDs::id].toString()] == 0,
+           "overlapping spans stack; touching ones share a row");
+    const auto id = s2[IDs::id].toString();
+    p.removeItem (s2);
+    check (! p.findItem (id).isValid(), "removed");
+    p.getUndoManager().undo();
+    check (p.drawnItems ("thoresen.dynamic").isEmpty(), "one undo");
+
+    // Presets leave them alone
+    p.addSpan ("thoresen.dynamic", 1.0, 3.0, "neutral");
+    p.addLaneLayer ("thoresen.dynamic", "Dynamic form", 40);
+    const auto preset = p.layersToVar();
+    p.layersFromVar (preset);
+    check (p.drawnItems ("thoresen.dynamic").size() == 1, "applying a ruler preset keeps what is drawn");
+
+    // == Nodes
+    auto folder = p.addFolder ("Section", -1);
+    auto t1 = p.addTrack ("one", -1, folder[IDs::id].toString());
+    auto t2 = p.addTrack ("two", -1, folder[IDs::id].toString());
+    auto t3 = p.addTrack ("three", -1, folder[IDs::id].toString());
+    auto t4 = p.addTrack ("empty", -1, folder[IDs::id].toString());
+    p.addTextBox (t1, 0.0, 20.0, "a1");
+    p.addTextBox (t1, 20.0, 10.0, "a2");
+    p.addTextBox (t2, 2.0, 18.03, "b1");             // ends 20.03: within the window
+    p.addTextBox (t3, 0.0, 40.0, "c1");              // no change at 20
+    check (p.tracksIn (folder).size() == 4, "the folder's tracks");
+    auto node = p.addNode (folder, 20.0, 0.5);
+    auto check1 = Lanes::checkNode (p, rules, node);
+    check (check1.tracks == 3 && check1.still.joinIntoString (",") == "three" && std::abs (check1.stretch - 20.0) < 1.0e-9
+           && std::abs (check1.ratio - 0.025) < 1.0e-9 && ! check1.tooShort && ! check1.tooLong,
+           "a node at 20 s: the stretch since the first box (20 s), 2.5%; the track that does not change is named");
+    node.setProperty (IDs::length, 0.2, nullptr);
+    check (Lanes::checkNode (p, rules, node).tooShort, "0.2 s after 20 s: too short (1%)");
+    node.setProperty (IDs::length, 6.0, nullptr);
+    check (Lanes::checkNode (p, rules, node).tooLong, "6 s after 20 s: too long (30%)");
+    node.setProperty (IDs::length, 0.5, nullptr);
+    auto later = p.addNode (folder, 25.0, 0.5);
+    const auto check2 = Lanes::checkNode (p, rules, later);
+    check (std::abs (check2.stretch - 4.5) < 1.0e-9 && check2.tooLong == false && std::abs (check2.ratio - 0.5 / 4.5) < 1.0e-9,
+           "the next node counts from the end of the one before (4.5 s)");
+    t3.setProperty (IDs::mute, true, nullptr);
+    check (Lanes::checkNode (p, rules, node).still.isEmpty(), "a muted track is not a voice");
+    juce::ignoreUnused (t4);
+    check (p.nodesOf (folder).size() == 2 && p.nodesOf (folder)[0] == node, "a folder's nodes, in order");
+    p.removeTrack (folder);
+    check (p.getNodes().getNumChildren() == 0, "deleting the folder deletes its nodes");
+}
+
 
 } // namespace
 
@@ -1434,7 +1532,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -1465,6 +1563,7 @@ int main (int argc, char** argv)
     std::cout << "Energy glyphs..." << std::endl;      testGlyphs();
     std::cout << "Junctions..." << std::endl;          testJunctions();
     std::cout << "Overview..." << std::endl;           testOverview();
+    std::cout << "Dynamic form..." << std::endl;       testDynamicForm();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

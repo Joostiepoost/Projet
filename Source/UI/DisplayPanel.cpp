@@ -37,7 +37,7 @@ public:
             combo->addItem ("Track colours", 1);
             for (auto& c : fw.getCategories())
             {
-                if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || ! fw.hasColours (c) || c.foldersOnly) continue;
+                if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || ! fw.hasColours (c) || ! c.forBoxes()) continue;
                 bool ownColours = false;
                 for (auto& v : fw.valuesOf (c)) ownColours = ownColours || v.colours.colour != 0;
                 const auto name = fw.text (c.name) + (! ownColours && ! fw.source (c).groupsName.isEmpty() ? " (" + fw.text (fw.source (c).groupsName) + ")" : juce::String());
@@ -67,7 +67,7 @@ public:
             for (auto& key : p.categories)
             {
                 auto* c = fw.findCategory (key);
-                if (c == nullptr) continue;
+                if (c == nullptr || c->laneOnly) continue;          // drawn in its lane (4d.2)
                 auto* l = place (std::make_unique<juce::Label> (juce::String(), fw.text (c->name)), 0, y, w - 124, 24);
                 l->setFont (Theme::font (12.0f));
                 l->setColour (juce::Label::textColourId, Theme::text);
@@ -246,7 +246,7 @@ private:
 
     void packageHeading (const juce::String& text, int& y, int w)
     {
-        auto* l = place (std::make_unique<juce::Label> (juce::String(), text.toUpperCase()), 0, y, w, 16);
+        auto* l = place (std::make_unique<juce::Label> (juce::String(), Theme::capitals (text)), 0, y, w, 16);
         l->setFont (Theme::font (10.5f, true));
         l->setColour (juce::Label::textColourId, Theme::accent.withAlpha (0.85f));
         l->setBorderSize ({ 0, 0, 0, 0 });

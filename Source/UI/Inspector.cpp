@@ -572,6 +572,17 @@ void Inspector::refresh()
         return;
     }
 
+    if (! box.isValid() && extraInfo)
+        if (const auto [heading, text] = extraInfo(); heading.isNotEmpty())
+        {
+            setMode (Mode::several);
+            title.setText (heading, juce::dontSendNotification);
+            projectInfo.setText (text, juce::dontSendNotification);
+            resized();
+            repaint();
+            return;
+        }
+
     if (! box.isValid())
     {
         setMode (Mode::project);

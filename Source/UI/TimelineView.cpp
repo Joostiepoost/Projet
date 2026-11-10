@@ -265,6 +265,11 @@ void TimelineView::selectBox (const juce::ValueTree& box)
     {
         ids.add (box[IDs::id].toString());
         selectedTrackId = box.getParent()[IDs::id].toString();
+        if (selectedItemId.isNotEmpty() || selectedNodeId.isNotEmpty())   // one kind of selection at a time
+        {
+            selectedItemId = selectedNodeId = {};
+            if (ids == selectedBoxIds) { selectionChanged(); return; }
+        }
     }
     if (ids == selectedBoxIds) return;
     selectedBoxIds = ids;
@@ -494,6 +499,7 @@ void TimelineView::paint (juce::Graphics& g)
     g.fillRect (headerWidth - 1, rulerHeight(), 1, getHeight() - rulerHeight());
 
     paintRuler (g);
+    paintNodes (g);                     // across folders' tracks and the lanes (4d.2)
 
     // Where a dragged track would land
     if (dragMode == DragMode::track && trackDrop.valid)
@@ -638,7 +644,7 @@ void TimelineView::paintTrackHeader (juce::Graphics& g, const TrackRow& r, int i
             widths.add (w);
             pillsW += w;
         }
-        g.drawText (track[IDs::name].toString().toUpperCase(), x, r.y, headerWidth - 56 - x - pillsW, r.h, juce::Justification::centredLeft, true);
+        g.drawText (Theme::capitals (track[IDs::name].toString()), x, r.y, headerWidth - 56 - x - pillsW, r.h, juce::Justification::centredLeft, true);
         int px = headerWidth - 52 - pillsW;
         for (int i = 0; i < widths.size(); ++i)
         {
@@ -1464,7 +1470,7 @@ void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce
     // Ids: boxMenuBase + category index * menuStride + 1 + value index (+0 = none).
     for (auto& c : framework.getCategories())
     {
-        if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || c.foldersOnly) continue;
+        if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || ! c.forBoxes()) continue;
         if (only && ! only (c)) continue;
         const auto& values = framework.valuesOf (c);
         if (values.isEmpty() || values.size() >= menuStride - 1) continue;
@@ -1663,6 +1669,9 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
         repaint();
         return;
     }
+
+    // A folder's lane: its nodes (4d.2).
+    if (auto frow = rowAt (e.y); frow.folder && nodeMouseDown (frow, e)) return;
 
     // Lanes: a seam or end sign selects its box (the later one, for a seam).
     if (auto* hit = signAt (e.position))
@@ -1897,6 +1906,15 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         case DragMode::frameEnd:
         case DragMode::layerHeight:
         case DragMode::mark:        // handled by the ruler (TimelineRuler.cpp)
+        case DragMode::drawSpan:
+        case DragMode::itemMove:
+        case DragMode::itemStart:
+        case DragMode::itemEnd:
+        case DragMode::itemGoal:
+        case DragMode::drawNode:
+        case DragMode::nodeMove:
+        case DragMode::nodeStart:
+        case DragMode::nodeEnd:     // drawn lanes and nodes (TimelineDrawn.cpp)
         case DragMode::none:
             break;
     }
@@ -1904,6 +1922,7 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
 
 void TimelineView::mouseUp (const juce::MouseEvent& e)
 {
+    if (drawnMouseUp (e)) return;                   // drawn lanes and nodes (4d.2)
     if (clickedSelectedBox && ! e.mouseWasDraggedSinceMouseDown() && dragBox.isValid())
         selectBox (dragBox);
     clickedSelectedBox = false;

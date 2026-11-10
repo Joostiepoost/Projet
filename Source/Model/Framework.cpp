@@ -129,6 +129,8 @@ namespace
         x.impliesCategory = v["implies"]["category"].toString().trim();
         x.impliesValue = cleanValueId (v["implies"]["value"].toString());
         if (x.impliesValue.isEmpty()) x.impliesCategory = {};
+        x.shape = v["shape"].toString().trim().toLowerCase();
+        x.stroke = v["stroke"].toString().trim().toLowerCase();
         return x;
     }
 
@@ -179,7 +181,9 @@ namespace
         c.control = v["control"].toString().trim().toLowerCase();
         c.along = (bool) v.getProperty ("along", false);
         const auto folders = v.getProperty ("folders", false);
-        c.foldersOnly = folders.toString().trim().toLowerCase() == "only";
+        const auto on = v["on"].toString().trim().toLowerCase();
+        c.foldersOnly = folders.toString().trim().toLowerCase() == "only" || on == "folders";
+        c.laneOnly = on == "lane" || on == "lanes";
         c.folders = c.foldersOnly || (folders.isBool() ? (bool) folders : folders.toString().trim().toLowerCase() == "true");
         c.showDefault = (bool) v.getProperty ("showDefault", true);
         c.defaultValue = cleanValueId (v["default"].toString());
@@ -256,6 +260,7 @@ namespace
             c.along = c.folders = false;
         }
         if (! c.between) c.derive.clear();
+        if (c.laneOnly) { c.foldersOnly = c.folders = c.along = c.between = c.atEnd = false; c.envelope = {}; }
         if (c.foldersOnly && (c.along || c.between || c.atEnd || c.envelope.isNotEmpty()))
         {
             warnings.add ("A category set on folders only (" + c.id + ") cannot change along a box, belong to a join or describe an ending.");
@@ -323,7 +328,8 @@ bool Framework::addPackage (const juce::String& json, const juce::String& folder
             const auto kind = v.getProperty ("kind", "rows").toString().trim().toLowerCase();
             if (kind == "rows") lane.kind = Lane::Kind::rows;
             else if (kind == "scale") lane.kind = Lane::Kind::scale;
-            else { p.warnings.add ("The lane " + lane.id + " has an unknown kind (" + kind + "): left out. Kinds: rows, scale."); continue; }
+            else if (kind == "drawn") lane.kind = Lane::Kind::drawn;
+            else { p.warnings.add ("The lane " + lane.id + " has an unknown kind (" + kind + "): left out. Kinds: rows, scale, drawn."); continue; }
             auto keyOf = [&p] (const juce::var& x)
             {
                 auto k = x.toString().trim();
@@ -333,6 +339,13 @@ bool Framework::addPackage (const juce::String& json, const juce::String& folder
             lane.second = keyOf (v["second"]);
             lane.byGroups = v.getProperty ("rows", "groups").toString().trim().toLowerCase() != "values";
             lane.weightCategory = keyOf (v["weightBy"]["category"]);
+            lane.spans = keyOf (v["spans"]);
+            lane.emphasis = keyOf (v["emphasis"]);
+            lane.goal = keyOf (v["goal"]);
+            lane.points = keyOf (v["points"]);
+            if (auto* g = v["goalOn"].getArray())
+                for (auto& x : *g) lane.goalOn.add (cleanValueId (x.toString()));
+            if (lane.kind == Lane::Kind::drawn) lane.category = lane.spans.isNotEmpty() ? lane.spans : lane.points;
             lane.defaultWeight = (double) v["weightBy"].getProperty ("default", 1.0);
             if (auto* w = v["weightBy"]["weights"].getDynamicObject())
                 for (auto& nv : w->getProperties())
@@ -345,6 +358,19 @@ bool Framework::addPackage (const juce::String& json, const juce::String& folder
             if (duplicate) { p.warnings.add ("The lane " + lane.id + " appears twice; the second was left out."); continue; }
             raw.lanes.add (lane);
         }
+
+    if (auto* n = root["nodes"].getDynamicObject())
+    {
+        juce::var nv (n);
+        raw.nodes.present = true;
+        raw.nodes.package = p.id;
+        raw.nodes.name = readName (nv["name"]);
+        if (raw.nodes.name.isEmpty()) raw.nodes.name = { "noeud", "node" };
+        raw.nodes.about = readName (nv["about"]);
+        raw.nodes.shortRatio = juce::jlimit (0.0, 1.0, (double) nv.getProperty ("short", 0.02));
+        raw.nodes.longRatio = juce::jlimit (raw.nodes.shortRatio, 10.0, (double) nv.getProperty ("long", 0.25));
+        raw.nodes.window = juce::jlimit (0.0, 2.0, (double) nv.getProperty ("window", 0.05));
+    }
 
     for (int i = raws.size(); --i >= 0;)
         if (raws.getReference (i).package.id == p.id) raws.remove (i);
@@ -373,6 +399,7 @@ void Framework::rebuild()
     categories.clear();
     lanes.clear();
     implications.clear();
+    nodeRules = {};
     ++generation;
     std::stable_sort (raws.begin(), raws.end(), [] (const Raw& a, const Raw& b)
     {
@@ -533,11 +560,37 @@ void Framework::rebuild()
             auto& warnings = packages.getReference (packageIndex (raw.package.id)).warnings;
             const int ci = categoryIndex (lane.category);
             if (ci < 0) { warnings.add ("The lane " + lane.key() + " draws " + lane.category + ", which no loaded package has; left out."); continue; }
-            if (categories.getReference (ci).kind != Kind::choice) { warnings.add ("The lane " + lane.key() + " needs a choice to draw; left out."); continue; }
+            if (lane.kind != Lane::Kind::drawn && categories.getReference (ci).kind != Kind::choice) { warnings.add ("The lane " + lane.key() + " needs a choice to draw; left out."); continue; }
             if (lane.second.isNotEmpty() && categoryIndex (lane.second) < 0) lane.second = {};
             if (lane.weightCategory.isNotEmpty() && categoryIndex (lane.weightCategory) < 0) lane.weightCategory = {};
+            if (lane.kind == Lane::Kind::drawn)
+            {
+                auto check = [&] (juce::String& key, Kind kind, const char* what)
+                {
+                    if (key.isEmpty()) return;
+                    const int k = categoryIndex (key);
+                    if (k < 0 || categories.getReference (k).kind != kind)
+                    {
+                        warnings.add ("The lane " + lane.key() + " draws its " + what + " from " + key + ", which is not a "
+                                      + (kind == Kind::tags ? "tags" : "choice") + " category; left out.");
+                        key = {};
+                    }
+                };
+                check (lane.spans, Kind::choice, "spans");
+                check (lane.emphasis, Kind::choice, "emphasis");
+                check (lane.goal, Kind::choice, "goals");
+                check (lane.points, Kind::tags, "points");
+                if (lane.spans.isEmpty() && lane.points.isEmpty()) { warnings.add ("The lane " + lane.key() + " has nothing to draw; left out."); continue; }
+                lane.category = lane.spans.isNotEmpty() ? lane.spans : lane.points;
+            }
             lanes.add (lane);
         }
+
+    // Nodes: the first package (in order) that declares them.
+    for (auto& p : packages)
+        if (! nodeRules.present)
+            for (auto& raw : raws)
+                if (raw.package.id == p.id && raw.nodes.present) { nodeRules = raw.nodes; break; }
 }
 
 const juce::Array<Framework::Implication>& Framework::implicationsFor (const Category& c) const
@@ -743,6 +796,7 @@ Framework::Mark Framework::markFromName (const juce::String& s, Mark fallback)
 juce::Array<Framework::Mark> Framework::marksFor (const Category& c)
 {
     juce::Array<Mark> out { Mark::none };
+    if (c.laneOnly) return out;                 // drawn in its lane, never on boxes
     if (c.foldersOnly)
     {
         out.add (Mark::label);                  // on the folder's lane

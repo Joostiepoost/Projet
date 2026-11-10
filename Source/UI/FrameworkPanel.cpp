@@ -265,7 +265,7 @@ private:
     /** "Only with": the category applies to at least one selected box. */
     bool appliesToAny (const Framework::Category& c) const
     {
-        if (c.foldersOnly) return false;            // set on the folder (its right-click menu)
+        if (! c.forBoxes()) return false;           // set on the folder (its right-click menu), or drawn in a lane
         for (auto b : owner.boxes) if (owner.project.applies (b, c)) return true;
         return false;
     }
@@ -781,7 +781,7 @@ private:
 
     void packageHeading (const juce::String& text, int& y, int w)
     {
-        auto* l = place (std::make_unique<juce::Label> (juce::String(), text.toUpperCase()), 0, y, w, 16);
+        auto* l = place (std::make_unique<juce::Label> (juce::String(), Theme::capitals (text)), 0, y, w, 16);
         l->setFont (Theme::font (10.5f, true));
         l->setColour (juce::Label::textColourId, Theme::accent.withAlpha (0.85f));
         l->setBorderSize ({ 0, 0, 0, 0 });

@@ -34,6 +34,10 @@ namespace IDs
     PROJET_ID (LAYER)
     PROJET_ID (MARKS)                 // named marks: proportions of a frame (stage 3b)
     PROJET_ID (MARK)
+    PROJET_ID (DRAWN)                 // what is drawn in drawn lanes: spans and points (stage 4d.2)
+    PROJET_ID (ITEM)
+    PROJET_ID (NODES)                 // nodes on folders (stage 4d.2)
+    PROJET_ID (NODE)
     PROJET_ID (TRACKS)
     PROJET_ID (TRACK)
     PROJET_ID (BOX)
@@ -53,7 +57,12 @@ namespace IDs
     PROJET_ID (denominators)          // the ruler's divisions, e.g. "2,3,4,5,6,8" (decimals allowed)
     PROJET_ID (autoDivisions)         // finer divisions appear as you zoom in
     PROJET_ID (activeLayer)           // the proportion layer menus and "the ruler's frame" refer to
-    PROJET_ID (lane)                  // a lane layer's lane: "composition.energies" (stage 4d)
+    PROJET_ID (lane)
+    PROJET_ID (end)                   // a drawn span's end (s)
+    PROJET_ID (value)                 // a drawn span's kind, a point's functions (comma-separated)
+    PROJET_ID (emphasis)
+    PROJET_ID (goal)
+    PROJET_ID (goalAt)                // a delta's goal, as a proportion of its span                  // a lane layer's lane: "composition.energies" (stage 4d)
     PROJET_ID (frame)                 // a layer's or a mark's frame: "piece", "span" or a box id
     PROJET_ID (visible)
     PROJET_ID (snap)

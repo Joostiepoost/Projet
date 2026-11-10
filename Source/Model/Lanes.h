@@ -56,6 +56,28 @@ namespace Lanes
         row names), 2 large. */
     int heightFor (const Framework&, const Framework::Lane&, int size);
 
+    //== Drawn lanes and nodes (stage 4d.2) ====================================
+
+    /** A drawn lane's spans on rows: overlapping spans stack (each takes the
+        first row where it fits, in order of start). */
+    struct Placed { juce::ValueTree item; int row = 0; };
+    std::vector<Placed> stack (Project&, const juce::String& laneKey, int& rows);
+
+    /** What a node on a folder says: the stretch before it (since the
+        previous node, or the folder's first box) and its share of it, flagged
+        when too short (it goes unheard) or too long (it becomes a line); and
+        the folder's tracks that do not change within it (a box starting or
+        ending there, up to the rules' window outside it). Muted and empty
+        tracks are left out. */
+    struct NodeCheck
+    {
+        double stretch = 0.0, ratio = 0.0;
+        bool tooShort = false, tooLong = false;
+        int tracks = 0;                         // the voices it should gather
+        juce::StringArray still;                // names of those that do not change within it
+    };
+    NodeCheck checkNode (Project&, const Framework::NodeRules&, const juce::ValueTree& node);
+
     /** A box's values of a category over time: (start, end, value) pieces, the
         changes along the box taken at their middle. */
     struct Piece { double start = 0.0, end = 0.0; juce::String value; };

@@ -74,6 +74,9 @@ public:
         Condition onlyWith;
         juce::String impliesCategory, impliesValue;     // (4d) a folder value that gives its boxes a value of
                                                         // another category (a writing type's mixing relation)
+        juce::String shape;                     // (4d.2) a span kind's shape in a drawn lane: forward, backward,
+                                                // presence, neutral, delta
+        juce::String stroke;                    // (4d.2) an emphasis: dashed, solid or bold
     };
 
     struct Axis { juce::String id; Name name; };
@@ -134,6 +137,9 @@ public:
                                                 // "shape": its values' curve rounds the profile (a choice)
         // Stage 4d
         bool foldersOnly = false;               // set on folders only (writing type, time-feel); boxes never have it
+        bool laneOnly = false;                  // describes what is drawn in a lane (4d.2: the dynamic form)
+        /** Something boxes can carry (not a folder's or a lane's only). */
+        bool forBoxes() const noexcept          { return ! foldersOnly && ! laneOnly; }
     };
 
     /** A value one category gives another in the boxes of a folder: a
@@ -155,13 +161,16 @@ public:
         juce::String id, package;
         juce::String key() const                { return package + "." + id; }
         Name name, about;
-        enum class Kind { rows, scale } kind = Kind::rows;
+        enum class Kind { rows, scale, drawn } kind = Kind::rows;
         juce::String category, second;          // keys; second: drawn lighter (the second energy)
         bool byGroups = true;                   // rows: one per group, else one per value
         juce::String weightCategory;            // scale: the category weighing each box
         juce::StringArray weightIds;
         juce::Array<double> weightValues;
         double defaultWeight = 1.0;
+        // drawn (4d.2): what you draw in it, as categories "on": "lane" (keys)
+        juce::String spans, emphasis, goal, points;
+        juce::StringArray goalOn;               // the span kinds (ids) that can reach a goal
         double weightFor (const juce::String& valueId) const
         {
             const int i = weightIds.indexOf (valueId);
@@ -212,6 +221,19 @@ public:
     juce::Array<const Category*> sharing (const Category& c) const;
     /** What folder values give the boxes for category `c` (stage 4d). */
     const juce::Array<Implication>& implicationsFor (const Category& c) const;
+
+    /** Nodes on folders (stage 4d.2, Vande Gorne): flagged when shorter or
+        longer than these parts of the stretch before them. From the first
+        package (in order) that declares "nodes". */
+    struct NodeRules
+    {
+        bool present = false;
+        juce::String package;
+        Name name, about;
+        double shortRatio = 0.02, longRatio = 0.25;
+        double window = 0.05;                   // a track changes "within" a node up to this far outside it (s)
+    };
+    const NodeRules& getNodeRules() const               { return nodeRules; }
 
     //== Lanes (stage 4d) ======================================================
     const juce::Array<Lane>& getLanes() const           { return lanes; }
@@ -311,13 +333,14 @@ public:
     static juce::StringPairArray legacyFields();
 
 private:
-    struct Raw { Package package; juce::Array<Category> categories; juce::var additions; juce::Array<Lane> lanes; };
+    struct Raw { Package package; juce::Array<Category> categories; juce::var additions; juce::Array<Lane> lanes; NodeRules nodes; };
     juce::Array<Raw> raws;
     juce::Array<Package> packages;
     juce::Array<Category> categories;
     juce::Array<Lane> lanes;
     juce::Array<juce::Array<Implication>> implications;   // by category index
     int generation = 0;
+    NodeRules nodeRules;
     juce::String language { "fr" };
     juce::StringPairArray namings;
     void rebuild();

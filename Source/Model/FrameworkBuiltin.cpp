@@ -916,12 +916,12 @@ The operations of your structuring language, from the RK1 research: 10 primitive
 R"PKG({
   "projet": "framework package",
   "id": "thoresen",
-  "version": 2,
+  "version": 3,
   "order": 30,
   "name": {"fr": "Thoresen : champs temporels", "en": "Thoresen: time-fields"},
   "about": {
-    "fr": "Les jonctions entre boîtes et leurs fins, d'après les conjonctions de champs temporels de Lasse Thoresen (Emergent Musical Forms, 6.3).",
-    "en": "The junctions between boxes and how boxes end, after Lasse Thoresen's time-field conjunctions (Emergent Musical Forms, 6.3)."
+    "fr": "Les jonctions entre boîtes et leurs fins, d'après les conjonctions de champs temporels de Lasse Thoresen (Emergent Musical Forms, 6.3) ; la forme dynamique, dans sa piste (ch. 8).",
+    "en": "The junctions between boxes and how boxes end, after Lasse Thoresen's time-field conjunctions (Emergent Musical Forms, 6.3); the dynamic form, in its lane (chapter 8)."
   },
   "categories": [
     {
@@ -1081,6 +1081,236 @@ R"PKG({
           "seamSign": "M-16 0 C-8 0 -6 -9 -11 -9 C-16 -9 -15 0 -6 0"
         }
       ]
+    },
+    {
+      "id": "function",
+      "name": {"fr": "Fonction de forme", "en": "Form-building function"},
+      "about": {
+        "fr": "ce que fait une plage de la forme dynamique (8.1.1)",
+        "en": "what a stretch of the dynamic form does (8.1.1)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "on": "lane",
+      "values": [
+        {
+          "id": "forward",
+          "name": {"fr": "orientée vers l'avant", "en": "forward-oriented"},
+          "about": {
+            "fr": "dirigée vers un point à venir, ou une tendance croissante",
+            "en": "directed towards a future point in time, or an increasing tendency"
+          },
+          "shape": "forward"
+        },
+        {
+          "id": "presence",
+          "name": {"fr": "orientée vers la présence", "en": "presence-oriented"},
+          "about": {
+            "fr": "une tendance stable, ou nulle : ni vers l'avenir ni vers le passé",
+            "en": "a stable (or no) tendency: directed towards neither future nor past"
+          },
+          "shape": "presence"
+        },
+        {
+          "id": "backward",
+          "name": {"fr": "orientée vers l'arrière", "en": "backward-oriented"},
+          "about": {
+            "fr": "s'éloignant d'un point passé, ou une tendance décroissante",
+            "en": "directed away from a past point in time, or a decreasing tendency"
+          },
+          "shape": "backward"
+        },
+        {
+          "id": "neutral",
+          "name": {"fr": "neutre", "en": "neutral"},
+          "about": {
+            "fr": "la négation des trois (non leur contraire) : aucune fonction claire",
+            "en": "the negation of the three (not their opposite): no clear function"
+          },
+          "shape": "neutral"
+        },
+        {
+          "id": "delta",
+          "name": {"fr": "delta", "en": "delta"},
+          "about": {
+            "fr": "vers un but puis s'en éloignant, le but n'importe où dans la plage (la phrase en delta de Vande Gorne)",
+            "en": "towards a goal and away from it, the goal anywhere along the span (Vande Gorne's phrase shaped as a delta)"
+          },
+          "shape": "delta"
+        }
+      ]
+    },
+    {
+      "id": "emphasis",
+      "name": {"fr": "Accentuation", "en": "Emphasis"},
+      "about": {
+        "fr": "avec quelle force la fonction s'affirme ; une fonction faible, simultanée à une autre, est secondaire",
+        "en": "how strongly the function shows; a faint one beside another is secondary"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "on": "lane",
+      "default": "average",
+      "values": [
+        {
+          "id": "faint",
+          "name": {"fr": "faible (secondaire)", "en": "faint (secondary)"},
+          "about": {"fr": "en tirets", "en": "dashed"},
+          "stroke": "dashed"
+        },
+        {
+          "id": "average",
+          "name": {"fr": "moyenne (primaire)", "en": "average (primary)"},
+          "about": {"fr": "en trait plein", "en": "a plain line"},
+          "stroke": "solid"
+        },
+        {
+          "id": "emphasised",
+          "name": {"fr": "accentuée", "en": "emphasised"},
+          "about": {"fr": "en trait épais", "en": "a heavy line"},
+          "stroke": "bold"
+        }
+      ]
+    },
+    {
+      "id": "goal",
+      "name": {"fr": "Atteinte du but", "en": "Goal attainment"},
+      "about": {
+        "fr": "au bout d'une fonction orientée vers l'avant (ou au but d'un delta) : le but est-il atteint ? (8.1.1)",
+        "en": "at the end of a forward-oriented function (or a delta's goal): is the goal reached? (8.1.1)"
+      },
+      "kind": "choice",
+      "control": "buttons",
+      "on": "lane",
+      "values": [
+        {
+          "id": "attained",
+          "name": {"fr": "but atteint", "en": "goal attainment"},
+          "about": {"fr": "la fonction atteint le but attendu", "en": "the function reaches its expected goal"},
+          "sign": "M1 0 L1 20"
+        },
+        {
+          "id": "blunted",
+          "name": {"fr": "atteinte émoussée", "en": "blunted"},
+          "about": {
+            "fr": "le but est atteint, mais les dimensions y arrivent à des moments différents",
+            "en": "the goal is reached, but different dimensions arrive at different times"
+          },
+          "sign": "M-3 2 L-3 8 M1 6 L1 14 M5 12 L5 18"
+        },
+        {
+          "id": "suspended",
+          "name": {"fr": "but suspendu", "en": "suspended"},
+          "about": {
+            "fr": "le but attendu est d'abord suspendu, puis arrive plus tard",
+            "en": "the expected goal is first suspended, then arrives later"
+          },
+          "sign": "M2 10 L3 10 M5.5 10 L6.5 10 M9 10 L10 10 M13 0 L13 20"
+        },
+        {
+          "id": "evaded",
+          "name": {"fr": "évitement complet", "en": "fully evaded"},
+          "about": {"fr": "le but n'est pas atteint (annulé)", "en": "the goal is not reached (cancelled)"},
+          "sign": "M1 0 L1 20 M-3 5 L5 15 M5 5 L-3 15"
+        },
+        {
+          "id": "partial",
+          "name": {"fr": "évitement partiel", "en": "partly evaded"},
+          "about": {
+            "fr": "le but n'est pas atteint pleinement, ou pas comme attendu",
+            "en": "the goal is not fully reached, or not as expected"
+          },
+          "sign": "M1 6 L1 14"
+        }
+      ]
+    },
+    {
+      "id": "accent",
+      "name": {"fr": "Fonctions d'accent", "en": "Accent functions"},
+      "about": {
+        "fr": "un point pondéré qui ponctue la forme ; plusieurs fonctions peuvent se combiner (8.1.2)",
+        "en": "a weighted point that punctuates the form; several functions can combine (8.1.2)"
+      },
+      "kind": "tags",
+      "on": "lane",
+      "values": [
+        {
+          "id": "accent",
+          "name": {"fr": "accent", "en": "accent"},
+          "about": {"fr": "le signe général : un point pondéré", "en": "the general sign: a weighted point"},
+          "sign": "M4 4 L16 4"
+        },
+        {
+          "id": "goal",
+          "name": {"fr": "point de but", "en": "goal point"},
+          "about": {
+            "fr": "un accent qui marque le but d'un mouvement",
+            "en": "an accent marking the goal of a movement"
+          },
+          "sign": "M6 4 A4 4 0 1 0 14 4 A4 4 0 1 0 6 4 M10 3.6 L10 4.4"
+        },
+        {
+          "id": "separation",
+          "name": {"fr": "point de séparation", "en": "separation point"},
+          "about": {
+            "fr": "un accent qui sépare deux champs temporels",
+            "en": "an accent setting two time-fields apart"
+          },
+          "sign": "M5 12 L5 20 M15 12 L15 20"
+        },
+        {
+          "id": "release",
+          "name": {"fr": "point de lancement", "en": "release point"},
+          "about": {
+            "fr": "un accent qui lance un mouvement, ou ouvre un champ",
+            "en": "an accent launching a motion, or opening a field"
+          },
+          "sign": "M10 12 L18 12 M15 9 L18 12 L15 15"
+        },
+        {
+          "id": "termination",
+          "name": {"fr": "point de terminaison", "en": "termination point"},
+          "about": {
+            "fr": "un accent qui termine un champ ou une fonction",
+            "en": "an accent ending a time-field or a function"
+          },
+          "sign": "M4 1 L4 8 M16 1 L16 8"
+        },
+        {
+          "id": "affirmation",
+          "name": {"fr": "point d'affirmation", "en": "affirmation point"},
+          "about": {
+            "fr": "un accent qui affirme ou répète un accent ou un élément passé",
+            "en": "an accent affirming or repeating an earlier accent or element"
+          },
+          "sign": "M4 8 L16 8"
+        },
+        {
+          "id": "warning",
+          "name": {"fr": "point d'alerte", "en": "warning point"},
+          "about": {
+            "fr": "un accent qui annonce un événement imminent",
+            "en": "an accent alerting the listener to an imminent event"
+          },
+          "sign": "M1.5 4 L1.6 4"
+        }
+      ]
+    }
+  ],
+  "lanes": [
+    {
+      "id": "dynamic",
+      "name": {"fr": "Forme dynamique", "en": "Dynamic form"},
+      "about": {
+        "fr": "les fonctions de forme, l'atteinte du but et les accents (Thoresen, ch. 8), dessinés à la main jusqu'aux conteneurs (étape 5)",
+        "en": "form-building functions, goal attainment and accents (Thoresen, chapter 8), drawn by hand until containers come (stage 5)"
+      },
+      "kind": "drawn",
+      "spans": "function",
+      "emphasis": "emphasis",
+      "goal": "goal",
+      "goalOn": ["forward", "delta"],
+      "points": "accent"
     }
   ]
 }
@@ -1094,12 +1324,16 @@ Lasse Thoresen's time-field conjunctions (*Emergent Musical Forms*, 6.3), betwee
 **Ending.** How a box ends: vague, open, conclusive, cut, disjointed, deferred, or not marked.
 
 **Signs.** Drawn at the top of the lane, after Thoresen's figures 6.2 and 6.3. Where a box with an ending meets the next box, the two make one sign, the ending's mark on the first box's bracket (his figure 6.4). A junction found from the timing has a dashed frame; a chosen one a solid frame. Each value's `sign` is an SVG path: a junction's in a 60 by 20 box with `endAt` where the first box's bracket ends, an ending's `seamSign` drawn from that point. An ending's `seamFade` turns that much of the line before the bracket into dashes instead (the vague ending), stopping at the junction's `fadeAt` if it has one (where the next box begins, for hinged).
+
+**The dynamic form** (chapter 8), in a lane of its own (*Add a lane below* > *Forme dynamique*), drawn by hand until containers come (stage 5). Drag in the lane to draw a span and choose its **form-building function**: forward-oriented (a wedge opening towards what comes), presence-oriented (a bar), backward-oriented (a wedge closing), neutral (a thin line), or a **delta** (towards a goal and away from it, the goal anywhere: drag its handle). Its **emphasis**: faint (secondary, dashed), average (primary) or emphasised (heavy). Overlapping spans stack, so a secondary function can run beside a primary one. A forward-oriented span or a delta can reach its **goal**: attained, blunted, suspended, fully or partly evaded. Click in the lane (without dragging) for an **accent**, a weighted point with one or more functions: accent, goal point, separation, release, termination, affirmation, warning.
+
+The scans of figures 8.1 to 8.4 are hard to read, so the signs follow the text: wedges and a bar, dashed when faint and heavy when emphasised, a T for the weighted point and a circled point for a goal. They are data: a span kind's `shape` (forward, backward, presence, neutral, delta), an emphasis' `stroke` (dashed, solid, bold), a goal's and an accent's `sign` (an SVG path in a 20 by 20 box: a goal's from the goal at x 0, an accent's around a stem at x 10). Categories with `"on": "lane"` belong to the lane; the lane names them (`spans`, `emphasis`, `goal`, `goalOn`, `points`).
 )HELP"),
         make ("vandegorne",
 R"PKG({
   "projet": "framework package",
   "id": "vandegorne",
-  "version": 2,
+  "version": 3,
   "order": 40,
   "name": {"fr": "Vande Gorne : écriture", "en": "Vande Gorne: writing"},
   "about": {
@@ -1328,7 +1562,17 @@ R"PKG({
         }
       ]
     }
-  ]
+  ],
+  "nodes": {
+    "name": {"fr": "nœud", "en": "node"},
+    "about": {
+      "fr": "un changement brusque et synchrone de toutes les voies : une courte résolution, unique et évidente ; trop court il passe inaperçu, trop long il devient ligne (ch. 3)",
+      "en": "a sudden, synchronous change of every voice: a short, single, obvious resolution; too short it goes unheard, too long it becomes a line (chapter 3)"
+    },
+    "short": 0.02,
+    "long": 0.25,
+    "window": 0.05
+  }
 }
 )PKG",
 R"HELP(# Vande Gorne: writing
@@ -1342,6 +1586,8 @@ Annette Vande Gorne's mixing relations and writing types (*Techniques d'écritur
 **Time felt** (long, short, suspended) and **time movement** (fixed; mobile: speeding up, slowing down, contrasts; intermodulated), also on folders, the sections of a piece until containers come (stage 5).
 
 Folder values show on the folder's lane. Between boxes on different tracks, mixing relations come with the relations of stage 8.
+
+**Nodes** (chapter 3): a sudden, synchronous change of every voice, a short resolution. Drag on a folder's lane to place one (right-click it to remove it). It is drawn as a narrow band across the folder's tracks and the lanes. Its length should balance what comes before it: too short and it goes unheard, too long and it becomes a line. So a node is flagged when shorter than 2% or longer than 25% of the stretch since the previous node (or the folder's first box), and the panel names the folder's tracks that do not change within it. The numbers are in `framework.json` (`nodes`: `short`, `long`, and `window`, how far outside the node a change still counts, in seconds).
 )HELP")
     };
     return list;

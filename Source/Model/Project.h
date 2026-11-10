@@ -190,6 +190,25 @@ public:
     // A mark is a named proportion of a frame (it follows the frame). Box
     // proportions can name marks: start "m1", length "m2 - m1".
     juce::ValueTree getMarks();
+
+    //== Drawn lanes and nodes (stage 4d.2) ====================================
+    /** Spans and points drawn in drawn lanes, by lane key; kept apart from
+        the ruler layers, so presets never touch them. */
+    juce::ValueTree getDrawn();
+    juce::Array<juce::ValueTree> drawnItems (const juce::String& laneKey);
+    static bool isSpan (const juce::ValueTree& item)        { return item[IDs::kind].toString() != "point"; }
+    juce::ValueTree addSpan (const juce::String& laneKey, double start, double end, const juce::String& kind);
+    juce::ValueTree addPoint (const juce::String& laneKey, double time, const juce::String& functions);
+    juce::ValueTree findItem (const juce::String& itemId);
+    void removeItem (juce::ValueTree item);
+    /** Nodes on folders: short spans where every voice of the folder changes at once. */
+    juce::ValueTree getNodes();
+    juce::Array<juce::ValueTree> nodesOf (const juce::ValueTree& folder);
+    juce::ValueTree addNode (const juce::ValueTree& folder, double start, double length);
+    juce::ValueTree findNode (const juce::String& nodeId);
+    void removeNode (juce::ValueTree node);
+    /** Every track (not folder) inside a folder, at any depth. */
+    juce::Array<juce::ValueTree> tracksIn (const juce::ValueTree& folder);
     juce::ValueTree findMark (const juce::String& markId);
     juce::ValueTree findMarkByName (const juce::String& name);
     juce::String uniqueMarkName (const juce::String& prefix);

@@ -74,6 +74,11 @@ MainComponent::MainComponent()
     inspector.getRulerPanel().onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
     inspector.getRulerPanel().setFramework (&framework);
     inspector.getRulerPanel().onAddLane = [this] (int laneIndex) { return timeline.addLane (laneIndex); };
+    inspector.extraInfo = [this]() -> std::pair<juce::String, juce::String>
+    {
+        auto node = timeline.getSelectedNode();
+        return node.isValid() ? timeline.describeNode (node) : std::pair<juce::String, juce::String>();
+    };
     timeline.onHighlightChanged = [this]
     {
         const auto& h = timeline.getHighlight();
@@ -624,7 +629,7 @@ void MainComponent::copySelection()
 void MainComponent::deleteSelection (const juce::String& undoName)
 {
     auto boxes = timeline.getSelectedBoxes();
-    if (boxes.isEmpty()) return;
+    if (boxes.isEmpty()) { timeline.deleteDrawnSelection(); return; }      // a node, span or accent (4d.2)
     project.getUndoManager().beginNewTransaction (undoName);
     for (auto b : boxes) project.removeBox (b);
     timeline.selectBox ({});
@@ -780,7 +785,7 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             break;
         case cmdDelete:
             info.setInfo ("Delete", "Delete the selected boxes", "Edit", 0);
-            info.setActive (hasBox);
+            info.setActive (hasBox || timeline.hasDrawnSelection());
             info.addDefaultKeypress (KP::backspaceKey, 0);
             info.addDefaultKeypress (KP::deleteKey, 0);
             break;
@@ -910,7 +915,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             juce::PopupMenu colours;
             colours.addItem (6000, "Track colours", hasProject(), mode == "own");
             for (auto& c : framework.getCategories())
-                if ((c.kind == Framework::Kind::choice || c.kind == Framework::Kind::tags) && framework.hasColours (c) && c.index < 98 && ! c.foldersOnly)
+                if ((c.kind == Framework::Kind::choice || c.kind == Framework::Kind::tags) && framework.hasColours (c) && c.index < 98 && c.forBoxes())
                 {
                     bool ownColours = false;
                     for (auto& v : framework.valuesOf (c)) ownColours = ownColours || v.colours.colour != 0;
@@ -926,7 +931,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             hl.addItem (6100, "Show all (clear)", h.isActive());
             for (auto& c : framework.getCategories())
             {
-                if (c.valuesFrom.isNotEmpty() || c.foldersOnly || (c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags)) continue;
+                if (c.valuesFrom.isNotEmpty() || ! c.forBoxes() || (c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags)) continue;
                 const auto& values = framework.valuesOf (c);
                 const auto& groups = framework.groupsOf (c);
                 if (values.isEmpty() || values.size() > 249 || groups.size() > 248) continue;

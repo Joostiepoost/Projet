@@ -115,7 +115,12 @@ void Project::removeTrack (juce::ValueTree track)
     const int first = tracks.indexOf (track);
     if (first < 0) return;
     for (int i = blockEnd (track); --i >= first;)
+    {
+        const auto id = tracks.getChild (i)[IDs::id].toString();
+        for (int n = getNodes().getNumChildren(); --n >= 0;)                 // a folder's nodes go with it
+            if (getNodes().getChild (n)[IDs::folderId].toString() == id) getNodes().removeChild (n, &undoManager);
         tracks.removeChild (i, &undoManager);
+    }
 }
 
 juce::ValueTree Project::findTrack (const juce::String& trackId)
@@ -589,6 +594,8 @@ void Project::ensureRulers()
     // carrying the old ruler settings.
     auto rulers = state.getOrCreateChildWithName (IDs::RULERS, nullptr);
     state.getOrCreateChildWithName (IDs::MARKS, nullptr);
+    state.getOrCreateChildWithName (IDs::DRAWN, nullptr);      // stage 4d.2
+    state.getOrCreateChildWithName (IDs::NODES, nullptr);
     if (rulers.getNumChildren() > 0) return;
 
     juce::ValueTree time (IDs::LAYER);
@@ -768,6 +775,97 @@ juce::ValueTree Project::getMarks()
     return state.getOrCreateChildWithName (IDs::MARKS, nullptr);
 }
 
+//== Drawn lanes and nodes (stage 4d.2) =======================================
+
+juce::ValueTree Project::getDrawn()                 { return state.getOrCreateChildWithName (IDs::DRAWN, nullptr); }
+juce::ValueTree Project::getNodes()                 { return state.getOrCreateChildWithName (IDs::NODES, nullptr); }
+
+juce::Array<juce::ValueTree> Project::drawnItems (const juce::String& laneKey)
+{
+    juce::Array<juce::ValueTree> out;
+    for (auto c : getDrawn()) if (c[IDs::lane].toString() == laneKey) out.add (c);
+    return out;
+}
+
+juce::ValueTree Project::addSpan (const juce::String& laneKey, double start, double end, const juce::String& kind)
+{
+    juce::ValueTree s (IDs::ITEM);
+    s.setProperty (IDs::id, newId(), nullptr);
+    s.setProperty (IDs::lane, laneKey, nullptr);
+    s.setProperty (IDs::kind, "span", nullptr);
+    s.setProperty (IDs::start, juce::jmin (start, end), nullptr);
+    s.setProperty (IDs::end, juce::jmax (start, end), nullptr);
+    s.setProperty (IDs::value, kind, nullptr);
+    getDrawn().appendChild (s, &undoManager);
+    return s;
+}
+
+juce::ValueTree Project::addPoint (const juce::String& laneKey, double time, const juce::String& functions)
+{
+    juce::ValueTree s (IDs::ITEM);
+    s.setProperty (IDs::id, newId(), nullptr);
+    s.setProperty (IDs::lane, laneKey, nullptr);
+    s.setProperty (IDs::kind, "point", nullptr);
+    s.setProperty (IDs::start, juce::jmax (0.0, time), nullptr);
+    s.setProperty (IDs::value, functions, nullptr);
+    getDrawn().appendChild (s, &undoManager);
+    return s;
+}
+
+juce::ValueTree Project::findItem (const juce::String& itemId)
+{
+    return itemId.isEmpty() ? juce::ValueTree() : getDrawn().getChildWithProperty (IDs::id, itemId);
+}
+
+void Project::removeItem (juce::ValueTree item)
+{
+    if (item.getParent() == getDrawn()) getDrawn().removeChild (item, &undoManager);
+}
+
+juce::Array<juce::ValueTree> Project::nodesOf (const juce::ValueTree& folder)
+{
+    juce::Array<juce::ValueTree> out;
+    const auto id = folder[IDs::id].toString();
+    for (auto n : getNodes()) if (n[IDs::folderId].toString() == id) out.add (n);
+    std::sort (out.begin(), out.end(), [] (const juce::ValueTree& a, const juce::ValueTree& b)
+               { return (double) a[IDs::start] < (double) b[IDs::start]; });
+    return out;
+}
+
+juce::ValueTree Project::addNode (const juce::ValueTree& folder, double start, double length)
+{
+    juce::ValueTree n (IDs::NODE);
+    n.setProperty (IDs::id, newId(), nullptr);
+    n.setProperty (IDs::folderId, folder[IDs::id].toString(), nullptr);
+    n.setProperty (IDs::start, juce::jmax (0.0, start), nullptr);
+    n.setProperty (IDs::length, juce::jmax (0.001, length), nullptr);
+    getNodes().appendChild (n, &undoManager);
+    return n;
+}
+
+juce::ValueTree Project::findNode (const juce::String& nodeId)
+{
+    return nodeId.isEmpty() ? juce::ValueTree() : getNodes().getChildWithProperty (IDs::id, nodeId);
+}
+
+void Project::removeNode (juce::ValueTree node)
+{
+    if (node.getParent() == getNodes()) getNodes().removeChild (node, &undoManager);
+}
+
+juce::Array<juce::ValueTree> Project::tracksIn (const juce::ValueTree& folder)
+{
+    juce::Array<juce::ValueTree> out;
+    const auto id = folder[IDs::id].toString();
+    for (auto t : getTracks())
+    {
+        if (isFolder (t)) continue;
+        for (auto f = folderOf (t); f.isValid(); f = folderOf (f))
+            if (f[IDs::id].toString() == id) { out.add (t); break; }
+    }
+    return out;
+}
+
 juce::ValueTree Project::findMark (const juce::String& markId)
 {
     if (markId.isEmpty()) return {};
@@ -925,7 +1023,7 @@ juce::String Project::folderValue (const juce::ValueTree& track, const juce::Ide
 Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, const Framework::Category& c, bool ignoreOwn)
 {
     FrameworkValue v;
-    if (c.foldersOnly || ! applies (box, c)) return v;
+    if (! c.forBoxes() || ! applies (box, c)) return v;
     const auto& own = box[c.property()];
     if (! ignoreOwn && ! own.isVoid() && own.toString().isNotEmpty())
     {

@@ -47,8 +47,8 @@ Other options:
 | 4b.1 | Framework packages: the categories themselves as data (kinds, marks, groups, charts, two names, additions); library and project copies; Display and Frameworks panels; an example package | done |
 | 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | done |
 | 4c | Junctions (from the timing or chosen), endings and mixing relations, with Thoresen's signs; the profile's peak; hiding and widening the panel | done |
-| 4d.1 | Folders from a category (the semiotic track template); writing type and time-feel on folders, a writing type's mixing relation; overview lanes: energies, typology, semiotic profile | built, to test |
-| 4d.2 | The dynamic form lane (Thoresen: functions, goals, accents); nodes on folders | |
+| 4d.1 | Folders from a category (the semiotic track template); writing type and time-feel on folders, a writing type's mixing relation; overview lanes: energies, typology, semiotic profile | done |
+| 4d.2 | The dynamic form lane (Thoresen: form-building functions, deltas, goals, accents), drawn by hand; nodes on folders, with their checks | built, to test |
 | 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
 | 6 | Magnified inline expansion | |
 | 7 | Takes | |
@@ -58,7 +58,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using Projet (stages 1–4d.1)
+## Using Projet (stages 1–4d.2)
 
 ### The project folder
 
@@ -179,8 +179,8 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 Boxes can carry the vocabulary of composition frameworks. Projet ships five **packages**:
 - **Composition framework** (`composition`): **energy** (Vande Gorne's energy models, in families) and a **second energy**, the **semiotic level** (I-son, Di-son, métonymique, Mé-son), the **role** (F / M / B: Thoresen's layer functions or Vande Gorne's figure and ground) and the **dynamic profile** (the box's intensity envelope, with Schaeffer's names, and for a delta its peak position and a hard or soft peak). It also ships a `glyphs.js`: the energies' shapes, drawn on the boxes; and two lanes (4d.1): **energies** and the **semiotic profile**.
 - **Schaeffer** (`schaeffer`): the **type**, from his typology (29 types in a chart), and the **typology** lane (4d.1).
-- **Thoresen: time-fields** (`thoresen`): the **junction** with the box before and the **ending** of each box (stage 4c).
-- **Vande Gorne: writing** (`vandegorne`): the **mixing relation** on overlaps (stage 4c); the **writing type**, **time felt** and **time movement** of a folder (stage 4d.1).
+- **Thoresen: time-fields** (`thoresen`): the **junction** with the box before and the **ending** of each box (stage 4c); the **dynamic form** lane (stage 4d.2).
+- **Vande Gorne: writing** (`vandegorne`): the **mixing relation** on overlaps (stage 4c); the **writing type**, **time felt** and **time movement** of a folder (stage 4d.1); **nodes** (stage 4d.2).
 - **Structuring language (RK1)** (`rk1`): no categories yet; it carries the operations of your structuring language for stage 8.
 
 Nothing about the categories is built into Projet: a package declares them (what kind of value, how it is chosen, how it shows on the boxes), and the Framework tab, the menus, the colour modes, the highlight and the marks follow whatever the project's packages declare. **A new framework needs only a folder**: see `Examples/Frameworks/example` (a choice, tags, a number, a text, and an energy added to the composition framework).
@@ -270,6 +270,24 @@ Muted tracks are left out. **Click a row** (a family, a zone, a level) to highli
 
 In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": "fusion" }` gives that value to the boxes of a folder that has it; `folders`: `"only"` puts a category on folders alone. `lanes`: `[ { "id", "name", "about", "kind": "rows", "category": "energy", "second": "energy2", "rows": "groups" } ]` (or `"rows": "values"`), or `"kind": "scale"` with `"weightBy": { "category": "role", "weights": { "F": 3, "M": 2, "B": 1 }, "default": 2 }`.
 
+### The dynamic form and nodes (stage 4d.2)
+
+**The dynamic form** (Thoresen, *Emergent Musical Forms*, chapter 8) has a lane of its own: a ruler layer's menu > *Add a lane below* > *Forme dynamique*. You draw in it by hand; once containers exist (stage 5) it will attach to them.
+- **Drag** in the lane to draw a span, then choose its **form-building function**: forward-oriented (a wedge opening towards what comes), presence-oriented (a bar), backward-oriented (a wedge closing), neutral (a thin line), or a **delta** (towards a goal and away from it, Vande Gorne's phrase: drag the small handle under it to move the goal).
+- Right-click a span for its function, its **emphasis** (faint, the secondary function: dashed; average, the primary: plain; emphasised: heavy) and, for a forward span or a delta, its **goal**: attained, blunted (the dimensions arrive at different times), suspended (the goal comes later), fully or partly evaded.
+- Overlapping spans **stack**, so a secondary function can run beside a primary one.
+- **Click** (without dragging) for an **accent**: a weighted point above the spans. Right-click it to add more functions (several combine): accent, goal point, separation, release, termination, affirmation, warning.
+- Drag a span or an accent to move it, a span's edges to resize it; they snap like boxes (Shift: no snapping). Delete removes the selected one; undo works as everywhere.
+- The scans of his figures are hard to read, so the signs follow his text (wedges, a bar, dashed and heavy lines, a T for the weighted point, a circled point for a goal). They are package data: change them in `Frameworks/thoresen/framework.json`.
+- What you draw is kept apart from the ruler layers, so applying a ruler preset never touches it.
+
+**Nodes** (Vande Gorne, chapter 3): a sudden, synchronous change of every voice of a section, a short resolution.
+- **Drag on a folder's lane** to place one (or right-click it: *Add a node here*). It is drawn as a narrow band across the folder's tracks and the lanes, with a small diamond on the folder's row. Drag it or its edges to change it; right-click it to delete it, or select it and press Delete.
+- **Select it** and the panel says how long it is against the stretch before it (since the previous node, or the folder's first box), and names the folder's tracks that do not change within it (a box starting or ending there, up to 50 ms outside). It is flagged (amber, with a !) when shorter than 2% of that stretch (it may go unheard), longer than 25% (it becomes a line), or when a voice does not change. Muted and empty tracks are left out.
+- The numbers are in `Frameworks/vandegorne/framework.json` (`nodes`: `short`, `long`, `window`). Deleting a folder deletes its nodes.
+
+In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ "kind": "drawn", "spans": "function", "emphasis": "emphasis", "goal": "goal", "goalOn": ["forward", "delta"], "points": "accent" }` names them. A span kind's `shape` is `forward`, `backward`, `presence`, `neutral` or `delta`; an emphasis' `stroke` is `dashed`, `solid` or `bold`; a goal's and an accent's `sign` is an SVG path in a 20 by 20 box (a goal's from the goal at x 0, an accent's around the stem at x 10).
+
 ### Folders (stage 3a)
 
 - Right-click a track > **Put in a new folder**. Folders can hold folders.
@@ -278,7 +296,8 @@ In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": 
 - A folder gives its **colour** to everything inside (their own colours come back when they leave it). **M** and **S** on a folder mute or solo everything inside.
 - Right-click a folder: fold, add a track inside, **ungroup** (the tracks stay, one level up), or delete the folder and its tracks.
 - Boxes live on tracks, never on folder lines. Sounds dropped on a folder line go on a new track inside it.
-- Right-click a folder for its writing type and time-feel (stage 4d.1), and the categories it gives its boxes (the semiotic level).
+- Right-click a folder for its writing type and time-feel (stage 4d.1), and the categories it gives its boxes (the semiotic level). Drag on its lane to place a node (stage 4d.2).
+- Folder names and panel headings are shown in capitals without accents (ECRITURE, not éCRITURE).
 
 ### The panel on the right
 
@@ -296,6 +315,15 @@ In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": 
 - Overlapping boxes simply add up; their fades make the crossfade. For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+
+**Worth testing in stage 4d.2**:
+- First, *Framework > Frameworks...*: thoresen (v3) and vandegorne (v3) — for each, *Library: take Projet's*, then *Take the library's*.
+- Add the dynamic form lane (a ruler layer's menu > *Add a lane below* > *Forme dynamique*). Drag to draw spans of each function; overlap two (they stack); right-click: emphasis (faint, average, emphasised) and goals (on forward spans and deltas only).
+- A delta: drag its handle to move the goal; give it a goal.
+- Click for accents; right-click one to combine functions. Move and resize things (with and without Shift); Delete; undo.
+- Apply a ruler preset: what you drew stays. Save, quit, reopen.
+- Nodes: drag on a folder's lane; select it and read the panel; make it very short and very long (the !); add a box on a track that does not change there and see it named; mute that track; a second node (the stretch now counts from the first); delete the folder (its nodes go; undo brings them back).
+- Panel headings and folder names with accents (*Vande Gorne : écriture*, a folder named Mé-son) show in capitals without accents.
 
 **Worth testing in stage 4d.1**:
 - First, *Framework > Frameworks...*: composition, schaeffer and vandegorne have new versions (v5, v3, v2) — for each, *Library: take Projet's*, then *Take the library's*. Thoresen v2 brings the vague ending's dashes.
