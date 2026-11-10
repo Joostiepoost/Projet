@@ -56,7 +56,7 @@ Other options:
 | 9 | Framework, layer 4: factor curves | |
 | 10 | Strata view | |
 | 11 | Board box | |
-| 12 | Reaper export | |
+| 12 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 
 ## Using Projet (stages 1–4d.2)
 
