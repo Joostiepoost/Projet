@@ -42,6 +42,7 @@ set(PROJET_CORE_SOURCES
     Source/Engine/PlaybackEngine.cpp
     Source/Model/Project.cpp
     Source/Model/Proportion.cpp
+    Source/Model/Lanes.cpp
     Source/Model/Framework.cpp
     Source/Model/FrameworkBuiltin.cpp
     Source/Model/FrameworkLegacy.cpp

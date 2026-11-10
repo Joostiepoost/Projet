@@ -72,6 +72,8 @@ public:
         float endX = -1.0f, endY = -1.0f;       // a seam sign's end bracket of the box before (where seamSign goes)
         float fadeX = -1.0f;                    // where a fading ending stops on its line, if before endX
         Condition onlyWith;
+        juce::String impliesCategory, impliesValue;     // (4d) a folder value that gives its boxes a value of
+                                                        // another category (a writing type's mixing relation)
     };
 
     struct Axis { juce::String id; Name name; };
@@ -130,6 +132,41 @@ public:
         Condition onlyWith;
         juce::String envelope;                  // "peak": moves the peak of the box's profile (a number, % of the box);
                                                 // "shape": its values' curve rounds the profile (a choice)
+        // Stage 4d
+        bool foldersOnly = false;               // set on folders only (writing type, time-feel); boxes never have it
+    };
+
+    /** A value one category gives another in the boxes of a folder: a
+        folder whose writing type is "weaving" gives its overlaps fusion. */
+    struct Implication
+    {
+        int source = -1;                        // the category set on the folder (an index of getCategories())
+        juce::String value, implied;
+    };
+
+    /** An overview lane (stage 4d), a kind of ruler layer: "rows" draws one
+        row per group (or value) of a category wherever boxes have it (the
+        energies by family, the typology by zone); "scale" draws the range of
+        an ordered category present at each moment and a line for its
+        average, weighted by another category (the semiotic profile, weighted
+        by role). */
+    struct Lane
+    {
+        juce::String id, package;
+        juce::String key() const                { return package + "." + id; }
+        Name name, about;
+        enum class Kind { rows, scale } kind = Kind::rows;
+        juce::String category, second;          // keys; second: drawn lighter (the second energy)
+        bool byGroups = true;                   // rows: one per group, else one per value
+        juce::String weightCategory;            // scale: the category weighing each box
+        juce::StringArray weightIds;
+        juce::Array<double> weightValues;
+        double defaultWeight = 1.0;
+        double weightFor (const juce::String& valueId) const
+        {
+            const int i = weightIds.indexOf (valueId);
+            return i >= 0 ? weightValues[i] : defaultWeight;
+        }
     };
 
     struct Package
@@ -173,6 +210,14 @@ public:
     const Group* findGroup (const Category&, const juce::String& id) const;
     /** Categories that share `c`'s values (c's source and every category using it). */
     juce::Array<const Category*> sharing (const Category& c) const;
+    /** What folder values give the boxes for category `c` (stage 4d). */
+    const juce::Array<Implication>& implicationsFor (const Category& c) const;
+
+    //== Lanes (stage 4d) ======================================================
+    const juce::Array<Lane>& getLanes() const           { return lanes; }
+    /** Goes up whenever the packages change (for caches). */
+    int getGeneration() const noexcept                  { return generation; }
+    const Lane* findLane (const juce::String& key) const;
 
     //== Names =================================================================
     /** "fr" or "en"; names fall back to the other language when missing. */
@@ -266,10 +311,13 @@ public:
     static juce::StringPairArray legacyFields();
 
 private:
-    struct Raw { Package package; juce::Array<Category> categories; juce::var additions; };
+    struct Raw { Package package; juce::Array<Category> categories; juce::var additions; juce::Array<Lane> lanes; };
     juce::Array<Raw> raws;
     juce::Array<Package> packages;
     juce::Array<Category> categories;
+    juce::Array<Lane> lanes;
+    juce::Array<juce::Array<Implication>> implications;   // by category index
+    int generation = 0;
     juce::String language { "fr" };
     juce::StringPairArray namings;
     void rebuild();

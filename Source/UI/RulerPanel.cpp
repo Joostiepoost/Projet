@@ -4,6 +4,7 @@
 #include "Dialogs.h"
 #include "Theme.h"
 #include "TimeFormat.h"
+#include "../Model/Lanes.h"
 
 namespace
 {
@@ -61,7 +62,7 @@ namespace
 class LayerRowComponent : public juce::Component
 {
 public:
-    LayerRowComponent (Project& p, juce::ValueTree l, bool sel) : project (p), layer (l), selected (sel) {}
+    LayerRowComponent (Project& p, juce::ValueTree l, bool sel, const Framework* fw = nullptr) : project (p), framework (fw), layer (l), selected (sel) {}
 
     std::function<void()> onSelect;
     std::function<void (int contentY)> onDragTo;
@@ -102,14 +103,20 @@ public:
         g.setFont (Theme::font (12.5f, selected));
         auto text = layer[IDs::name].toString();
         const auto frameName = project.frameName (project.layerFrame (layer));
-        if (! time && ! text.equalsIgnoreCase (frameName)) text << "  (" << frameName << ")";
+        if (Project::isProportionLayer (layer) && ! text.equalsIgnoreCase (frameName)) text << "  (" << frameName << ")";
+        if (Project::isLaneLayer (layer)) text << "  (lane)";
         const auto from = layer.getProperty (IDs::frame, "piece").toString();
         if (time && from != "piece" && project.frameFor (from).isValid()) text << "  (from " << project.frameName (from) << ")";
         g.drawText (text, nameArea(), juce::Justification::centredLeft, true);
 
         // S M L
         const int h = (int) layer.getProperty (IDs::height, 24);
-        const juce::String cur = h <= 18 ? "S" : (h <= 30 ? "M" : "L");
+        juce::String cur = h <= 18 ? "S" : (h <= 30 ? "M" : "L");
+        if (auto* lane = laneOf())
+        {
+            const int small = Lanes::heightFor (*framework, *lane, 0), medium = Lanes::heightFor (*framework, *lane, 1);
+            cur = h < (small + medium) / 2 ? "S" : (h <= medium + 4 ? "M" : "L");
+        }
         const char* names[] = { "S", "M", "L" };
         for (int i = 0; i < 3; ++i)
         {
@@ -152,15 +159,26 @@ public:
         const auto pos = e.getPosition();
         if (eyeArea().expanded (4).contains (pos)) { layer.setProperty (IDs::visible, ! (bool) layer.getProperty (IDs::visible, true), nullptr); return; }
         for (int i = 0; i < 3; ++i)
-            if (sizeArea (i).contains (pos)) { layer.setProperty (IDs::height, i == 0 ? sizeSmall : (i == 1 ? sizeMedium : sizeLarge), nullptr); return; }
+            if (sizeArea (i).contains (pos))
+            {
+                if (auto* lane = laneOf())  layer.setProperty (IDs::height, Lanes::heightFor (*framework, *lane, i), nullptr);
+                else                        layer.setProperty (IDs::height, i == 0 ? sizeSmall : (i == 1 ? sizeMedium : sizeLarge), nullptr);
+                return;
+            }
         if (canDelete() && deleteArea().contains (pos)) { project.removeLayer (layer); return; }
         if (onSelect) onSelect();
     }
 
 private:
     Project& project;
+    const Framework* framework = nullptr;
     juce::ValueTree layer;
     bool selected = false, draggingHandle = false;
+
+    const Framework::Lane* laneOf() const
+    {
+        return framework != nullptr && Project::isLaneLayer (layer) ? framework->findLane (layer[IDs::lane].toString()) : nullptr;
+    }
 
     bool canDelete() const
     {
@@ -210,12 +228,12 @@ public:
         int index = 0;
         for (auto l : p.getRulers())
         {
-            auto* row = add (std::make_unique<LayerRowComponent> (p, l, l == layer), rowHeight, 0);
+            auto* row = add (std::make_unique<LayerRowComponent> (p, l, l == layer, owner.framework), rowHeight, 0);
             const auto id = l[IDs::id].toString();
             row->onSelect = [this, id, l]
             {
                 owner.layerId = id;
-                if (! Project::isTimeLayer (l)) project.setActiveLayer (l);
+                if (Project::isProportionLayer (l)) project.setActiveLayer (l);
                 // Later: this row is still handling its click.
                 juce::Component::SafePointer<RulerPanel> safe (&owner);
                 juce::MessageManager::callAsync ([safe] { if (safe != nullptr) safe->refresh(); });
@@ -243,6 +261,33 @@ public:
             {
                 auto l = project.addLayer ("time");
                 owner.layerId = l[IDs::id].toString();
+            };
+            // Overview lanes (stage 4d), as the packages declare them.
+            gap (4);
+            auto* addLane = add (std::make_unique<juce::TextButton> ("+ Lane..."), 24, 0, (w - 6) / 2);
+            const bool any = owner.framework != nullptr && ! owner.framework->getLanes().isEmpty();
+            addLane->setEnabled (any && owner.onAddLane != nullptr);
+            addLane->setTooltip (any ? "An overview lane: energies, semiotic profile, typology..." : "No package in this project declares a lane");
+            addLane->onClick = [this, addLane]
+            {
+                if (owner.framework == nullptr) return;
+                juce::PopupMenu m;
+                const auto& lanes = owner.framework->getLanes();
+                for (int i = 0; i < lanes.size() && i < 99; ++i)
+                {
+                    const auto& lane = lanes.getReference (i);
+                    bool present = false;
+                    for (auto l : project.getRulers()) present = present || l[IDs::lane].toString() == lane.key();
+                    m.addItem (1 + i, owner.framework->text (lane.name), true, present);
+                }
+                juce::Component::SafePointer<RulerPanel> safe (&owner);
+                m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (addLane), [safe] (int r)
+                {
+                    if (safe == nullptr || r <= 0 || safe->onAddLane == nullptr) return;
+                    auto l = safe->onAddLane (r - 1);
+                    if (l.isValid()) safe->layerId = l[IDs::id].toString();
+                    safe->refresh();
+                });
             };
         }
 
@@ -280,7 +325,7 @@ public:
         gap (14);
         if (! layer.isValid()) { note ("No layers."); finish(); return; }
 
-        heading (Project::isTimeLayer (layer) ? "Time layer" : "Proportion layer");
+        heading (Project::isTimeLayer (layer) ? "Time layer" : Project::isLaneLayer (layer) ? "Lane" : "Proportion layer");
         {
             label ("Name");
             auto* name = add (std::make_unique<juce::TextEditor>(), 24, 6);
@@ -288,6 +333,23 @@ public:
             auto commit = [layer, name] () mutable { if (name->getText().trim().isNotEmpty()) layer.setProperty (IDs::name, name->getText().trim(), nullptr); };
             name->onReturnKey = commit;
             name->onFocusLost = commit;
+        }
+
+        if (Project::isLaneLayer (layer))
+        {
+            const auto key = layer[IDs::lane].toString();
+            auto* lane = owner.framework != nullptr ? owner.framework->findLane (key) : nullptr;
+            if (lane == nullptr)
+                note ("This lane (" + key + ") comes from a package the project does not use. Framework > Frameworks... brings it in.");
+            else
+            {
+                auto* pk = owner.framework->findPackage (lane->package);
+                note (owner.framework->text (lane->about) + (pk != nullptr ? " (" + owner.framework->text (pk->name) + ")" : juce::String()) + ".");
+                note ("Worked out from the boxes; muted tracks are left out. Click a row to highlight the boxes behind it, "
+                      "again to stop; the lane's menu clears the highlight.");
+            }
+            finish();
+            return;
         }
 
         if (Project::isTimeLayer (layer))

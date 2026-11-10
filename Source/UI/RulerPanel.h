@@ -8,6 +8,7 @@
 
 #include <JuceHeader.h>
 #include "../Model/Project.h"
+#include "../Model/Framework.h"
 
 class RulerPanel : public juce::Component
 {
@@ -21,6 +22,10 @@ public:
     void refresh();
 
     void setProperties (juce::PropertiesFile* p)    { properties = p; refresh(); }
+    /** For the lanes the packages declare (stage 4d). */
+    void setFramework (const Framework* f)          { framework = f; }
+    /** Adds a lane layer for the package lane at this index; returns it. */
+    std::function<juce::ValueTree (int laneIndex)> onAddLane;
 
     std::function<double()> getPlayhead;
     std::function<void()> onDone;
@@ -32,6 +37,7 @@ public:
 private:
     class Content;
     Project& project;
+    const Framework* framework = nullptr;
     juce::PropertiesFile* properties = nullptr;
     juce::Viewport viewport;
     std::unique_ptr<Content> content;

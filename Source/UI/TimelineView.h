@@ -30,6 +30,7 @@
 #include "../Model/Proportion.h"
 #include "../Model/Framework.h"
 #include "../Model/Glyphs.h"
+#include "../Model/Lanes.h"
 
 class TimelineView : public juce::Component,
                      public juce::FileDragAndDropTarget,
@@ -94,6 +95,8 @@ public:
     std::function<void (const juce::String& message, bool warning)> onStatus;
     /** Show the ruler layers in the panel (a layer id, or "" for the active one). */
     std::function<void (const juce::String& layerId)> onShowRulerPanel;
+    /** The highlight changed from the timeline itself (a click in a lane). */
+    std::function<void()> onHighlightChanged;
 
     static constexpr int headerWidth = 172;
     static constexpr int folderHeight = 30;
@@ -140,7 +143,7 @@ private:
     double snap (double t, const juce::ValueTree& exclude, bool enabled) const;
 
     //== Ruler layers (TimelineRuler.cpp) =====================================
-    struct LayerRow { juce::ValueTree layer; int y = 0, h = 0; bool time = false; };
+    struct LayerRow { juce::ValueTree layer; int y = 0, h = 0; bool time = false, lane = false; };
     std::vector<LayerRow> rulerRows() const;
     /** Where the tracks begin. */
     int rulerHeight() const;
@@ -184,7 +187,25 @@ private:
     /** Seam signs (junctions, with the mixing relation beside them and the
         ending of the box before on their bracket) and end signs (stage 4c). */
     static juce::Path fadeGaps (float endX, float endY, float length);
+    /** "from the timing", "from the folder's writing type" ... */
+    juce::String describeSource (const Project::FrameworkValue&) const;
     void paintSeams (juce::Graphics&, const TrackRow&);
+
+    //== Lanes (stage 4d) =====================================================
+public:
+    /** The lanes the loaded packages declare, as a submenu (ids base + index). */
+    juce::PopupMenu lanesMenu (int base) const;
+    /** Adds a lane layer for the package lane at `laneIndex` (of getLanes()). */
+    juce::ValueTree addLane (int laneIndex, int layerIndex = -1);
+    /** A lane's height when first added: enough for its rows. */
+    static int laneHeight (const Framework&, const Framework::Lane&);
+private:
+    struct LaneCache { int changes = -1, generation = -1; std::vector<Lanes::Row> rows; Lanes::Scale scale; };
+    std::map<juce::String, LaneCache> laneCache;            // by lane key
+    const LaneCache& laneData (const Framework::Lane&);
+    void paintLaneLayer (juce::Graphics&, const LayerRow&);
+    /** Clicking a lane highlights what it shows there (a family, a zone, a level). */
+    void laneClicked (const LayerRow&, const juce::MouseEvent&);
     /** A package's SVG path, parsed once. */
     const juce::Path& signPath (const juce::String& svg);
     std::map<juce::String, juce::Path> signCache;

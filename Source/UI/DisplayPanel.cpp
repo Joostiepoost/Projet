@@ -37,7 +37,7 @@ public:
             combo->addItem ("Track colours", 1);
             for (auto& c : fw.getCategories())
             {
-                if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || ! fw.hasColours (c)) continue;
+                if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || ! fw.hasColours (c) || c.foldersOnly) continue;
                 bool ownColours = false;
                 for (auto& v : fw.valuesOf (c)) ownColours = ownColours || v.colours.colour != 0;
                 const auto name = fw.text (c.name) + (! ownColours && ! fw.source (c).groupsName.isEmpty() ? " (" + fw.text (fw.source (c).groupsName) + ")" : juce::String());

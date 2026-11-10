@@ -46,8 +46,9 @@ Other options:
 | 4a | Framework file and box fields: energies, semiotic levels, roles, Schaeffer's type; changes along a box; colour modes, highlight, folder levels | done |
 | 4b.1 | Framework packages: the categories themselves as data (kinds, marks, groups, charts, two names, additions); library and project copies; Display and Frameworks panels; an example package | done |
 | 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | done |
-| 4c | Junctions (from the timing or chosen), endings and mixing relations, with Thoresen's signs; the profile's peak; hiding and widening the panel | built, to test |
-| 4d | Semiotic track template, overview lanes, writing types and nodes, accents and goals | |
+| 4c | Junctions (from the timing or chosen), endings and mixing relations, with Thoresen's signs; the profile's peak; hiding and widening the panel | done |
+| 4d.1 | Folders from a category (the semiotic track template); writing type and time-feel on folders, a writing type's mixing relation; overview lanes: energies, typology, semiotic profile | built, to test |
+| 4d.2 | The dynamic form lane (Thoresen: functions, goals, accents); nodes on folders | |
 | 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
 | 6 | Magnified inline expansion | |
 | 7 | Takes | |
@@ -57,7 +58,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export | |
 
-## Using Projet (stages 1–4c)
+## Using Projet (stages 1–4d.1)
 
 ### The project folder
 
@@ -176,10 +177,10 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 ### Frameworks: packages of categories (stages 4a, 4b)
 
 Boxes can carry the vocabulary of composition frameworks. Projet ships five **packages**:
-- **Composition framework** (`composition`): **energy** (Vande Gorne's energy models, in families) and a **second energy**, the **semiotic level** (I-son, Di-son, métonymique, Mé-son), the **role** (F / M / B: Thoresen's layer functions or Vande Gorne's figure and ground) and the **dynamic profile** (the box's intensity envelope, with Schaeffer's names, and for a delta its peak position and a hard or soft peak). It also ships a `glyphs.js`: the energies' shapes, drawn on the boxes.
-- **Schaeffer** (`schaeffer`): the **type**, from his typology (29 types in a chart).
+- **Composition framework** (`composition`): **energy** (Vande Gorne's energy models, in families) and a **second energy**, the **semiotic level** (I-son, Di-son, métonymique, Mé-son), the **role** (F / M / B: Thoresen's layer functions or Vande Gorne's figure and ground) and the **dynamic profile** (the box's intensity envelope, with Schaeffer's names, and for a delta its peak position and a hard or soft peak). It also ships a `glyphs.js`: the energies' shapes, drawn on the boxes; and two lanes (4d.1): **energies** and the **semiotic profile**.
+- **Schaeffer** (`schaeffer`): the **type**, from his typology (29 types in a chart), and the **typology** lane (4d.1).
 - **Thoresen: time-fields** (`thoresen`): the **junction** with the box before and the **ending** of each box (stage 4c).
-- **Vande Gorne: writing** (`vandegorne`): the **mixing relation** on overlaps (stage 4c).
+- **Vande Gorne: writing** (`vandegorne`): the **mixing relation** on overlaps (stage 4c); the **writing type**, **time felt** and **time movement** of a folder (stage 4d.1).
 - **Structuring language (RK1)** (`rk1`): no categories yet; it carries the operations of your structuring language for stage 8.
 
 Nothing about the categories is built into Projet: a package declares them (what kind of value, how it is chosen, how it shows on the boxes), and the Framework tab, the menus, the colour modes, the highlight and the marks follow whatever the project's packages declare. **A new framework needs only a folder**: see `Examples/Frameworks/example` (a choice, tags, a number, a text, and an energy added to the composition framework).
@@ -236,6 +237,8 @@ Nothing about the categories is built into Projet: a package declares them (what
 
 **The profile's peak.** A delta or hollow profile gets a **peak position** (in % of the box: an asymmetric delta, a slow approach and a quick fall) and a **hard or soft peak** (angular, or rounded); the energy glyph follows.
 
+**Colour.** The signs are drawn in a light green, apart from the boxes' dark yellow.
+
 **Splitting** a box keeps its junction on the left part (the right part now joins it closely) and its ending on the right part.
 
 **The panel on the right** can be hidden: the small » at its top left, *View > Hide panel*, Cmd-Alt-I, or the **Panel** button at the top (which brings it back). It also comes back by itself for *Display...* and *Frameworks...*. Drag its left edge to make it wider or narrower. Both are remembered.
@@ -248,6 +251,25 @@ Nothing about the categories is built into Projet: a package declares them (what
 - `glyphs.js` next to `framework.json` draws the shapes of `glyph`-marked values: one object `glyphs`, each entry a function `(w, h, rand)` returning strokes (`{ pts: [x,y, ...], close, fill, faint, width, alpha }` or `{ dots: [x,y,r, ...] }`) in a `w` by `h` band. `rand()` is seeded, so shapes repeat exactly; the profile is applied by Projet afterwards. The composition package's `glyphs.js` documents the format; an added value can bring its own shape (the example package's *Pulsation*).
 - Boxes store values under `fw.<package>.<category>` (ids, never names): renaming or translating breaks nothing, and an id no package knows is kept and shown with a question mark.
 
+### Folders and lanes for the large form (stage 4d.1)
+
+**Folders from a category.** *Track > Folders from > Semiotic level* adds one folder per level, in order from I-son to Mé-son, each with one track: the semiotic track template. Boxes on those tracks take the folder's level unless they have their own (shown fainter, as inherited). It works for any category folders can give.
+
+**Writing type** (Vande Gorne, chapter 3), set on a folder (right-click its header > *Type d'écriture*): weaving or texture, stained glass or mosaic, complex drawing, diverging lines and converging nodes, rhythms and speeds, melismas on an ostinato, superposed images. Where she names the mixing relation a writing implies, the overlaps inside the folder take it: **fusion** for weaving, **complementarity** for complex drawing and for rhythms and speeds. It is drawn faint beside the junction sign and shown fainter in the Framework tab, until you choose another for a box; *From the folder* goes back. The nearest folder with a writing type decides.
+
+**Time-feel** (Vande Gorne, chapter 4), also on folders: **time felt** (long, short, suspended) and **time movement** (fixed; mobile: speeding up, slowing down, contrasts; intermodulated).
+
+A folder's writing type and time-feel show at the left of its lane. Boxes never carry them; containers will (stage 5).
+
+**Lanes** are a third kind of ruler layer, beside time and proportion layers: ordered, sized, hidden and kept in presets like the others. Add one from a ruler layer's menu (*Add a lane below*) or in the ruler panel (*+ Lane...*). Packages declare them; Projet ships three:
+- **Energies** (composition): one row per family, a bar wherever a box has an energy of that family (frottement, rebond and flux count in both of theirs); the second energy lighter; thicker where two, or three and more, boxes sound at once.
+- **Typology** (schaeffer): one row each for balanced, redundant and eccentric types, drawn the same way.
+- **Semiotic profile** (composition): abstract at the top, concrete at the bottom; a band from the most concrete to the most abstract level present at each moment, and a line for their average weighted by role (F 3, M 2, B 1). Changes along boxes and folder levels count.
+
+Muted tracks are left out. **Click a row** (a family, a zone, a level) to highlight the boxes behind it; click again to stop, or *Show all* in the lane's menu. *Size* gives a lane room for its row names (medium) or less or more.
+
+In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": "fusion" }` gives that value to the boxes of a folder that has it; `folders`: `"only"` puts a category on folders alone. `lanes`: `[ { "id", "name", "about", "kind": "rows", "category": "energy", "second": "energy2", "rows": "groups" } ]` (or `"rows": "values"`), or `"kind": "scale"` with `"weightBy": { "category": "role", "weights": { "F": 3, "M": 2, "B": 1 }, "default": 2 }`.
+
 ### Folders (stage 3a)
 
 - Right-click a track > **Put in a new folder**. Folders can hold folders.
@@ -256,6 +278,7 @@ Nothing about the categories is built into Projet: a package declares them (what
 - A folder gives its **colour** to everything inside (their own colours come back when they leave it). **M** and **S** on a folder mute or solo everything inside.
 - Right-click a folder: fold, add a track inside, **ungroup** (the tracks stay, one level up), or delete the folder and its tracks.
 - Boxes live on tracks, never on folder lines. Sounds dropped on a folder line go on a new track inside it.
+- Right-click a folder for its writing type and time-feel (stage 4d.1), and the categories it gives its boxes (the semiotic level).
 
 ### The panel on the right
 
@@ -273,6 +296,16 @@ Nothing about the categories is built into Projet: a package declares them (what
 - Overlapping boxes simply add up; their fades make the crossfade. For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+
+**Worth testing in stage 4d.1**:
+- First, *Framework > Frameworks...*: composition, schaeffer and vandegorne have new versions (v5, v3, v2) — for each, *Library: take Projet's*, then *Take the library's*. Thoresen v2 brings the vague ending's dashes.
+- *Track > Folders from > Semiotic level*: four folders with a track each; put boxes on them and see their levels (fainter: inherited); undo.
+- Right-click a folder: a writing type, time felt and movement; they show at the left of the folder's lane.
+- Weaving on a folder with two overlapping boxes inside: fusion appears faint beside the junction sign (hover over it; the Framework tab says *from the folder's writing type*). Choose another relation, then *From the folder*. Stained glass: nothing; complex drawing: complementarity. A separate junction: nothing.
+- Add the three lanes (a ruler layer's menu > *Add a lane below*, or *+ Lane...* in the ruler panel). Give boxes energies, second energies, types, levels (also along a box) and roles, and watch the lanes; overlap boxes (thicker bars); mute a track (it leaves the lanes).
+- Click a lane row: the boxes behind it are highlighted; click again. Sizes S, M, L (menu and panel); reorder and hide lanes; save a ruler preset with lanes and apply it.
+- Signs in light green; drag a box below the last track (a new track; one undo).
+- Save, quit, reopen.
 
 **Worth testing in stage 4c**:
 - Open a project from 4b: the status line says Thoresen and Vande Gorne are new in the library. *Framework > Frameworks...*: *Use in this project* for both; for composition, *Library: take Projet's v4*, then *Take the library's (v4)*.

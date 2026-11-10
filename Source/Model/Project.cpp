@@ -55,6 +55,7 @@ void Project::resetToDefault (const juce::String& name, double sampleRate)
 void Project::changed()
 {
     joinsValid = false;
+    ++changeCount;
     if (! applying && ! loading)
         applyProportions();
     if (onChanged) onChanged();
@@ -220,6 +221,22 @@ juce::ValueTree Project::addFolder (const juce::String& name, int index, const j
     if (folderId.isNotEmpty()) f.setProperty (IDs::folderId, folderId, nullptr);
     getTracks().addChild (f, index, &undoManager);
     return f;
+}
+
+juce::Array<juce::ValueTree> Project::addFoldersFor (const Framework::Category& c)
+{
+    juce::Array<juce::ValueTree> made;
+    if (framework == nullptr || ! c.folders || c.foldersOnly || c.kind != Framework::Kind::choice) return made;
+    auto values = framework->valuesOf (c);
+    std::stable_sort (values.begin(), values.end(), [] (const Framework::Value& a, const Framework::Value& b) { return a.order < b.order; });
+    for (auto& v : values)
+    {
+        auto f = addFolder (framework->valueName (c, v.id), -1);
+        f.setProperty (c.property(), v.id, &undoManager);
+        addTrack ({}, -1, f[IDs::id].toString());
+        made.add (f);
+    }
+    return made;
 }
 
 juce::ValueTree Project::putInNewFolder (juce::ValueTree track)
@@ -627,6 +644,19 @@ juce::ValueTree Project::addLayer (const juce::String& kind, int index)
     return l;
 }
 
+juce::ValueTree Project::addLaneLayer (const juce::String& laneKey, const juce::String& name, int height, int index)
+{
+    juce::ValueTree l (IDs::LAYER);
+    l.setProperty (IDs::id, newId(), nullptr);
+    l.setProperty (IDs::kind, "lane", nullptr);
+    l.setProperty (IDs::lane, laneKey, nullptr);
+    l.setProperty (IDs::name, name.isNotEmpty() ? name : laneKey, nullptr);
+    l.setProperty (IDs::height, height, nullptr);
+    l.setProperty (IDs::visible, true, nullptr);
+    getRulers().addChild (l, index, nullptr);
+    return l;
+}
+
 void Project::removeLayer (juce::ValueTree layer)
 {
     // The last time layer stays: it is where you move the playhead.
@@ -642,9 +672,9 @@ void Project::removeLayer (juce::ValueTree layer)
 juce::ValueTree Project::getActiveLayer()
 {
     auto l = findLayer (state[IDs::activeLayer].toString());
-    if (l.isValid() && ! isTimeLayer (l)) return l;
-    for (auto c : getRulers()) if (! isTimeLayer (c) && (bool) c.getProperty (IDs::visible, true)) return c;
-    for (auto c : getRulers()) if (! isTimeLayer (c)) return c;
+    if (isProportionLayer (l)) return l;
+    for (auto c : getRulers()) if (isProportionLayer (c) && (bool) c.getProperty (IDs::visible, true)) return c;
+    for (auto c : getRulers()) if (isProportionLayer (c)) return c;
     return {};
 }
 
@@ -892,12 +922,12 @@ juce::String Project::folderValue (const juce::ValueTree& track, const juce::Ide
     return {};
 }
 
-Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, const Framework::Category& c)
+Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, const Framework::Category& c, bool ignoreOwn)
 {
     FrameworkValue v;
-    if (! applies (box, c)) return v;
+    if (c.foldersOnly || ! applies (box, c)) return v;
     const auto& own = box[c.property()];
-    if (! own.isVoid() && own.toString().isNotEmpty())
+    if (! ignoreOwn && ! own.isVoid() && own.toString().isNotEmpty())
     {
         if (! valueApplies (box, c, own.toString())) return v;
         v.value = own.toString();
@@ -908,16 +938,36 @@ Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, con
     {
         // A join without a value of its own: what the timing says.
         v.value = derivedValue (c, joinBefore (box));
-        if (v.value.isNotEmpty() && valueApplies (box, c, v.value)) v.from = FrameworkValue::From::timing;
-        else v.value = {};
-        return v;
+        if (v.value.isNotEmpty() && valueApplies (box, c, v.value)) { v.from = FrameworkValue::From::timing; return v; }
+        v.value = {};
+        return impliedValue (box, c);
     }
     if (c.folders && box.getParent().isValid())
     {
         v.value = folderValue (box.getParent(), c.property());
         if (v.value.isNotEmpty()) { v.from = FrameworkValue::From::folder; return v; }
     }
+    if (auto implied = impliedValue (box, c); implied.value.isNotEmpty()) return implied;
     if (c.defaultValue.isNotEmpty()) { v.value = c.defaultValue; v.from = FrameworkValue::From::defaultValue; }
+    return v;
+}
+
+Project::FrameworkValue Project::impliedValue (const juce::ValueTree& box, const Framework::Category& c)
+{
+    // A value the box's folders give through another category (stage 4d):
+    // the nearest folder with a value for that category decides.
+    FrameworkValue v;
+    if (framework == nullptr || ! box.getParent().isValid()) return v;
+    for (auto& imp : framework->implicationsFor (c))
+    {
+        auto& source = framework->getCategories().getReference (imp.source);
+        if (folderValue (box.getParent(), source.property()) != imp.value) continue;
+        if (! valueApplies (box, c, imp.implied)) continue;
+        v.value = imp.implied;
+        v.from = FrameworkValue::From::implied;
+        v.source = source.key();
+        return v;
+    }
     return v;
 }
 

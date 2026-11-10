@@ -265,6 +265,7 @@ private:
     /** "Only with": the category applies to at least one selected box. */
     bool appliesToAny (const Framework::Category& c) const
     {
+        if (c.foldersOnly) return false;            // set on the folder (its right-click menu)
         for (auto b : owner.boxes) if (owner.project.applies (b, c)) return true;
         return false;
     }
@@ -346,6 +347,12 @@ private:
         else if (aboutToo) line = fw.text (value->about);
         if (v.isDefault()) line = (line.isEmpty() ? fw.valueName (c, v.value) : line) + " (the default)";
         if (v.fromTiming()) line = fw.valueName (c, v.value) + " (from the timing): " + fw.text (value->about);
+        else if (v.isImplied())
+        {
+            auto* source = fw.findCategory (v.source);
+            line = fw.valueName (c, v.value) + " (from the folder's " + (source != nullptr ? fw.text (source->name).toLowerCase() : juce::String ("values"))
+                 + "): " + fw.text (value->about);
+        }
         if (line.isNotEmpty()) y = note (line, y, w);
         const auto details = fw.valueDetails (*value);
         if (! details.isEmpty())
@@ -471,21 +478,26 @@ private:
             };
         }
         y += rowsNeeded * 28;
-        if (c.between)
+        const bool implied = ! fw.implicationsFor (c).isEmpty();
+        if (c.between || implied)
         {
-            // A chosen join stays until it goes back to the timing.
+            // A chosen value stays until it goes back to what is worked out:
+            // the timing, or the folder's other value (a writing type, 4d).
             bool anyOwn = false;
             for (auto b : owner.boxes) anyOwn = anyOwn || b[c.property()].toString().isNotEmpty();
-            if (anyOwn)
+            const bool timing = ! c.derive.isEmpty();
+            if (anyOwn && (timing || implied))
             {
-                auto* back = place (std::make_unique<juce::TextButton> ("From the timing"), 0, y, juce::jmin (w, 130), 22);
-                back->setTooltip ("Forget the chosen value: follow what the timing says again");
+                auto* back = place (std::make_unique<juce::TextButton> (timing ? "From the timing" : "From the folder"), 0, y, juce::jmin (w, 130), 22);
+                back->setTooltip (timing ? "Forget the chosen value: follow what the timing says again"
+                                         : "Forget the chosen value: follow what the folder gives");
                 back->onClick = [this, key, undo] { owner.setValue (key, {}, undo); };
                 y += 26;
                 if (owner.boxes.size() == 1)
                 {
-                    const auto derived = Project::derivedValue (c, owner.project.joinBefore (owner.boxes.getFirst()));
-                    if (derived.isNotEmpty() && derived != own) y = note ("Chosen; the timing says " + fw.valueName (c, derived) + ".", y, w);
+                    const auto derived = owner.project.frameworkValue (owner.boxes.getFirst(), c, true);
+                    if (derived.value.isNotEmpty() && derived.value != own)
+                        y = note ("Chosen; " + juce::String (derived.fromTiming() ? "the timing" : "the folder") + " says " + fw.valueName (c, derived.value) + ".", y, w);
                 }
             }
         }

@@ -53,6 +53,7 @@ namespace IDs
     PROJET_ID (denominators)          // the ruler's divisions, e.g. "2,3,4,5,6,8" (decimals allowed)
     PROJET_ID (autoDivisions)         // finer divisions appear as you zoom in
     PROJET_ID (activeLayer)           // the proportion layer menus and "the ruler's frame" refer to
+    PROJET_ID (lane)                  // a lane layer's lane: "composition.energies" (stage 4d)
     PROJET_ID (frame)                 // a layer's or a mark's frame: "piece", "span" or a box id
     PROJET_ID (visible)
     PROJET_ID (snap)
