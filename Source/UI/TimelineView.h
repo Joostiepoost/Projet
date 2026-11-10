@@ -263,6 +263,7 @@ private:
     int dragLayerStartHeight = 0;
     mutable juce::String snappedMark;                // the mark the last snap landed on ("" if none)
     int lastTrackDelta = 0;
+    int newTracksBelow = 0, newTrackDelta = 0;                          // a move dropped below the last track makes this many tracks
     juce::ValueTree draggedTrack;
     TrackDrop trackDrop;
     juce::String readout;                            // shown near the mouse while moving or trimming
