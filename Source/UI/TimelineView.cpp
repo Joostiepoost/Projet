@@ -26,6 +26,10 @@ TimelineView::TimelineView (Project& p, projet::SoundPool& sp, const Framework& 
 {
     setWantsKeyboardFocus (false);
     glyphs.rebuild (framework);
+    vScroll.setAutoHide (true);
+    vScroll.addListener (this);
+    vScroll.setColour (juce::ScrollBar::thumbColourId, Theme::textMuted.withAlpha (0.6f));
+    addChildComponent (vScroll);
 }
 
 void TimelineView::frameworkReloaded()
@@ -36,7 +40,37 @@ void TimelineView::frameworkReloaded()
     repaint();
 }
 
-void TimelineView::resized() {}
+void TimelineView::resized() { updateScrollBar(); }
+
+int TimelineView::maxScroll() const
+{
+    return rulerPinned() ? juce::jmax (0, contentHeight() - (getHeight() - rulerHeight()))
+                         : juce::jmax (0, rulerHeight() + contentHeight() - getHeight());
+}
+
+void TimelineView::updateScrollBar()
+{
+    // After every paint (asynchronously): the scroll bar follows the content.
+    const int clamped = juce::jlimit (0, maxScroll(), scrollY);
+    if (clamped != scrollY) { scrollY = clamped; repaint(); }
+    const bool pinned = rulerPinned();
+    const int top = pinned ? rulerHeight() : 0;
+    const int total = pinned ? contentHeight() : rulerHeight() + contentHeight();
+    const int visible = juce::jmax (1, getHeight() - top);
+    const auto bounds = juce::Rectangle<int> (getWidth() - 11, top, 10, juce::jmax (0, getHeight() - top));
+    if (vScroll.getBounds() != bounds) vScroll.setBounds (bounds);
+    vScroll.setRangeLimits (0.0, (double) juce::jmax (total, visible), juce::dontSendNotification);
+    vScroll.setCurrentRange ((double) scrollY, (double) visible, juce::dontSendNotification);
+    vScroll.setVisible (total > visible);
+}
+
+void TimelineView::scrollBarMoved (juce::ScrollBar*, double newRangeStart)
+{
+    const int s = juce::jlimit (0, maxScroll(), juce::roundToInt (newRangeStart));
+    if (s == scrollY) return;
+    scrollY = s;
+    repaint();
+}
 
 //== Geometry ==================================================================
 
@@ -354,6 +388,7 @@ void TimelineView::setPlayhead (double seconds)
 
 void TimelineView::paint (juce::Graphics& g)
 {
+    triggerAsyncUpdate();               // the scroll bar follows (after this paint)
     g.fillAll (Theme::background);
     auto rs = rows();
     signHits.clear();
@@ -370,7 +405,7 @@ void TimelineView::paint (juce::Graphics& g)
 
     {
         juce::Graphics::ScopedSaveState s (g);
-        g.reduceClipRegion (headerWidth, rulerHeight(), getWidth() - headerWidth, getHeight() - rulerHeight());
+        g.reduceClipRegion (headerWidth, tracksTop(), getWidth() - headerWidth, getHeight() - tracksTop());
 
         // The proportion grid of the active layer: its frame's edges and the labelled divisions.
         const auto activeLayer = project.getActiveLayer();
@@ -378,7 +413,7 @@ void TimelineView::paint (juce::Graphics& g)
                                ? project.frameFor (project.layerFrame (activeLayer)) : Project::Frame();
         if (frame.isValid())
         {
-            const float top = (float) rulerHeight(), bottom = (float) getHeight();
+            const float top = (float) tracksTop(), bottom = (float) getHeight();
             const float dashes[] = { 3.0f, 4.0f };
             g.setColour (Theme::accent.withAlpha (0.10f));
             for (auto& k : visibleTicks (activeLayer))
@@ -473,7 +508,7 @@ void TimelineView::paint (juce::Graphics& g)
             g.setColour (Theme::textMuted);
             g.setFont (Theme::font (15.0f));
             g.drawText ("Drop sound files here, or choose File > Import sounds (Cmd-I)",
-                        juce::Rectangle<int> (headerWidth, rulerHeight(), getWidth() - headerWidth, juce::jmin (200, getHeight() - rulerHeight())),
+                        juce::Rectangle<int> (headerWidth, tracksTop(), getWidth() - headerWidth, juce::jmin (200, getHeight() - tracksTop())),
                         juce::Justification::centred);
         }
     }
@@ -481,9 +516,9 @@ void TimelineView::paint (juce::Graphics& g)
     // Headers
     {
         juce::Graphics::ScopedSaveState s (g);
-        g.reduceClipRegion (0, rulerHeight(), headerWidth, getHeight() - rulerHeight());
+        g.reduceClipRegion (0, tracksTop(), headerWidth, getHeight() - tracksTop());
         g.setColour (Theme::header);
-        g.fillRect (0, rulerHeight(), headerWidth, getHeight() - rulerHeight());
+        g.fillRect (0, tracksTop(), headerWidth, getHeight() - tracksTop());
         for (size_t i = 0; i < rs.size(); ++i)
             paintTrackHeader (g, rs[i], (int) i);
 
@@ -496,7 +531,7 @@ void TimelineView::paint (juce::Graphics& g)
     }
 
     g.setColour (Theme::line);
-    g.fillRect (headerWidth - 1, rulerHeight(), 1, getHeight() - rulerHeight());
+    g.fillRect (headerWidth - 1, tracksTop(), 1, getHeight() - tracksTop());
 
     paintRuler (g);
     paintNodes (g);                     // across folders' tracks and the lanes (4d.2)
@@ -555,7 +590,7 @@ void TimelineView::paint (juce::Graphics& g)
         g.setFont (Theme::mono (11.5f));
         const int w = juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), readout) + 14;
         auto box = juce::Rectangle<int> (readoutPos.x + 14, readoutPos.y - 30, w, 20)
-                       .constrainedWithin (getLocalBounds().withTrimmedTop (rulerHeight()).reduced (4));
+                       .constrainedWithin (getLocalBounds().withTrimmedTop (tracksTop()).reduced (4));
         g.setColour (juce::Colour (0xf0101114));
         g.fillRoundedRectangle (box.toFloat(), 4.0f);
         g.setColour (Theme::accent);
@@ -1790,7 +1825,7 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
             std::vector<juce::ValueTree> lanes;
             const auto rs = rows();
             for (auto& r : rs) if (! r.folder) lanes.push_back (r.track);
-            auto row = rowAt (juce::jlimit (rulerHeight(), getHeight() - 1, e.y));
+            auto row = rowAt (juce::jlimit (tracksTop(), getHeight() - 1, e.y));
             newTracksBelow = 0;
             if (! rs.empty() && ! lanes.empty() && e.y >= rs.back().y + rs.back().h)
             {
@@ -1972,7 +2007,7 @@ void TimelineView::mouseUp (const juce::MouseEvent& e)
 void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
 {
     if (rulerDoubleClick (e)) return;
-    if (e.y < rulerHeight()) return;
+    if (e.y < tracksTop()) return;
 
     if (e.x < headerWidth)
     {
@@ -2012,8 +2047,7 @@ void TimelineView::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseW
 
     if (std::abs (dy) > 1.0e-6f)
     {
-        const int maxScroll = juce::jmax (0, contentHeight() - (getHeight() - rulerHeight()));
-        scrollY = juce::jlimit (0, maxScroll, scrollY - juce::roundToInt (dy * 200.0f));
+        scrollY = juce::jlimit (0, maxScroll(), scrollY - juce::roundToInt (dy * 200.0f));
     }
     repaint();
 }

@@ -24,7 +24,7 @@ namespace
 std::vector<TimelineView::LayerRow> TimelineView::rulerRows() const
 {
     std::vector<LayerRow> out;
-    int y = 0;
+    int y = rulerTop();     // scrolled with the tracks when the ruler is taller than half the view
     for (auto l : project.getRulers())
     {
         if (! (bool) l.getProperty (IDs::visible, true)) continue;
@@ -32,15 +32,17 @@ std::vector<TimelineView::LayerRow> TimelineView::rulerRows() const
         out.push_back ({ l, y, h, Project::isTimeLayer (l), Project::isLaneLayer (l) });
         y += h;
     }
-    if (out.empty()) out.push_back ({ {}, 0, 16, false });    // every layer hidden: a thin strip to bring them back
+    if (out.empty()) out.push_back ({ {}, y, 16, false });    // every layer hidden: a thin strip to bring them back
     return out;
 }
 
 int TimelineView::rulerHeight() const
 {
     int h = 0;
-    for (auto& r : rulerRows()) h += r.h;
-    return h;
+    for (auto l : project.getRulers())
+        if ((bool) l.getProperty (IDs::visible, true))
+            h += juce::jlimit (minLayerHeight, maxHeightFor (l), (int) l.getProperty (IDs::height, 24));
+    return h > 0 ? h : 16;
 }
 
 TimelineView::LayerRow TimelineView::layerAt (int y) const
@@ -146,7 +148,7 @@ void TimelineView::paintRuler (juce::Graphics& g)
         else paintProportionLayer (g, r);
     }
     g.setColour (Theme::lineStrong);
-    g.fillRect (0, rulerHeight() - 1, getWidth(), 1);
+    g.fillRect (0, rulerBottom() - 1, getWidth(), 1);
 }
 
 void TimelineView::paintTimeLayer (juce::Graphics& g, const LayerRow& row)
@@ -339,7 +341,7 @@ void TimelineView::paintMarksInLanes (juce::Graphics& g)
     std::set<juce::String> shownFrames;
     for (auto& r : rulerRows()) if (r.layer.isValid() && ! r.time && ! r.lane) shownFrames.insert (project.layerFrame (r.layer));
 
-    const float top = (float) rulerHeight(), bottom = (float) getHeight();
+    const float top = (float) tracksTop(), bottom = (float) getHeight();
     const float dashes[] = { 6.0f, 4.0f };
     for (auto m : project.getMarks())
     {
@@ -359,7 +361,7 @@ bool TimelineView::rulerMouseMove (const juce::MouseEvent& e)
     // A layer's lower edge, across the whole width: drag it to change the height.
     for (auto& r : rulerRows())
         if (r.layer.isValid() && std::abs (e.y - (r.y + r.h)) <= 3) { setMouseCursor (juce::MouseCursor::UpDownResizeCursor); return true; }
-    if (e.y >= rulerHeight()) return false;
+    if (e.y >= rulerBottom()) return false;
     const auto row = layerAt (e.y);
     if (e.x < headerWidth)
     {
@@ -390,7 +392,7 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
                 return true;
             }
 
-    if (e.y >= rulerHeight()) return false;
+    if (e.y >= rulerBottom()) return false;
     const auto row = layerAt (e.y);
 
     if (! row.layer.isValid())
@@ -529,7 +531,7 @@ bool TimelineView::rulerMouseDrag (const juce::MouseEvent& e)
                 dragMark.setProperty (IDs::expr, Proportion::expressionFor (p, project.getDenominators()), project.um());
             readout = dragMark[IDs::name].toString() + " " + Proportion::describe (p, project.getDenominators())
                       + " of " + project.frameName (ref) + "  " + TimeFormat::format (v);
-            readoutPos = e.getPosition().withY (juce::jmax (e.y, rulerHeight() + 34));
+            readoutPos = e.getPosition().withY (juce::jmax (e.y, rulerBottom() + 34));
             repaint();
             return true;
         }
@@ -539,7 +541,7 @@ bool TimelineView::rulerMouseDrag (const juce::MouseEvent& e)
 
 bool TimelineView::rulerDoubleClick (const juce::MouseEvent& e)
 {
-    if (e.y >= rulerHeight()) return false;
+    if (e.y >= rulerBottom()) return false;
     const auto row = layerAt (e.y);
     if (! row.layer.isValid() || row.time) return true;
     if (row.lane)

@@ -633,7 +633,7 @@ void TimelineView::paintNodes (juce::Graphics& g)
             // Across the folder and its tracks
             float bottom = (float) (fr.y + fr.h);
             for (auto& r : rs) if (r.y > fr.y && isInside (r.track, fr.track)) bottom = juce::jmax (bottom, (float) (r.y + r.h));
-            if (bottom > (float) rulerHeight()) band (juce::jmax ((float) fr.y, (float) rulerHeight()), bottom);   // under the ruler when scrolled
+            if (bottom > (float) tracksTop()) band (juce::jmax ((float) fr.y, (float) tracksTop()), bottom);   // under the ruler when scrolled
             // and across the lanes
             for (auto& l : layers) if (l.lane) band ((float) l.y, (float) (l.y + l.h - 1));
             // A mark on the folder's row
@@ -641,7 +641,7 @@ void TimelineView::paintNodes (juce::Graphics& g)
             juce::Path diamond;
             const float cx = (x0 + x1) / 2.0f, cy = (float) fr.y + 6.0f;
             diamond.addQuadrilateral (cx, cy - 4.0f, cx + 4.0f, cy, cx, cy + 4.0f, cx - 4.0f, cy);
-            if (cy < (float) rulerHeight()) continue;
+            if (cy < (float) tracksTop()) continue;
             g.setColour (selected ? colour.brighter (0.3f) : colour);
             g.fillPath (diamond);
             if (flagged)
@@ -661,7 +661,7 @@ void TimelineView::paintNodes (juce::Graphics& g)
                 const float x0 = timeToX (juce::jmin (drawStart, drawEnd)), x1 = timeToX (juce::jmax (drawStart, drawEnd));
                 float bottom = (float) (fr.y + fr.h);
                 for (auto& r : rs) if (r.y > fr.y && isInside (r.track, fr.track)) bottom = juce::jmax (bottom, (float) (r.y + r.h));
-                const float top = juce::jmax ((float) fr.y, (float) rulerHeight());
+                const float top = juce::jmax ((float) fr.y, (float) tracksTop());
                 g.setColour (Theme::nodes.withAlpha (0.25f));
                 g.fillRect (x0, top, juce::jmax (1.0f, x1 - x0), bottom - top);
                 g.setColour (Theme::nodes);

@@ -151,6 +151,8 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 ### Ruler layers, marks, series and ratios (stage 3b)
 
 **Layers.** The ruler is a stack of **time** layers and **proportion** layers, each proportion layer with its own frame, divisions and series. Click a layer's name for its menu. **Drag a layer's lower edge** (anywhere along it: the cursor changes) to make it taller or thinner; lanes can grow to 240 pixels.
+
+**Scrolling up and down.** While the ruler takes up to half the timeline's height it stays at the top and the tracks scroll under it; when it is taller (big lanes), the ruler and the tracks scroll together as one page. A scroll bar appears on the right whenever there is more than fits; the mouse wheel or trackpad scrolls too.
 - The **ruler panel** (layer menu > *Ruler layers panel...*) lists the layers top to bottom: drag the dots to reorder, the eye shows or hides, **S M L** sizes, **x** deletes. Click a layer to see its details below: name, frame, snapping, divisions (1/2 to 1/20 and your own), series, and its marks. *Done* goes back.
 - **Time layers**: add as many as you like (*+ Time layer*, or a layer's menu). Each counts from the start of the piece, the span, or a box (*Count from*): a layer counting from a box reads the time inside it (negative before it) and follows the box. Clicking any time layer moves the playhead. The last time layer cannot be deleted.
 - The proportion layer you last clicked is the **active** one (a small square before its name): its grid shows through the tracks, and *Use as the ruler's frame* and new box proportions refer to it.
@@ -335,7 +337,7 @@ In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ 
 - Add the three lanes (a ruler layer's menu > *Add a lane below*, or *+ Lane...* in the ruler panel). Give boxes energies, second energies, types, levels (also along a box) and roles, and watch the lanes; overlap boxes (thicker bars); mute a track (it leaves the lanes).
 - Click a lane row: the boxes behind it are highlighted; click again. Sizes S, M, L (menu and panel); reorder and hide lanes; save a ruler preset with lanes and apply it.
 - Signs in light green; drag a box below the last track (a new track; one undo).
-- Lane sizes: S, M, L (menu and panel), and drag a lane's lower edge.
+- Lane sizes: S, M, L (menu and panel), and drag a lane's lower edge. Make the lanes taller than half the window: the scroll bar appears and the whole page scrolls, so the tracks stay reachable; make them small again: the ruler stays at the top.
 - Save, quit, reopen.
 
 **Worth testing in stage 4c**:
