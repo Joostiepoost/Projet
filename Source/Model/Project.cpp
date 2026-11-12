@@ -3,6 +3,8 @@
 #include "Project.h"
 #include "Proportion.h"
 
+#include <functional>
+
 const char* fadeShapeName (FadeShape s)
 {
     switch (s)
@@ -133,7 +135,12 @@ juce::ValueTree Project::findTrack (const juce::String& trackId)
 
 juce::ValueTree Project::folderOf (const juce::ValueTree& track)
 {
-    return findTrack (track[IDs::folderId].toString());
+    // In the track's own list: the piece's, or a container's (stage 5a).
+    const auto id = track[IDs::folderId].toString();
+    if (id.isEmpty()) return {};
+    auto list = track.getParent();
+    if (! list.isValid()) list = getTracks();
+    return list.getChildWithProperty (IDs::id, id);
 }
 
 int Project::depthOf (const juce::ValueTree& track)
@@ -186,9 +193,9 @@ bool Project::effectiveSolo (const juce::ValueTree& track)
     return false;
 }
 
-bool Project::anySolo()
+bool Project::anySolo (const juce::ValueTree& tracks)
 {
-    for (auto t : getTracks())
+    for (auto t : tracks)
         if ((bool) t[IDs::solo]) return true;
     return false;
 }
@@ -350,6 +357,17 @@ void Project::setKind (juce::ValueTree box, const juce::String& kind)
         if (! box.hasProperty (IDs::fadeInShape))  box.setProperty (IDs::fadeInShape, (int) FadeShape::sCurve, &undoManager);
         if (! box.hasProperty (IDs::fadeOutShape)) box.setProperty (IDs::fadeOutShape, (int) FadeShape::sCurve, &undoManager);
     }
+    else if (kind == "container")
+    {
+        // A box that has never been a container gets an empty timeline of its own.
+        if (! box.getChildWithName (IDs::TIMELINE).isValid()) box.appendChild (makeTimeline (true), &undoManager);
+        if (! box.hasProperty (IDs::gainDb))       box.setProperty (IDs::gainDb, 0.0, &undoManager);
+        if (! box.hasProperty (IDs::fadeIn))       box.setProperty (IDs::fadeIn, 0.0, &undoManager);
+        if (! box.hasProperty (IDs::fadeOut))      box.setProperty (IDs::fadeOut, 0.0, &undoManager);
+        if (! box.hasProperty (IDs::fadeInShape))  box.setProperty (IDs::fadeInShape, (int) FadeShape::sCurve, &undoManager);
+        if (! box.hasProperty (IDs::fadeOutShape)) box.setProperty (IDs::fadeOutShape, (int) FadeShape::sCurve, &undoManager);
+        if (! box.hasProperty (IDs::innerLength))  box.setProperty (IDs::innerLength, boxLength (box), &undoManager);
+    }
 }
 
 void Project::setSound (juce::ValueTree box, const juce::String& soundId)
@@ -370,10 +388,21 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
 
     auto right = box.createCopy();
     right.setProperty (IDs::id, newId(), nullptr);
+    renewInnerIds (right);
     right.setProperty (IDs::start, t, nullptr);
     right.setProperty (IDs::length, end - t, nullptr);
     if (box.hasProperty (IDs::offset))
         right.setProperty (IDs::offset, (double) box[IDs::offset] + (t - start), nullptr);
+
+    // A container: each part shows its own stretch of the same inner
+    // timeline (a copy), at the same scale.
+    if (isContainer (box))
+    {
+        const double k = containerScale (box);
+        right.setProperty (IDs::innerOffset, innerOffset (box) + (t - start) / k, nullptr);
+        right.setProperty (IDs::innerLength, (end - t) / k, nullptr);
+        box.setProperty (IDs::innerLength, (t - start) / k, &undoManager);
+    }
 
     // The cut gets short fades so it does not click; the outer fades stay where they were.
     constexpr double cutFade = 0.005;
@@ -447,6 +476,7 @@ juce::ValueTree Project::duplicateBox (juce::ValueTree box)
 {
     auto copy = box.createCopy();
     copy.setProperty (IDs::id, newId(), nullptr);
+    renewInnerIds (copy);
     copy.setProperty (IDs::start, boxEnd (box), nullptr);
     refitProportions (copy);
     box.getParent().appendChild (copy, &undoManager);
@@ -488,6 +518,8 @@ void Project::trimStart (juce::ValueTree box, double newStart)
     const double delta = newStart - boxStart (box);
 
     if (isSound (box)) box.setProperty (IDs::offset, offset + delta, &undoManager);
+    // A window moves over the inner timeline; a stretched container scales its inside.
+    if (isContainer (box) && ! isStretch (box)) box.setProperty (IDs::innerOffset, innerOffset (box) + delta, &undoManager);
     rewriteProportions (box, newStart, end - newStart, &undoManager);
     box.setProperty (IDs::start, newStart, &undoManager);
     box.setProperty (IDs::length, end - newStart, &undoManager);
@@ -519,6 +551,13 @@ void Project::setFades (juce::ValueTree box, double fadeIn, double fadeOut)
     if (std::abs ((double) box[IDs::fadeOut] - fadeOut) > 1.0e-9) box.setProperty (IDs::fadeOut, fadeOut, &undoManager);
 }
 
+float Project::gainOpacity (double gainDb) noexcept
+{
+    constexpr double faintest = -72.0;
+    const double x = juce::jlimit (0.0, 1.0, (gainDb - faintest) / -faintest);
+    return 0.15f + 0.85f * (float) x;
+}
+
 double Project::getContentEnd()
 {
     double end = 0.0;
@@ -526,6 +565,286 @@ double Project::getContentEnd()
         for (auto b : t)
             end = juce::jmax (end, boxEnd (b));
     return end;
+}
+
+//== Containers (stage 5a) =====================================================
+
+double Project::innerLength (const juce::ValueTree& b)
+{
+    const double l = b.getProperty (IDs::innerLength, boxLength (b));
+    return l > 1.0e-9 ? l : juce::jmax (minBoxLength, boxLength (b));
+}
+
+double Project::containerScale (const juce::ValueTree& b)
+{
+    if (! isStretch (b)) return 1.0;
+    return juce::jmax (1.0e-9, boxLength (b)) / innerLength (b);
+}
+
+double Project::outerLength (const juce::ValueTree& container, const juce::ValueTree& inner)
+{
+    return isSound (inner) ? boxLength (inner) : boxLength (inner) * containerScale (container);
+}
+
+juce::Array<juce::ValueTree> Project::innerLanes (const juce::ValueTree& container)
+{
+    juce::Array<juce::ValueTree> lanes;
+    for (auto t : innerTracks (container))
+        if (! isFolder (t)) lanes.add (t);
+    return lanes;
+}
+
+juce::ValueTree Project::makeTrack (const juce::String& name, int colour)
+{
+    juce::ValueTree t (IDs::TRACK);
+    t.setProperty (IDs::id, newId(), nullptr);
+    t.setProperty (IDs::name, name, nullptr);
+    t.setProperty (IDs::colour, colour, nullptr);
+    t.setProperty (IDs::height, 72, nullptr);
+    t.setProperty (IDs::mute, false, nullptr);
+    t.setProperty (IDs::solo, false, nullptr);
+    return t;
+}
+
+juce::ValueTree Project::makeTimeline (bool withTrack)
+{
+    juce::ValueTree timeline (IDs::TIMELINE);
+    juce::ValueTree tracks (IDs::TRACKS);
+    if (withTrack) tracks.appendChild (makeTrack ("Track 1", 0), nullptr);
+    timeline.appendChild (tracks, nullptr);
+    return timeline;
+}
+
+juce::ValueTree Project::makeContainer (double start, double length, const juce::String& name)
+{
+    length = juce::jmax (minBoxLength, length);
+    juce::ValueTree b (IDs::BOX);
+    b.setProperty (IDs::id, newId(), nullptr);
+    b.setProperty (IDs::kind, "container", nullptr);
+    b.setProperty (IDs::name, name, nullptr);
+    b.setProperty (IDs::start, juce::jmax (0.0, start), nullptr);
+    b.setProperty (IDs::length, length, nullptr);
+    b.setProperty (IDs::gainDb, 0.0, nullptr);
+    b.setProperty (IDs::fadeIn, 0.0, nullptr);
+    b.setProperty (IDs::fadeOut, 0.0, nullptr);
+    b.setProperty (IDs::fadeInShape, (int) FadeShape::sCurve, nullptr);
+    b.setProperty (IDs::fadeOutShape, (int) FadeShape::sCurve, nullptr);
+    b.setProperty (IDs::stretch, true, nullptr);
+    b.setProperty (IDs::innerLength, length, nullptr);
+    b.setProperty (IDs::innerOffset, 0.0, nullptr);
+    b.setProperty (IDs::notes, juce::String(), nullptr);
+    b.appendChild (makeTimeline (false), nullptr);
+    return b;
+}
+
+juce::ValueTree Project::addContainer (juce::ValueTree track, double start, double length, const juce::String& name)
+{
+    if (! track.isValid() || isFolder (track)) return {};
+    auto b = makeContainer (start, length, name);
+    innerTracks (b).appendChild (makeTrack ("Track 1", (int) track[IDs::colour]), nullptr);
+    track.appendChild (b, &undoManager);
+    return b;
+}
+
+juce::ValueTree Project::groupIntoContainer (const juce::Array<juce::ValueTree>& boxes)
+{
+    // Boxes on tracks of one timeline (the first box's), in their order there.
+    juce::ValueTree list;
+    juce::Array<juce::ValueTree> items;
+    for (auto b : boxes)
+    {
+        auto track = b.getParent();
+        if (! b.hasType (IDs::BOX) || ! track.isValid() || isFolder (track)) continue;
+        if (! list.isValid()) list = track.getParent();
+        if (track.getParent() != list || items.contains (b)) continue;
+        items.add (b);
+    }
+    if (items.isEmpty() || ! list.isValid()) return {};
+    std::sort (items.begin(), items.end(), [&list] (const juce::ValueTree& x, const juce::ValueTree& y)
+    {
+        const int tx = list.indexOf (x.getParent()), ty = list.indexOf (y.getParent());
+        return tx != ty ? tx < ty : x.getParent().indexOf (x) < y.getParent().indexOf (y);
+    });
+
+    double start = 1.0e12, end = 0.0;
+    juce::Array<juce::ValueTree> sources;
+    for (auto b : items)
+    {
+        start = juce::jmin (start, boxStart (b));
+        end = juce::jmax (end, boxEnd (b));
+        if (! sources.contains (b.getParent())) sources.add (b.getParent());
+    }
+
+    // Inside: a copy of each track the boxes came from, with the folders
+    // around it (so their colours and framework values carry on).
+    auto container = makeContainer (start, end - start, "Container");
+    auto inner = innerTracks (container);
+    std::map<juce::String, juce::String> ids;          // outer track id -> its copy's
+    std::function<void (const juce::ValueTree&)> mirror = [&] (const juce::ValueTree& t)
+    {
+        const auto id = t[IDs::id].toString();
+        if (ids.count (id) > 0) return;
+        auto f = folderOf (t);
+        if (f.isValid()) mirror (f);
+        juce::ValueTree copy (IDs::TRACK);
+        copy.copyPropertiesFrom (t, nullptr);
+        copy.setProperty (IDs::id, newId(), nullptr);
+        if (f.isValid()) copy.setProperty (IDs::folderId, ids[f[IDs::id].toString()], nullptr);
+        if (isFolder (copy)) copy.setProperty (IDs::folded, false, nullptr);
+        ids[id] = copy[IDs::id].toString();
+        inner.appendChild (copy, nullptr);
+    };
+    for (auto t : sources) mirror (t);
+
+    sources.getFirst().appendChild (container, &undoManager);
+    for (auto b : items)
+    {
+        auto destination = inner.getChildWithProperty (IDs::id, ids[b.getParent()[IDs::id].toString()]);
+        b.getParent().removeChild (b, &undoManager);
+        b.setProperty (IDs::start, boxStart (b) - start, &undoManager);
+        destination.appendChild (b, &undoManager);
+    }
+    return container;
+}
+
+juce::Array<juce::ValueTree> Project::ungroupContainer (juce::ValueTree container)
+{
+    juce::Array<juce::ValueTree> moved;
+    auto track = container.getParent();
+    auto list = track.getParent();
+    if (! isContainer (container) || ! track.isValid() || ! list.isValid()) return moved;
+
+    // Where each box sounded: outer = base + t * k (sounds keep their length,
+    // the rest scales; containers inside take the scale with them).
+    const double k = containerScale (container);
+    const double base = boxStart (container) - innerOffset (container) * k;
+    int insertAt = list.indexOf (track) + 1;
+
+    for (auto lane : innerLanes (container))
+    {
+        const auto name = lane[IDs::name].toString();
+        juce::ValueTree destination;
+        if (track[IDs::name].toString() == name) destination = track;
+        else
+            for (auto t : list)
+                if (! isFolder (t) && t[IDs::name].toString() == name) { destination = t; break; }
+        if (! destination.isValid())
+        {
+            destination = makeTrack (name, (int) lane[IDs::colour]);
+            if (track.hasProperty (IDs::folderId)) destination.setProperty (IDs::folderId, track[IDs::folderId], nullptr);
+            list.addChild (destination, insertAt++, &undoManager);
+        }
+
+        juce::Array<juce::ValueTree> inside;
+        for (auto b : lane) inside.add (b);
+        for (auto b : inside)
+        {
+            const double outerStart = juce::jmax (0.0, base + boxStart (b) * k);
+            lane.removeChild (b, &undoManager);
+            scaleBox (b, k);
+            rewriteProportions (b, outerStart, boxLength (b), &undoManager);
+            b.setProperty (IDs::start, outerStart, &undoManager);
+            destination.appendChild (b, &undoManager);
+            moved.add (b);
+        }
+    }
+    track.removeChild (container, &undoManager);
+    return moved;
+}
+
+void Project::scaleBox (juce::ValueTree box, double k)
+{
+    if (std::abs (k - 1.0) < 1.0e-12 || isSound (box)) return;
+    box.setProperty (IDs::length, juce::jmax (minBoxLength, boxLength (box) * k), &undoManager);
+    if (! isContainer (box)) return;
+    box.setProperty (IDs::fadeIn, (double) box.getProperty (IDs::fadeIn, 0.0) * k, &undoManager);
+    box.setProperty (IDs::fadeOut, (double) box.getProperty (IDs::fadeOut, 0.0) * k, &undoManager);
+    if (! isStretch (box))
+    {
+        // A window keeps scale 1, so its inside takes the scale itself; a
+        // stretched container's scale follows its new length.
+        box.setProperty (IDs::innerOffset, innerOffset (box) * k, &undoManager);
+        scaleTimeline (innerTracks (box), k);
+    }
+}
+
+void Project::scaleTimeline (juce::ValueTree tracks, double k)
+{
+    for (auto t : tracks)
+        for (auto b : t)
+        {
+            b.setProperty (IDs::start, boxStart (b) * k, &undoManager);
+            scaleBox (b, k);
+        }
+}
+
+void Project::setStretch (juce::ValueTree c, bool stretch)
+{
+    if (! isContainer (c) || isStretch (c) == stretch) return;
+    if (! stretch)
+    {
+        // Bake the present scale into the inside, so nothing moves.
+        const double k = containerScale (c);
+        if (std::abs (k - 1.0) > 1.0e-12)
+        {
+            scaleTimeline (innerTracks (c), k);
+            c.setProperty (IDs::innerOffset, innerOffset (c) * k, &undoManager);
+        }
+    }
+    c.setProperty (IDs::innerLength, boxLength (c), &undoManager);
+    c.setProperty (IDs::stretch, stretch, &undoManager);
+}
+
+bool Project::swapBoxes (juce::ValueTree a, juce::ValueTree b)
+{
+    if (! a.isValid() || ! b.isValid() || a == b) return false;
+    auto ta = a.getParent(), tb = b.getParent();
+    if (! ta.isValid() || ! tb.isValid() || ta.getParent() != tb.getParent()) return false;
+    auto list = ta.getParent();
+
+    const double sa = boxStart (a), sb = boxStart (b);
+    const bool aFirst = std::abs (sa - sb) < 1.0e-12 ? list.indexOf (ta) <= list.indexOf (tb) : sa < sb;
+    auto early = aFirst ? a : b, late = aFirst ? b : a;
+    auto earlyTrack = early.getParent(), lateTrack = late.getParent();
+    const double earlyStart = boxStart (early), lateEnd = boxEnd (late);
+    moveBox (late, earlyTrack, earlyStart);
+    moveBox (early, lateTrack, lateEnd - boxLength (early));
+    return true;
+}
+
+void Project::renewInnerIds (juce::ValueTree box)
+{
+    auto timeline = box.getChildWithName (IDs::TIMELINE);
+    if (! timeline.isValid()) return;
+
+    std::map<juce::String, juce::String> ids;
+    std::function<void (juce::ValueTree)> assign = [&] (juce::ValueTree node)
+    {
+        for (auto child : node)
+        {
+            if ((child.hasType (IDs::TRACK) || child.hasType (IDs::BOX)) && child.hasProperty (IDs::id))
+            {
+                const auto fresh = newId();
+                ids[child[IDs::id].toString()] = fresh;
+                child.setProperty (IDs::id, fresh, nullptr);
+            }
+            assign (child);
+        }
+    };
+    std::function<void (juce::ValueTree)> follow = [&] (juce::ValueTree node)
+    {
+        for (auto child : node)
+        {
+            for (auto* property : { &IDs::folderId, &IDs::propFrame })
+            {
+                auto it = ids.find (child[*property].toString());
+                if (it != ids.end()) child.setProperty (*property, it->second, nullptr);
+            }
+            follow (child);
+        }
+    };
+    assign (timeline);
+    follow (timeline);
 }
 
 //== Proportion frames =========================================================

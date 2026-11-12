@@ -571,6 +571,16 @@ void MainComponent::addTextBox (juce::ValueTree track, double start)
     inspector.focusNotes();
 }
 
+void MainComponent::addContainer (juce::ValueTree track, double start)
+{
+    if (! track.isValid() || Project::isFolder (track)) track = timeline.getSelectedLaneTrack();
+    if (! track.isValid()) return;
+    project.getUndoManager().beginNewTransaction ("New container");
+    // About 240 pixels long at the current zoom, at least 4 s.
+    auto box = project.addContainer (track, start, juce::jmax (4.0, 240.0 / timeline.getPixelsPerSecond()));
+    timeline.selectBox (box);
+}
+
 void MainComponent::editNotes (juce::ValueTree box)
 {
     timeline.selectBox (box);
@@ -655,6 +665,7 @@ void MainComponent::paste()
         const auto id = Project::newId();
         newIds[copy[IDs::id].toString()] = id;
         copy.setProperty (IDs::id, id, nullptr);
+        Project::renewInnerIds (copy);                 // a container's inside too (5a)
         copy.setProperty (IDs::start, t + item.timeOffset, nullptr);
         copies.push_back (copy);
     }
@@ -754,7 +765,8 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& c)
                   cmdUndo, cmdRedo, cmdDelete, cmdDuplicate, cmdDeselect,
                   cmdPlayStop, cmdToStart, cmdZoomIn, cmdZoomOut, cmdZoomFit,
                   cmdAddTrack, cmdAudioSettings, cmdShortcuts,
-                  cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel });
+                  cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel,
+                  cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap });
 }
 
 void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommandInfo& info)
@@ -817,6 +829,18 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case cmdPaste:         info.setInfo ("Paste at playhead", "Paste on the selected track at the playhead", "Edit", 0); info.addDefaultKeypress ('v', cmd); info.setActive (open && ! clipboard.empty()); break;
         case cmdSelectAll:     info.setInfo ("Select all boxes", "Select every box", "Edit", 0); info.addDefaultKeypress ('a', cmd); info.setActive (open); break;
         case cmdNotesWindow:   info.setInfo ("Notes in a large window", "Open the selected box's notes in a large window", "Edit", 0); info.addDefaultKeypress ('e', cmd); info.setActive (open); break;
+        case cmdNewContainer:  info.setInfo ("New container", "An empty container on the selected track at the playhead", "Edit", 0); info.addDefaultKeypress ('b', cmd | shift); info.setActive (open); break;
+        case cmdGroup:         info.setInfo ("Group into a container", "Put the selected boxes in a new container that spans them", "Edit", 0); info.addDefaultKeypress ('g', cmd); info.setActive (hasBox); break;
+        case cmdUngroup:
+        {
+            bool any = false;
+            if (hasProject()) for (auto b : timeline.getSelectedBoxes()) any = any || Project::isContainer (b);
+            info.setInfo ("Ungroup", "Put the selected containers' boxes back on the tracks", "Edit", 0);
+            info.addDefaultKeypress ('g', cmd | shift);
+            info.setActive (any);
+            break;
+        }
+        case cmdSwap:          info.setInfo ("Swap the two boxes", "The two selected boxes change places, each keeping its length", "Edit", 0); info.setActive (hasProject() && timeline.getSelectedBoxes().size() == 2); break;
         default: break;
     }
 }
@@ -855,6 +879,33 @@ bool MainComponent::perform (const InvocationInfo& info)
         case cmdPaste:        paste(); break;
         case cmdSelectAll:    timeline.selectAll(); break;
         case cmdNotesWindow:  openNotesWindow(); break;
+        case cmdNewContainer: addContainer (timeline.getSelectedLaneTrack(), engine.getPositionSeconds()); break;
+        case cmdGroup:
+        {
+            auto boxes = timeline.getSelectedBoxes();
+            if (boxes.isEmpty()) break;
+            project.getUndoManager().beginNewTransaction ("Group into a container");
+            auto c = project.groupIntoContainer (boxes);
+            if (c.isValid()) timeline.selectBox (c);
+            break;
+        }
+        case cmdUngroup:
+        {
+            juce::Array<juce::ValueTree> moved;
+            project.getUndoManager().beginNewTransaction ("Ungroup");
+            for (auto b : timeline.getSelectedBoxes())
+                if (Project::isContainer (b)) moved.addArray (project.ungroupContainer (b));
+            timeline.setSelection (moved);
+            break;
+        }
+        case cmdSwap:
+        {
+            auto boxes = timeline.getSelectedBoxes();
+            if (boxes.size() != 2) break;
+            project.getUndoManager().beginNewTransaction ("Swap");
+            project.swapBoxes (boxes[0], boxes[1]);
+            break;
+        }
         case cmdDeselect:     timeline.selectBox ({}); break;
 
         case cmdPlayStop:     playStop(); break;
@@ -905,7 +956,8 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             add ({ 0, cmdSaveProject, cmdRevealFolder, 0, cmdImport });
             break;
         }
-        case 1: add ({ cmdUndo, cmdRedo, 0, cmdCut, cmdCopy, cmdPaste, cmdDuplicate, cmdDelete, 0, cmdSplit, cmdNewTextBox, cmdNotesWindow, 0, cmdSelectAll, cmdDeselect }); break;
+        case 1: add ({ cmdUndo, cmdRedo, 0, cmdCut, cmdCopy, cmdPaste, cmdDuplicate, cmdDelete, 0, cmdSplit, cmdNewTextBox, cmdNotesWindow,
+                       0, cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, 0, cmdSelectAll, cmdDeselect }); break;
         case 2:
         {
             add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit, 0, cmdTogglePanel });

@@ -1,8 +1,9 @@
 // Project.h — Projet's piece: sounds, tracks and boxes (a juce::ValueTree with
 // undo). Saved as readable JSON in the project folder (see ProjectFolder.h).
 //
-// Boxes may overlap on a track (sounds blend into each other); opacity is
-// visual only.
+// Boxes may overlap on a track (sounds blend into each other). Sound boxes
+// and containers are drawn fainter the quieter they are (gainOpacity, 5a);
+// a text box's opacity is visual only.
 
 #pragma once
 
@@ -70,7 +71,9 @@ public:
     int effectiveColour (const juce::ValueTree& track);
     bool effectiveMute (const juce::ValueTree& track);
     bool effectiveSolo (const juce::ValueTree& track);
-    bool anySolo();
+    bool anySolo()                                  { return anySolo (getTracks()); }
+    /** True if a track or folder in this list (the piece's, or a container's) is soloed. */
+    static bool anySolo (const juce::ValueTree& tracks);
     /** The tracks that can hold boxes (not folders), in order. */
     juce::Array<juce::ValueTree> laneTracks();
     /** Index just after the last track inside the folder (or after the track). */
@@ -126,6 +129,60 @@ public:
 
     /** End of the last box (0 if there are none). */
     double getContentEnd();
+
+    /** How opaque a sound box or container is drawn: -72 dB or less the
+        faintest (0.15), 0 dB and more fully opaque, linear in dB between. */
+    static float gainOpacity (double gainDb) noexcept;
+
+    //== Containers (stage 5a) ================================================
+    // A container is a box whose content is a timeline of its own: a TIMELINE
+    // child holding TRACKS (tracks, folders and boxes; containers again). A
+    // point t of the inner timeline lies at
+    //     start + (t - innerOffset) * scale
+    // outside. Stretch (the default): scale = length / innerLength, so the
+    // inside follows the box when it changes length. Window: scale 1; the box
+    // shows inner time from innerOffset on, as a sound box shows its sound.
+    // Sounds keep their speed and length at any scale (no varispeed): only
+    // their starts move, and what runs past the container's end is cut.
+    // Text boxes and containers inside scale their lengths.
+    static bool isContainer (const juce::ValueTree& b)             { return kindOf (b) == "container"; }
+    /** Sound boxes and containers have a gain and fades. */
+    static bool isAudible (const juce::ValueTree& b)               { return isSound (b) || isContainer (b); }
+    /** The container's inner tracks (invalid for other boxes). */
+    static juce::ValueTree innerTracks (const juce::ValueTree& box) { return box.getChildWithName (IDs::TIMELINE).getChildWithName (IDs::TRACKS); }
+    static bool isStretch (const juce::ValueTree& b)               { return (bool) b.getProperty (IDs::stretch, true); }
+    static double innerOffset (const juce::ValueTree& b)           { return (double) b.getProperty (IDs::innerOffset, 0.0); }
+    static double innerLength (const juce::ValueTree& b);
+    /** Outer seconds per inner second. */
+    static double containerScale (const juce::ValueTree& b);
+    static double toOuter (const juce::ValueTree& container, double innerTime)  { return boxStart (container) + (innerTime - innerOffset (container)) * containerScale (container); }
+    static double toInner (const juce::ValueTree& container, double outerTime)  { return innerOffset (container) + (outerTime - boxStart (container)) / containerScale (container); }
+    /** How long a box inside the container lasts outside it. */
+    static double outerLength (const juce::ValueTree& container, const juce::ValueTree& inner);
+    /** The inner tracks that can hold boxes, in order. */
+    static juce::Array<juce::ValueTree> innerLanes (const juce::ValueTree& container);
+
+    /** An empty container (one inner track), stretched. Undoable. */
+    juce::ValueTree addContainer (juce::ValueTree track, double start, double length, const juce::String& name = "Container");
+    /** Puts the boxes (all on tracks of the same timeline) into a new
+        container that spans them, on the first of their tracks. Inside,
+        tracks mirror the ones they came from (with their folders), each box
+        in the same place. Undoable; invalid if there is nothing to group. */
+    juce::ValueTree groupIntoContainer (const juce::Array<juce::ValueTree>& boxes);
+    /** Puts the container's boxes back on the tracks of the same names
+        (new tracks below the container's where there are none), where they
+        sounded; the container goes. Undoable. */
+    juce::Array<juce::ValueTree> ungroupContainer (juce::ValueTree container);
+    /** Stretch to window bakes the present scale in (nothing moves); window
+        to stretch makes the present length the inner length. Undoable. */
+    void setStretch (juce::ValueTree container, bool stretch);
+    /** Two boxes change places, each keeping its length: the later one starts
+        where the earlier one started, the earlier one ends where the later
+        one ended (on each other's tracks). Undoable. */
+    bool swapBoxes (juce::ValueTree a, juce::ValueTree b);
+    /** New ids for everything inside a box (a container's tracks and boxes),
+        for copies; references inside (folders, frames) follow. */
+    static void renewInnerIds (juce::ValueTree box);
 
     //== Proportion frames (stage 3a) =========================================
     struct Frame
@@ -348,6 +405,14 @@ private:
     /** For a locked, bound box: its proportions become these times. */
     void rewriteProportions (juce::ValueTree box, double newStart, double newLength, juce::UndoManager* undo);
     void freezePieceLengthFor (const juce::String& ref);
+    static juce::ValueTree makeTrack (const juce::String& name, int colour);
+    static juce::ValueTree makeTimeline (bool withTrack);
+    static juce::ValueTree makeContainer (double start, double length, const juce::String& name);
+    /** Scales what a box shows by k, its start aside (see scaleTimeline). */
+    void scaleBox (juce::ValueTree box, double k);
+    /** Inner times times k: starts, text box and container lengths (sounds
+        keep theirs); window containers inside scale their contents too. */
+    void scaleTimeline (juce::ValueTree tracks, double k);
 
     bool applying = false, loading = false;
     int changeCount = 0;
