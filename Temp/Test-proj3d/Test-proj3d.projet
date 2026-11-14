@@ -177,7 +177,7 @@
           "kind": "lane",
           "lane": "composition.energies",
           "name": "Energies",
-          "height": 240,
+          "height": 129,
           "visible": true
         },
         {
@@ -186,7 +186,7 @@
           "kind": "lane",
           "lane": "schaeffer.typology",
           "name": "Typology",
-          "height": 202,
+          "height": 103,
           "visible": true
         },
         {
@@ -194,7 +194,7 @@
           "id": "f46128827bc14623b2d33d888a120769",
           "kind": "time",
           "name": "Time",
-          "height": 47,
+          "height": 52,
           "visible": true,
           "frame": "da978678499a49918e2949fd43acb4e8"
         },
@@ -204,7 +204,7 @@
           "kind": "lane",
           "lane": "thoresen.dynamic",
           "name": "Dynamic form",
-          "height": 172,
+          "height": 110,
           "visible": true
         },
         {
@@ -213,7 +213,7 @@
           "kind": "lane",
           "lane": "composition.semiotic",
           "name": "Semiotic profile",
-          "height": 198,
+          "height": 109,
           "visible": true
         }
       ]
