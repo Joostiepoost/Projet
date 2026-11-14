@@ -48,8 +48,10 @@ Other options:
 | 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | done |
 | 4c | Junctions (from the timing or chosen), endings and mixing relations, with Thoresen's signs; the profile's peak; hiding and widening the panel | done |
 | 4d.1 | Folders from a category (the semiotic track template); writing type and time-feel on folders, a writing type's mixing relation; overview lanes: energies, typology, semiotic profile | done |
-| 4d.2 | The dynamic form lane (Thoresen: form-building functions, deltas, goals, accents), drawn by hand; nodes on folders, with their checks | built, to test |
-| 5 | Nesting: container boxes, window/stretch, dive-in, outline panel | |
+| 4d.2 | The dynamic form lane (Thoresen: form-building functions, deltas, goals, accents), drawn by hand; nodes on folders, with their checks | done |
+| 5a | Containers: boxes holding a timeline of their own, stretch or window, grouping and ungrouping, nested playback, a miniature of the inside; opacity follows gain; swapping boxes | built, to test |
+| 5b | Moving between levels: dive-in, context strip, breadcrumbs, outline panel | |
+| 5c | The framework on containers: section fields, the dynamic form attached, time-field brackets, typological formulas | |
 | 6 | Magnified inline expansion | |
 | 7 | Takes | |
 | 8 | Relations, materials, origin | |
@@ -58,7 +60,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 
-## Using Projet (stages 1–4d.2)
+## Using Projet (stages 1–5a)
 
 ### The project folder
 
@@ -98,7 +100,7 @@ Every piece is a folder:
 - **Edges**: drag to trim. The sound stays in place under the box (the left edge moves into or out of the sound).
 - **Fades**: drag the small white squares at the top corners.
 - Moving and trimming snap to box edges, the playhead and 0:00; hold **Shift** to move freely.
-- **Right-click a box**: write notes, notes in a large window, split at playhead, duplicate, delete, change kind, show original sound in Finder. Cmd-D duplicates, Delete/Backspace deletes (both act on every selected box).
+- **Right-click a box**: write notes, notes in a large window, split at playhead, duplicate, delete, change kind (sound, text, container), put it in a container (stage 5a), show original sound in Finder. Cmd-D duplicates, Delete/Backspace deletes (both act on every selected box).
 - **Split at playhead (Cmd-T)**: cuts the selected boxes at the playhead; with nothing selected, every box under the playhead. Short 5 ms fades are put on the cut so it does not click.
 - **Copy, Cut, Paste (Cmd-C, Cmd-X, Cmd-V)**: paste puts the boxes at the playhead, starting on the selected track, keeping their spacing in time and between tracks; tracks are added when needed.
 - **Track header**: **M** mutes, **S** solos (several tracks can be soloed). Double-click the name to rename. Right-click: rename, colour, add a track above or below, delete. **+ Track** at the bottom (or Shift-Cmd-N) adds one.
@@ -291,6 +293,20 @@ In a package, a value's `implies`: `{ "category": "vandegorne.mixing", "value": 
 
 In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ "kind": "drawn", "spans": "function", "emphasis": "emphasis", "height": "height", "goal": "goal", "goalOn": ["forward", "delta", "plateau"], "points": "accent", "pointBase": "M5.5 6 L14.5 6 L10 14 Z" }` names them. A span kind's `shape` is `forward`, `backward`, `presence`, `neutral`, `wavering`, `delta` or `plateau`; an emphasis' `stroke` is `dashed`, `solid` or `bold`; a height's `size` its share of the row; a goal's `sign` an SVG path drawn upwards from the high corner at 0, 0 (10 units: the space above the span), and `early` for a blunted goal (where the main slope arrives); an accent's `sign` (stroked) and `signFill` (filled) are paths in a 20 by 20 box around the point at 10, 10, over the lane's filled `pointBase`.
 
+### Containers (stage 5a)
+
+A **container** is a box whose content is a timeline of its own: tracks, folders and boxes, any of which can be containers again. On the timeline it shows a miniature of what it holds: its inner tracks as thin rows, their boxes as small blocks where they sound, under a header with its name and its scale. A double edge tells it from a sound box.
+- **Make one**: select boxes and **Cmd-G** (*Edit > Group into a container*, or right-click > *Group into a container*). The container spans them, on the first of their tracks; inside, tracks copy the ones they came from (name, colour, mute and solo, and the folders around them, with their framework values), each box in the same place. Or right-click a box > *Change to > Container* (the box keeps its notes; it gets an empty timeline of its own, kept if you change it back), or **Shift-Cmd-B** for an empty one at the playhead. Until stage 5b brings dive-in, grouping is the way to put boxes inside.
+- **Stretch** (the default): the inside scales with the box. Drag either edge and the starts inside move in proportion; the header shows the scale (stretch ×1.50). **Sounds keep their speed and length** (no varispeed): only where they start moves, and what runs past the container's end is cut with a 5 ms fade. Text boxes and containers inside scale their lengths.
+- **Window**: the inside keeps its own time. Drag the right edge to show more or less of it; drag the left edge to move the window over it, as a sound box moves over its sound. What lies outside the window is silent, cut with a 5 ms fade.
+- **Switching** (right-click, or *Inside* in the panel): stretch to window bakes the present scale into the inside, so nothing moves or changes sound; window to stretch makes the present length the inside's length.
+- **Ungroup** (**Shift-Cmd-G**, or right-click): the boxes go back on the tracks of the same names (a new track below the container's where there is none), where they sounded; the container goes. Everything inside comes back, also what a window hid or the end cut, in full.
+- **Playback** goes through every level: the inner tracks' mutes and solos (a solo counts within its own container), the container's **gain** and **fades**, and its edges.
+- Split (Cmd-T) a container and each part shows its own stretch of a copy of the inside, at the same scale. Duplicate, copy and paste copy the inside too. Junctions, signs, marks and framework values work on containers as on any box.
+- **Swap** two selected boxes (*Edit > Swap the two boxes*, or right-click): the later one starts where the earlier one started, the earlier one ends where the later one ended, each keeping its length (and taking the other's track).
+
+**Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
+
 ### Folders (stage 3a)
 
 - Right-click a track > **Put in a new folder**. Folders can hold folders.
@@ -306,18 +322,31 @@ In a package, a category with `"on": "lane"` belongs to a drawn lane; a lane `{ 
 
 - **Several boxes selected**: how many, and what you can do with them.
 - **A text box selected**: name, kind, opacity, times, notes.
+- **A container selected**: name, kind, gain and fades, *Inside* (stretch or window), what it holds and how its inside lies under it, times, proportions, notes.
 - **Box / Framework** (top of the panel, when boxes are selected): the box's own settings, or its framework values (see above).
 - **Display** and **Frameworks**: the framework's display settings and packages (*Done* goes back).
 - **Hide it** with the » at its top left, *View > Hide panel* or Cmd-Alt-I; the **Panel** button at the top brings it back. Drag its left edge to change its width.
-- **A sound box selected**: name, kind, sound, gain (−60 to +12 dB; double-click for 0), fade in and out with their shapes (linear, equal power, S-curve), **opacity** (visual only: overlapping boxes show through), start, end, length and offset into the sound, and the sound (copy, original, rates).
+- **A sound box selected**: name, kind, sound, gain (−72 to +12 dB; double-click for 0; the box is drawn fainter the quieter it is), fade in and out with their shapes (linear, equal power, S-curve), start, end, length and offset into the sound, and the sound (copy, original, rates).
 - **Nothing selected**: the project: sample rate, number of tracks, boxes and sounds, size of the copies, length, folder; the format for new imports and the Vorbis quality.
 
 ### Playback
 
 - **Space** plays and stops; **Return** goes back to 0:00. The playhead follows during playback.
-- Overlapping boxes simply add up; their fades make the crossfade. For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
+- Overlapping boxes simply add up; their fades make the crossfade. Containers play what they hold, at every depth (stage 5a). For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+
+**Worth testing in stage 5a**:
+- Select boxes on two or three tracks (one inside a folder) and Cmd-G: one container on the first track, its miniature showing the boxes where they were. Play: it sounds as before. Undo, redo.
+- Drag its right edge out, then in: the starts inside spread out and close up, the sounds keep their length, and at the end they are cut (listen for clicks). The header shows the scale.
+- Right-click > *Window* (nothing moves), then drag the left edge: the window moves over the inside. Back to *Stretch*.
+- Mute a track, then group its boxes with others: inside, its copy stays muted, so the container sounds as before. (Inner tracks can be reached directly once dive-in comes, in 5b.)
+- Gain and fades on a container (panel or the small squares): what is inside follows. Sounds at −12, −36 and −72 dB: fainter and fainter; text boxes keep their opacity.
+- Group a container with other boxes (a container in a container); stretch the outer one.
+- Shift-Cmd-G ungroups: the boxes go back on their tracks, where they sounded (after a stretch, at the stretched places).
+- Split a container at the playhead, duplicate it, copy and paste it; change a text box to a container and back.
+- Select two boxes > *Swap the two boxes*: next to each other (the junction stays), and on two tracks.
+- Save, quit, reopen.
 
 **Worth testing in stage 4d.2**:
 - First, *Framework > Frameworks...*: thoresen (v4) and vandegorne (v3) — for each, *Library: take Projet's*, then *Take the library's*.

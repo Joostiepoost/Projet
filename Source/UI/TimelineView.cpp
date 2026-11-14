@@ -137,7 +137,7 @@ juce::ValueTree TimelineView::boxAt (juce::Point<float> p, Zone& zone)
         const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut]);
         const float top = r.getY();
 
-        if (Project::isSound (box) && r.getWidth() > 24.0f && p.y < top + handleSize + 4.0f)
+        if (Project::isAudible (box) && r.getWidth() > 24.0f && p.y < top + handleSize + 4.0f)
         {
             if (std::abs (p.x - fiX) <= handleSize) { zone = Zone::fadeInHandle; return box; }
             if (std::abs (p.x - foX) <= handleSize) { zone = Zone::fadeOutHandle; return box; }
@@ -727,7 +727,9 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
     auto r = boxBounds (box, row);
     const bool selected = isSelected (box);
     const bool sound = Project::isSound (box);
-    float alpha = juce::jlimit (0.15f, 1.0f, (float) (double) box.getProperty (IDs::opacity, 1.0));
+    // Sounds and containers are drawn as loud as they are (5a); text boxes have an opacity of their own.
+    float alpha = Project::isAudible (box) ? Project::gainOpacity (box.getProperty (IDs::gainDb, 0.0))
+                                           : juce::jlimit (0.15f, 1.0f, (float) (double) box.getProperty (IDs::opacity, 1.0));
     if (project.effectiveMute (row.track)) alpha *= 0.45f;     // muted track (or folder): dimmed
     if (highlight.isActive() && ! matchesHighlight (box)) alpha *= 0.22f;
     const auto wm = weightFor (box);                           // background roles recede (4b.2)
@@ -735,6 +737,12 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
     const auto base = boxColour (box, row);
     const bool colourMode = project.getState().getProperty (IDs::colourMode, "own").toString() != "own";
     const bool missing = sound && pool.get (box[IDs::soundId].toString()) == nullptr;
+
+    if (Project::isContainer (box))
+    {
+        paintContainer (g, box, r, alpha, base, selected, wm.emphasis);
+        return;
+    }
 
     if (! sound)
     {
@@ -796,33 +804,7 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
         g.reduceClipRegion (r.toNearestInt());
         paintWaveform (g, box, r.reduced (0.0f, 3.0f).withTrimmedTop (14.0f));
 
-        // Fades: shade the faded part and draw the curve.
-        const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn]);
-        const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut]);
-        auto drawFade = [&] (float x0, float x1, FadeShape shape, bool rising)
-        {
-            if (x1 - x0 < 1.0f) return;
-            juce::Path curve, shade;
-            const int steps = juce::jlimit (2, 64, (int) (x1 - x0) / 3);
-            for (int i = 0; i <= steps; ++i)
-            {
-                const double u = (double) i / steps;
-                const float gain = projet::fadeCurve (shape, rising ? u : 1.0 - u);
-                const float x = x0 + (x1 - x0) * (float) u;
-                const float y = r.getBottom() - gain * r.getHeight();
-                if (i == 0) curve.startNewSubPath (x, y); else curve.lineTo (x, y);
-            }
-            shade = curve;
-            shade.lineTo (x1, r.getY());
-            shade.lineTo (x0, r.getY());
-            shade.closeSubPath();
-            g.setColour (juce::Colours::black.withAlpha (0.28f));
-            g.fillPath (shade);
-            g.setColour (Theme::text.withAlpha (0.75f));
-            g.strokePath (curve, juce::PathStrokeType (1.0f));
-        };
-        drawFade (r.getX(), fiX, (FadeShape) (int) box[IDs::fadeInShape], true);
-        drawFade (foX, r.getRight(), (FadeShape) (int) box[IDs::fadeOutShape], false);
+        paintFades (g, box, r);
 
         // Name and gain
         g.setColour (Theme::text.withAlpha (juce::jmax (0.6f, alpha)));
@@ -832,19 +814,173 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
         if (std::abs (gainDb) > 0.05) label << "  " << (gainDb > 0 ? "+" : "") << juce::String (gainDb, 1) << " dB";
         if (missing) label << "  (loading...)";
         g.drawText (label, r.toNearestInt().reduced (6, 2).withHeight (16), juce::Justification::topLeft, true);
-
-        // Fade handles
-        if (r.getWidth() > 24.0f)
-        {
-            g.setColour (Theme::text);
-            g.fillRect (juce::Rectangle<float> (handleSize, handleSize).withCentre ({ juce::jlimit (r.getX() + 4.0f, r.getRight() - 4.0f, fiX), r.getY() + 4.0f }));
-            g.fillRect (juce::Rectangle<float> (handleSize, handleSize).withCentre ({ juce::jlimit (r.getX() + 4.0f, r.getRight() - 4.0f, foX), r.getY() + 4.0f }));
-        }
+        paintFadeHandles (g, box, r);
     }
 
     paintFrameworkMarks (g, box, r, alpha);
     g.setColour (selected ? Theme::accent : (wm.emphasis ? base.brighter (0.25f) : base).withAlpha (alpha));
     g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : (wm.emphasis ? 1.8f : 1.0f));
+}
+
+void TimelineView::paintFades (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r)
+{
+    // Shade the faded part and draw the curve.
+    const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn]);
+    const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut]);
+    auto drawFade = [&] (float x0, float x1, FadeShape shape, bool rising)
+    {
+        if (x1 - x0 < 1.0f) return;
+        juce::Path curve, shade;
+        const int steps = juce::jlimit (2, 64, (int) (x1 - x0) / 3);
+        for (int i = 0; i <= steps; ++i)
+        {
+            const double u = (double) i / steps;
+            const float gain = projet::fadeCurve (shape, rising ? u : 1.0 - u);
+            const float x = x0 + (x1 - x0) * (float) u;
+            const float y = r.getBottom() - gain * r.getHeight();
+            if (i == 0) curve.startNewSubPath (x, y); else curve.lineTo (x, y);
+        }
+        shade = curve;
+        shade.lineTo (x1, r.getY());
+        shade.lineTo (x0, r.getY());
+        shade.closeSubPath();
+        g.setColour (juce::Colours::black.withAlpha (0.28f));
+        g.fillPath (shade);
+        g.setColour (Theme::text.withAlpha (0.75f));
+        g.strokePath (curve, juce::PathStrokeType (1.0f));
+    };
+    drawFade (r.getX(), fiX, (FadeShape) (int) box[IDs::fadeInShape], true);
+    drawFade (foX, r.getRight(), (FadeShape) (int) box[IDs::fadeOutShape], false);
+}
+
+void TimelineView::paintFadeHandles (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r)
+{
+    if (r.getWidth() <= 24.0f) return;
+    const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn]);
+    const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut]);
+    g.setColour (Theme::text);
+    g.fillRect (juce::Rectangle<float> (handleSize, handleSize).withCentre ({ juce::jlimit (r.getX() + 4.0f, r.getRight() - 4.0f, fiX), r.getY() + 4.0f }));
+    g.fillRect (juce::Rectangle<float> (handleSize, handleSize).withCentre ({ juce::jlimit (r.getX() + 4.0f, r.getRight() - 4.0f, foX), r.getY() + 4.0f }));
+}
+
+void TimelineView::paintContainer (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha,
+                                   juce::Colour base, bool selected, bool emphasis)
+{
+    // A container (stage 5a): its inner tracks as thin rows, their boxes as
+    // small blocks where they sound, under a header with its name and scale.
+    g.setColour (base.darker (1.4f).withAlpha (alpha));
+    g.fillRoundedRectangle (r, 4.0f);
+    paintFrameworkFill (g, box, r, alpha);
+
+    {
+        juce::Graphics::ScopedSaveState s (g);
+        g.reduceClipRegion (r.toNearestInt());
+
+        auto header = r.withHeight (juce::jmin (16.0f, r.getHeight()));
+        g.setColour (base.darker (0.6f).withAlpha (alpha * 0.55f));
+        g.fillRect (header);
+        auto inside = r.withTrimmedTop (header.getHeight() + 2.0f).withTrimmedBottom (3.0f);
+        paintMiniature (g, box, inside, alpha, 0);
+        bool empty = true;
+        for (auto lane : Project::innerLanes (box)) empty = empty && lane.getNumChildren() == 0;
+        if (empty && inside.getHeight() > 12.0f)
+        {
+            g.setColour (Theme::textMuted.withAlpha (0.8f));
+            g.setFont (Theme::font (11.0f).italicised());
+            g.drawText ("empty", inside.reduced (7.0f, 2.0f), juce::Justification::topLeft, true);
+        }
+        paintFades (g, box, r);
+
+        juce::String label = box[IDs::name].toString();
+        const double gainDb = box.getProperty (IDs::gainDb, 0.0);
+        if (std::abs (gainDb) > 0.05) label << "  " << (gainDb > 0 ? "+" : "") << juce::String (gainDb, 1) << " dB";
+        const double k = Project::containerScale (box);
+        juce::String mode = Project::isStretch (box) ? (std::abs (k - 1.0) < 0.005 ? juce::String ("stretch")
+                                                                                 : "stretch " + juce::String::fromUTF8 ("\xc3\x97") + juce::String (k, k < 10.0 ? 2 : 1))
+                                                     : juce::String ("window");
+        auto text = r.toNearestInt().reduced (6, 0).withHeight (16);
+        g.setFont (Theme::font (10.5f));
+        g.setColour (Theme::textMuted.withAlpha (juce::jmax (0.6f, alpha)));
+        const int modeWidth = juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), mode) + 4;
+        if (text.getWidth() > modeWidth + 40) g.drawText (mode, text.removeFromRight (modeWidth), juce::Justification::centredRight, false);
+        g.setColour (Theme::text.withAlpha (juce::jmax (0.6f, alpha)));
+        g.setFont (Theme::font (12.0f, true));
+        g.drawText (label, text, juce::Justification::centredLeft, true);
+        paintFadeHandles (g, box, r);
+    }
+
+    paintFrameworkMarks (g, box, r, alpha);
+    // A double edge tells a container from a sound box.
+    const auto edge = selected ? Theme::accent : (emphasis ? base.brighter (0.25f) : base).withAlpha (alpha);
+    g.setColour (edge);
+    g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : (emphasis ? 1.8f : 1.0f));
+    if (r.getWidth() > 8.0f && r.getHeight() > 8.0f)
+    {
+        g.setColour (edge.withMultipliedAlpha (0.55f));
+        g.drawRoundedRectangle (r.reduced (selected ? 3.0f : 2.5f), 3.0f, 0.8f);
+    }
+}
+
+void TimelineView::paintMiniature (juce::Graphics& g, const juce::ValueTree& container, juce::Rectangle<float> area, float alpha, int depth)
+{
+    const auto lanes = Project::innerLanes (container);
+    if (lanes.isEmpty() || area.getHeight() < 2.0f) return;
+    const float rowH = area.getHeight() / (float) lanes.size();
+    const float gap = rowH >= 6.0f ? 1.0f : 0.0f;
+    const auto window = juce::Range<float> (area.getX(), area.getRight());
+
+    for (int i = 0; i < lanes.size(); ++i)
+    {
+        auto lane = lanes[i];
+        auto row = juce::Rectangle<float> (area.getX(), area.getY() + rowH * (float) i, area.getWidth(), rowH).reduced (0.0f, gap);
+        const auto colour = Theme::trackColour (project.effectiveColour (lane));
+        const bool muted = project.effectiveMute (lane);
+        if (rowH >= 5.0f)
+        {
+            g.setColour (colour.withAlpha (alpha * 0.10f));
+            g.fillRect (row);
+        }
+
+        for (auto b : lane)
+        {
+            // Where it lies outside: sounds keep their length, the rest scales.
+            const double start = Project::toOuter (container, Project::boxStart (b));
+            const float x0 = timeToX (start);
+            const float x1 = timeToX (start + Project::outerLength (container, b));
+            const auto span = window.getIntersectionWith ({ x0, juce::jmax (x0 + 1.0f, x1) });
+            if (span.isEmpty()) continue;
+            auto block = juce::Rectangle<float> (span.getStart(), row.getY(), juce::jmax (1.0f, span.getLength()), row.getHeight());
+            float a = alpha * (Project::isAudible (b) ? Project::gainOpacity (b.getProperty (IDs::gainDb, 0.0))
+                                                      : juce::jlimit (0.15f, 1.0f, (float) (double) b.getProperty (IDs::opacity, 1.0)));
+            if (muted) a *= 0.4f;
+
+            if (Project::isContainer (b))
+            {
+                g.setColour (colour.darker (0.8f).withAlpha (a * 0.9f));
+                g.fillRect (block);
+                if (depth < 3 && block.getHeight() >= 9.0f && block.getWidth() >= 6.0f)
+                {
+                    juce::Graphics::ScopedSaveState s (g);
+                    g.reduceClipRegion (block.toNearestInt());
+                    paintMiniature (g, b, block.reduced (0.0f, 1.0f), a, depth + 1);
+                }
+                g.setColour (colour.withAlpha (a));
+                g.drawRect (block, 1.0f);
+            }
+            else if (Project::isSound (b))
+            {
+                g.setColour (colour.withAlpha (a * 0.85f));
+                g.fillRect (block);
+            }
+            else
+            {
+                g.setColour (juce::Colour (0xffd6cbb2).withAlpha (a * 0.35f));
+                g.fillRect (block);
+                g.setColour (juce::Colour (0xff9a8f78).withAlpha (a));
+                g.drawRect (block, 1.0f);
+            }
+        }
+    }
 }
 
 //== Framework on the boxes (stage 4a, 4b) =====================================
@@ -2189,8 +2325,24 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
     m.addItem (1, several ? "Duplicate boxes" : "Duplicate");
     m.addItem (2, several ? "Delete boxes" : "Delete");
     m.addSeparator();
-    m.addItem (4, sound ? "Change to a text box" : "Change to a sound box", ! several);
+    {
+        juce::PopupMenu kinds;
+        const auto kind = Project::kindOf (box);
+        kinds.addItem (41, "Sound box", ! several, kind == "sound");
+        kinds.addItem (42, "Text box", ! several, kind == "text");
+        kinds.addItem (43, "Container", ! several, kind == "container");
+        m.addSubMenu ("Change to", kinds);
+    }
     if (sound) m.addItem (3, "Show original sound in Finder");
+    // Containers (stage 5a)
+    m.addItem (20, several ? "Group into a container" : "Put in a container");
+    if (Project::isContainer (box))
+    {
+        m.addItem (21, "Ungroup (contents back on the tracks)");
+        m.addItem (22, "Stretch (the inside follows its length)", true, Project::isStretch (box));
+        m.addItem (23, "Window (the inside keeps its own time)", true, ! Project::isStretch (box));
+    }
+    if (selectedBoxIds.size() == 2) m.addItem (24, "Swap the two boxes");
     m.addSeparator();
     const auto rulerFrame = project.getRulerFrame();
     const bool isFrame = rulerFrame == box[IDs::id].toString();
@@ -2220,7 +2372,7 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
     }
 
     juce::Component::SafePointer<TimelineView> safe (this);
-    m.showMenuAsync (juce::PopupMenu::Options(), [safe, box, sound] (int r) mutable
+    m.showMenuAsync (juce::PopupMenu::Options(), [safe, box] (int r) mutable
     {
         if (safe == nullptr || r == 0) return;
         auto& p = safe->project;
@@ -2242,10 +2394,31 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
             safe->selectBox ({});
         }
         else if (r == 3 && safe->onRevealOriginal) safe->onRevealOriginal (box);
-        else if (r == 4)
+        else if (r >= 41 && r <= 43)
         {
             p.getUndoManager().beginNewTransaction ("Change kind");
-            p.setKind (box, sound ? "text" : "sound");
+            p.setKind (box, r == 41 ? "sound" : (r == 42 ? "text" : "container"));
+        }
+        else if (r == 20)
+        {
+            p.getUndoManager().beginNewTransaction ("Group into a container");
+            auto c = p.groupIntoContainer (selection);
+            if (c.isValid()) safe->selectBox (c);
+        }
+        else if (r == 21)
+        {
+            p.getUndoManager().beginNewTransaction ("Ungroup");
+            safe->setSelection (p.ungroupContainer (box));
+        }
+        else if (r == 22 || r == 23)
+        {
+            p.getUndoManager().beginNewTransaction (r == 22 ? "Stretch" : "Window");
+            p.setStretch (box, r == 22);
+        }
+        else if (r == 24 && selection.size() == 2)
+        {
+            p.getUndoManager().beginNewTransaction ("Swap");
+            p.swapBoxes (selection[0], selection[1]);
         }
         else if (r == 5 && safe->onEditNotes) safe->onEditNotes (box);
         else if (r == 6 && safe->onOpenNotesWindow) safe->onOpenNotesWindow (box);

@@ -49,7 +49,7 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     title.setColour (juce::Label::textColourId, Theme::textMuted);
     addAndMakeVisible (title);
 
-    for (auto* l : { &nameLabel, &kindLabel, &soundLabel, &gainLabel, &fadeInLabel, &fadeOutLabel, &opacityLabel,
+    for (auto* l : { &nameLabel, &kindLabel, &soundLabel, &gainLabel, &fadeInLabel, &fadeOutLabel, &opacityLabel, &insideLabel,
                      &formatLabel, &qualityLabel, &notesLabel, &propLabel, &startLabel, &lengthLabel, &pieceLengthLabel })
     {
         styleLabel (*l);
@@ -64,16 +64,16 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     kindBox.addItem ("Sound", kindSound);
     kindBox.addItem ("Text", kindText);
     kindBox.addSeparator();
-    kindBox.addItem ("Container (stage 5)", kindContainer);
+    kindBox.addItem ("Container", kindContainer);
     kindBox.addItem ("Board (stage 11)", kindBoard);
     kindBox.addItem ("Codebox (later)", kindCodebox);
-    kindBox.setItemEnabled (kindContainer, false);
     kindBox.setItemEnabled (kindBoard, false);
     kindBox.setItemEnabled (kindCodebox, false);
     kindBox.onChange = [this]
     {
         if (updating || ! box.isValid()) return;
-        const auto kind = kindBox.getSelectedId() == kindText ? "text" : "sound";
+        const int id = kindBox.getSelectedId();
+        const auto kind = id == kindText ? "text" : (id == kindContainer ? "container" : "sound");
         project.getUndoManager().beginNewTransaction ("Change kind");
         project.setKind (box, kind);
     };
@@ -92,7 +92,7 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     addAndMakeVisible (soundBox);
 
     styleSlider (gain);
-    gain.setRange (-60.0, 12.0, 0.1);
+    gain.setRange (-72.0, 12.0, 0.1);          // -72 dB is drawn the faintest (5a)
     gain.setDoubleClickReturnValue (true, 0.0);
     gain.setSkewFactorFromMidPoint (-12.0);
     gain.onDragStart = [this] { project.getUndoManager().beginNewTransaction ("Gain"); };
@@ -147,7 +147,19 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     };
     addAndMakeVisible (opacity);
 
-    for (auto* l : { &times, &soundInfo, &projectInfo })
+    // Containers (stage 5a)
+    insideBox.addItem ("Stretch: follows the box's length", 1);
+    insideBox.addItem ("Window: keeps its own time", 2);
+    insideBox.onChange = [this]
+    {
+        if (updating || ! Project::isContainer (box)) return;
+        const bool stretch = insideBox.getSelectedId() == 1;
+        project.getUndoManager().beginNewTransaction (stretch ? "Stretch" : "Window");
+        project.setStretch (box, stretch);
+    };
+    addAndMakeVisible (insideBox);
+
+    for (auto* l : { &times, &soundInfo, &projectInfo, &containerInfo })
     {
         styleLabel (*l, 12.0f, Theme::text);
         l->setJustificationType (juce::Justification::topLeft);
@@ -157,6 +169,8 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     times.setFont (Theme::mono (11.5f));
     soundInfo.setFont (Theme::font (11.5f));
     soundInfo.setColour (juce::Label::textColourId, Theme::textMuted);
+    containerInfo.setFont (Theme::font (11.5f));
+    containerInfo.setColour (juce::Label::textColourId, Theme::textMuted);
 
     revealPlaceholder.setTooltip ("Show the placeholder copy in the Finder");
     revealOriginal.setTooltip ("Show the original sound file in the Finder");
@@ -472,17 +486,24 @@ void Inspector::refreshProportions()
 void Inspector::setMode (Mode m)
 {
     mode = m;
-    const bool anyBox = m == Mode::sound || m == Mode::text;
+    const bool anyBox = m == Mode::sound || m == Mode::text || m == Mode::container;
     const bool sound = m == Mode::sound;
+    const bool container = m == Mode::container;
 
-    for (juce::Component* c : std::initializer_list<juce::Component*> { &nameLabel, &nameEditor, &kindLabel, &kindBox, &opacityLabel, &opacity,
+    for (juce::Component* c : std::initializer_list<juce::Component*> { &nameLabel, &nameEditor, &kindLabel, &kindBox,
                                                                         &times, &notesLabel, &notes, &propLabel, &frameBox, &startLabel,
                                                                         &lengthLabel, &startField, &lengthField, &propInfo, &propError, &lockToggle })
         c->setVisible (anyBox);
-    for (juce::Component* c : std::initializer_list<juce::Component*> { &soundLabel, &soundBox, &gainLabel, &gain, &fadeInLabel, &fadeIn, &fadeInShape,
-                                                                        &fadeOutLabel, &fadeOut, &fadeOutShape, &soundInfo,
-                                                                        &revealPlaceholder, &revealOriginal })
+    for (juce::Component* c : std::initializer_list<juce::Component*> { &soundLabel, &soundBox, &soundInfo, &revealPlaceholder, &revealOriginal })
         c->setVisible (sound);
+    // Sounds and containers have a gain and fades; their gain is how they are drawn (5a).
+    for (juce::Component* c : std::initializer_list<juce::Component*> { &gainLabel, &gain, &fadeInLabel, &fadeIn, &fadeInShape,
+                                                                        &fadeOutLabel, &fadeOut, &fadeOutShape })
+        c->setVisible (sound || container);
+    for (juce::Component* c : std::initializer_list<juce::Component*> { &insideLabel, &insideBox, &containerInfo })
+        c->setVisible (container);
+    opacityLabel.setVisible (m == Mode::text);
+    opacity.setVisible (m == Mode::text);
 
     const bool proj = m == Mode::project;
     projectInfo.setVisible (proj || m == Mode::several);
@@ -523,14 +544,14 @@ juce::String Inspector::projectSummary()
         ++count;
     }
 
-    int sounds = 0, texts = 0;
-    for (auto b : project.allBoxes()) (Project::isSound (b) ? sounds : texts)++;
+    int sounds = 0, texts = 0, containers = 0;
+    for (auto b : project.allBoxes()) (Project::isSound (b) ? sounds : (Project::isContainer (b) ? containers : texts))++;
 
     juce::String s;
     s << project.getName() << "\n\n"
       << "Sample rate: " << juce::String (project.getSampleRate() / 1000.0, 1) << " kHz\n"
       << "Tracks: " << project.getNumTracks() << "\n"
-      << "Boxes: " << sounds << " sound, " << texts << " text\n"
+      << "Boxes: " << sounds << " sound, " << texts << " text" << (containers > 0 ? ", " + juce::String (containers) + " container" + (containers > 1 ? "s" : "") : juce::String()) << "\n"
       << "Sounds: " << count << " (" << juce::File::descriptionOfSizeInBytes (bytes) << ")\n"
       << "Length: " << TimeFormat::format (project.getContentEnd(), 1) << "\n\n"
       << "Folder:\n" << folder.getFolder().getFullPathName();
@@ -599,11 +620,12 @@ void Inspector::refresh()
     }
 
     const bool sound = Project::isSound (box);
-    setMode (sound ? Mode::sound : Mode::text);
-    title.setText (sound ? "SOUND BOX" : "TEXT BOX", juce::dontSendNotification);
+    const bool container = Project::isContainer (box);
+    setMode (sound ? Mode::sound : (container ? Mode::container : Mode::text));
+    title.setText (sound ? "SOUND BOX" : (container ? "CONTAINER" : "TEXT BOX"), juce::dontSendNotification);
     if (! nameEditor.hasKeyboardFocus (true))
         nameEditor.setText (box[IDs::name].toString(), false);
-    kindBox.setSelectedId (sound ? kindSound : kindText, juce::dontSendNotification);
+    kindBox.setSelectedId (sound ? kindSound : (container ? kindContainer : kindText), juce::dontSendNotification);
     opacity.setValue (box.getProperty (IDs::opacity, 1.0), juce::dontSendNotification);
 
     juce::String t;
@@ -612,9 +634,8 @@ void Inspector::refresh()
     if (sound) t << "\noffset into the sound " << TimeFormat::format ((double) box.getProperty (IDs::offset, 0.0));
     times.setText (t, juce::dontSendNotification);
 
-    if (sound)
+    if (sound || container)
     {
-        fillSoundList();
         gain.setValue (box.getProperty (IDs::gainDb, 0.0), juce::dontSendNotification);
         const double lenMs = Project::boxLength (box) * 1000.0;
         for (auto* s : { &fadeIn, &fadeOut })
@@ -623,6 +644,37 @@ void Inspector::refresh()
         fadeOut.setValue ((double) box.getProperty (IDs::fadeOut, 0.0) * 1000.0, juce::dontSendNotification);
         fadeInShape.setSelectedId ((int) box.getProperty (IDs::fadeInShape, 2) + 1, juce::dontSendNotification);
         fadeOutShape.setSelectedId ((int) box.getProperty (IDs::fadeOutShape, 2) + 1, juce::dontSendNotification);
+    }
+
+    if (container)
+    {
+        insideBox.setSelectedId (Project::isStretch (box) ? 1 : 2, juce::dontSendNotification);
+        int tracks = 0, sounds = 0, texts = 0, containers = 0;
+        for (auto lane : Project::innerLanes (box))
+        {
+            ++tracks;
+            for (auto b : lane) (Project::isSound (b) ? sounds : (Project::isContainer (b) ? containers : texts))++;
+        }
+        juce::StringArray parts;
+        if (sounds > 0) parts.add (juce::String (sounds) + " sound");
+        if (texts > 0) parts.add (juce::String (texts) + " text");
+        if (containers > 0) parts.add (juce::String (containers) + (containers == 1 ? " container" : " containers"));
+        juce::String ci;
+        ci << tracks << (tracks == 1 ? " track" : " tracks") << " inside, "
+           << (parts.isEmpty() ? juce::String ("no boxes") : parts.joinIntoString (", ") + ((sounds + texts + containers) == 1 ? " box" : " boxes")) << ".\n";
+        const double k = Project::containerScale (box);
+        if (Project::isStretch (box))
+            ci << TimeFormat::format (Project::innerLength (box), 2) << " of the inside over " << TimeFormat::format (Project::boxLength (box), 2)
+               << " (" << juce::String::fromUTF8 ("\xc3\x97") << juce::String (k, 2) << "): sounds keep their speed and length, their starts follow.";
+        else
+            ci << "The inside from " << TimeFormat::format (Project::innerOffset (box), 2) << " to "
+               << TimeFormat::format (Project::innerOffset (box) + Project::boxLength (box), 2) << "; trim the left edge to move the window.";
+        containerInfo.setText (ci, juce::dontSendNotification);
+    }
+
+    if (sound)
+    {
+        fillSoundList();
 
         auto s = project.findSound (box[IDs::soundId].toString());
         juce::String si;
@@ -684,7 +736,7 @@ void Inspector::resized()
         r.removeFromTop (7);
     };
 
-    if (mode == Mode::sound || mode == Mode::text)
+    if (mode == Mode::sound || mode == Mode::text || mode == Mode::container)
     {
         labelled (nameLabel, nameEditor, 26);
 
@@ -698,7 +750,7 @@ void Inspector::resized()
         soundBox.setBounds (row);
         r.removeFromTop (7);
 
-        if (mode == Mode::sound)
+        if (mode == Mode::sound || mode == Mode::container)
         {
             labelled (gainLabel, gain, 22);
 
@@ -716,7 +768,13 @@ void Inspector::resized()
             r.removeFromTop (7);
         }
 
-        labelled (opacityLabel, opacity, 22);
+        if (mode == Mode::container)
+        {
+            labelled (insideLabel, insideBox, 24);
+            containerInfo.setBounds (r.removeFromTop (60));
+            r.removeFromTop (4);
+        }
+        if (mode == Mode::text) labelled (opacityLabel, opacity, 22);
         times.setBounds (r.removeFromTop (mode == Mode::sound ? 32 : 18));
         r.removeFromTop (4);
 

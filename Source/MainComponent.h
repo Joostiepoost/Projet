@@ -44,7 +44,8 @@ public:
         cmdPlayStop, cmdToStart, cmdZoomIn, cmdZoomOut, cmdZoomFit,
         cmdAddTrack, cmdAudioSettings, cmdShortcuts,
         cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow,
-        cmdTogglePanel
+        cmdTogglePanel,
+        cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap            // stage 5a
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -141,6 +142,7 @@ private:
 
     //== Editing ================================================================
     void addTextBox (juce::ValueTree track, double start);
+    void addContainer (juce::ValueTree track, double start);
     void editNotes (juce::ValueTree box);
     void openNotesWindow();
     void splitAtPlayhead (juce::Array<juce::ValueTree> boxes);

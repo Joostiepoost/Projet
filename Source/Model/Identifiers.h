@@ -14,6 +14,9 @@
 //                  from the project's framework packages), and changes along
 //                  the box in fw.<package>.<category>.along ("0.7:meson:0.08;...").
 //                  Folders can hold fw.* values too, given to the boxes inside.
+//         TIMELINE a container box's own timeline (stage 5a), kept when the box
+//                  changes kind
+//           TRACKS tracks, folders and boxes, as at the top (containers again)
 //
 // Times are in seconds (doubles); the engine turns them into samples at the
 // project's sample rate.
@@ -41,6 +44,7 @@ namespace IDs
     PROJET_ID (TRACKS)
     PROJET_ID (TRACK)
     PROJET_ID (BOX)
+    PROJET_ID (TIMELINE)              // a container's inner timeline (stage 5a)
 
     // Project
     PROJET_ID (formatVersion)
@@ -100,7 +104,7 @@ namespace IDs
     PROJET_ID (folded)                // a folder's tracks are hidden
 
     // Box
-    PROJET_ID (kind)                  // "sound", "text"; "container", "board", ... later
+    PROJET_ID (kind)                  // "sound", "text", "container" (5a); "board", ... later
     PROJET_ID (start)                 // seconds on the timeline
     PROJET_ID (length)                // seconds
     PROJET_ID (soundId)
@@ -110,12 +114,15 @@ namespace IDs
     PROJET_ID (fadeOut)               // seconds
     PROJET_ID (fadeInShape)           // 0 linear, 1 equal power, 2 S-curve
     PROJET_ID (fadeOutShape)
-    PROJET_ID (opacity)               // 0..1, visual only
+    PROJET_ID (opacity)               // 0..1, text boxes (sounds and containers are drawn by their gain, 5a)
     PROJET_ID (notes)                 // Markdown, kept whatever the kind
     PROJET_ID (propFrame)             // "" (none), "piece", "span" or a box id
     PROJET_ID (propStart)             // expression, e.g. "3/11"
     PROJET_ID (propLength)
     PROJET_ID (propLock)              // follow the frame when it changes (default on)
+    PROJET_ID (stretch)               // a container: the inner timeline scales with the box (default on, 5a)
+    PROJET_ID (innerLength)           // a stretched container: the inner seconds its length shows
+    PROJET_ID (innerOffset)           // a container: the inner time at its left edge
     // Framework values: fw.<package>.<category> (Framework::Category::property()),
     // never "type", which names the node in the project file.
 

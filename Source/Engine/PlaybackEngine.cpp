@@ -124,20 +124,21 @@ void PlaybackEngine::mix (const Arrangement& arr, int64_t from, int n, float* l,
 
     for (const auto& c : arr.clips)
     {
-        if (c.start >= to) break;                       // sorted by start
-        if (c.end() <= from) continue;
+        if (c.playFrom >= to) break;                    // sorted by playFrom
+        if (c.playTo <= from) continue;
 
-        const int64_t a = juce::jmax (c.start, from);
-        const int64_t b = juce::jmin (c.end(), to);
+        // Only what sounds: inside the clip and the containers around it.
+        const int64_t a = juce::jmax (c.playFrom, from);
+        const int64_t b = juce::jmin (c.playTo, to);
         const float* srcL = c.sound->audio.getReadPointer (0);
         const float* srcR = c.sound->audio.getReadPointer (1);
-        const bool flat = c.fadeIn == 0 && c.fadeOut == 0;
+        const bool flat = c.fadeIn == 0 && c.fadeOut == 0 && c.windows.empty();
 
         for (int64_t s = a; s < b; ++s)
         {
             const int64_t i = s - c.start;              // sample within the clip
             const int64_t src = c.offset + i;
-            const float g = flat ? c.gain : c.gainAt ((double) i);
+            const float g = flat ? c.gain : c.gainAtTime (s);
             const auto k = (size_t) (s - from);
             l[k] += srcL[src] * g;
             r[k] += srcR[src] * g;

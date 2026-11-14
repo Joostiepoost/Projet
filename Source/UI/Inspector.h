@@ -57,7 +57,7 @@ public:
     std::function<void()> onHidePanel;          // the panel's own hide button (stage 4c)
 
 private:
-    enum class Mode { project, sound, text, several, ruler, display, packages };
+    enum class Mode { project, sound, text, container, several, ruler, display, packages };
     bool isSidePanel() const                        { return mode == Mode::ruler || mode == Mode::display || mode == Mode::packages; }
     juce::String ratioReport();
     juce::Array<juce::ValueTree> selection;
@@ -85,7 +85,7 @@ private:
     juce::TextButton boxTab { "Box" }, frameworkTab { "Framework" };
     juce::TextButton hideButton { juce::String::fromUTF8 ("\xc2\xbb") };   // the panel goes, the timeline widens
     bool showFramework = false;
-    bool isBoxMode() const                          { return (mode == Mode::sound || mode == Mode::text || mode == Mode::several) && selectionSize > 0; }
+    bool isBoxMode() const                          { return (mode == Mode::sound || mode == Mode::text || mode == Mode::container || mode == Mode::several) && selectionSize > 0; }
 
     juce::Label title;
     juce::Label nameLabel { {}, "Name" }, kindLabel { {}, "Kind" }, soundLabel { {}, "Sound" };
@@ -99,6 +99,10 @@ private:
     juce::Label opacityLabel { {}, "Opacity (visual only)" };
     juce::Slider opacity;
     juce::Label times, soundInfo;
+    // Containers (stage 5a)
+    juce::Label insideLabel { {}, "Inside" };
+    juce::ComboBox insideBox;
+    juce::Label containerInfo;
     juce::TextButton revealPlaceholder { "Show copy" }, revealOriginal { "Show original" };
     // Proportions (stage 3a)
     juce::Label propLabel { {}, "Proportions of a frame" };

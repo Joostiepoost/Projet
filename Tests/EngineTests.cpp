@@ -222,8 +222,10 @@ std::shared_ptr<const Arrangement> arrangementOf (std::vector<Clip> clips, doubl
     auto a = std::make_shared<Arrangement>();
     a->sampleRate = rate;
     a->clips = std::move (clips);
-    std::sort (a->clips.begin(), a->clips.end(), [] (const Clip& x, const Clip& y) { return x.start < y.start; });
-    for (auto& c : a->clips) a->end = juce::jmax (a->end, c.end());
+    for (auto& c : a->clips)
+        if (c.playTo <= c.playFrom) { c.playFrom = c.start; c.playTo = c.end(); }     // the whole clip sounds
+    std::sort (a->clips.begin(), a->clips.end(), [] (const Clip& x, const Clip& y) { return x.playFrom < y.playFrom; });
+    for (auto& c : a->clips) a->end = juce::jmax (a->end, c.playTo);
     return a;
 }
 
@@ -1532,6 +1534,200 @@ void testDynamicForm()
 }
 
 
+void testContainers()
+{
+    line ("## 16. Containers and nested playback (stage 5a)");
+    line();
+    auto near = [] (double x, double y) { return std::abs (x - y) < 1.0e-9; };
+    const double rate = 48000.0;
+    Project p;
+    p.resetToDefault ("Nest", rate);
+    auto t1 = p.getTrack (0);
+    auto t2 = p.addTrack ("Track 2");
+    juce::ValueTree rec (IDs::SOUND);
+    rec.setProperty (IDs::id, "s1", nullptr);
+    rec.setProperty (IDs::name, "tone", nullptr);
+    rec.setProperty (IDs::lengthSamples, (juce::int64) (2.0 * rate), nullptr);
+    p.addSound (rec);
+    auto tone = constantSound (rate, 2.0, 0.5f);
+    const Arrangement::Lookup lookup = [&tone] (const juce::String& id) { return id == "s1" ? tone : std::shared_ptr<const SoundData>(); };
+
+    auto a = p.addSoundBox (t1, 1.0, "s1");       // 1 s to 3 s
+    auto b = p.addSoundBox (t2, 2.0, "s1");       // 2 s to 4 s
+    auto txt = p.addTextBox (t2, 5.0, 1.0);       // 5 s to 6 s
+    p.setFades (a, 0.0, 0.0);
+    p.setFades (b, 0.0, 0.0);
+    const auto aId = a[IDs::id].toString();
+
+    // == Grouping
+    p.getUndoManager().beginNewTransaction ("Group");
+    auto c = p.groupIntoContainer ({ b, a, txt });
+    check (c.isValid() && Project::isContainer (c) && c.getParent() == t1 && near (Project::boxStart (c), 1.0) && near (Project::boxLength (c), 5.0)
+           && Project::isStretch (c), "grouping: a stretched container spanning the boxes (1 s to 6 s), on the first of their tracks");
+    auto lanes = Project::innerLanes (c);
+    check (lanes.size() == 2 && lanes[0][IDs::name] == t1[IDs::name] && lanes[1][IDs::name].toString() == "Track 2"
+           && lanes[0][IDs::id] != t1[IDs::id] && lanes[1][IDs::colour] == t2[IDs::colour],
+           "inside: a copy of each track the boxes came from (name, colour; new ids)");
+    check (a.getParent() == lanes[0] && b.getParent() == lanes[1] && near (Project::boxStart (a), 0.0) && near (Project::boxStart (b), 1.0)
+           && near (Project::boxStart (txt), 4.0) && a[IDs::id].toString() == aId, "each box in the same place, in inner time (and keeping its id)");
+    check (t2.getNumChildren() == 0 && p.allBoxes().size() == 1 && near (Project::toOuter (c, 1.0), 2.0),
+           "the piece holds only the container; inner 1 s lies at 2 s");
+
+    auto arr = Arrangement::build (p, lookup);
+    auto clipAt = [&arr] (int64_t start) -> const Clip*
+    {
+        for (auto& cl : arr->clips) if (cl.start == start) return &cl;
+        return nullptr;
+    };
+    check (arr->clips.size() == 2 && clipAt (48000) != nullptr && clipAt (96000) != nullptr && arr->end == 192000,
+           "nested playback: the two sounds at 1 s and 2 s, as before grouping");
+
+    // == Stretch: positions follow, sounds keep their length
+    p.trimEnd (c, 11.0);
+    arr = Arrangement::build (p, lookup);
+    check (near (Project::containerScale (c), 2.0) && clipAt (48000) != nullptr && clipAt (144000) != nullptr
+           && clipAt (144000)->length == 96000 && near (Project::outerLength (c, txt), 2.0) && near (Project::outerLength (c, b), 2.0),
+           "twice as long: scale 2; the second sound starts at 3 s and still lasts 2 s; the text box lasts 2 s outside");
+    p.trimEnd (c, 3.0);
+    arr = Arrangement::build (p, lookup);
+    {
+        auto* cb = clipAt (67200);                  // 1 + 1 * 0.4 s
+        const int64_t cut = (int64_t) std::llround (Arrangement::cutFade * rate);
+        check (cb != nullptr && cb->playTo == 144000 && cb->windows.size() == 1 && cb->windows[0].fadeOut == cut
+               && cb->gainAtTime (144000 - 1) == 0.0f && std::abs (cb->gainAtTime (144000 - cut - 1) - 1.0f) < 1.0e-6,
+               "shortened to 2 s (scale 0.4): the second sound starts at 1.4 s and is cut at the container's end, with a 5 ms fade");
+        auto* ca = clipAt (48000);
+        check (ca != nullptr && ca->playTo == 144000 && ca->windows.empty(), "the first sound ends with the container: no cut, nothing added");
+    }
+
+    // == Mute, solo, gain and fades inside
+    lanes[1].setProperty (IDs::mute, true, nullptr);
+    check (Arrangement::build (p, lookup)->clips.size() == 1, "a muted inner track is silent");
+    lanes[1].setProperty (IDs::mute, false, nullptr);
+    lanes[0].setProperty (IDs::solo, true, nullptr);
+    arr = Arrangement::build (p, lookup);
+    check (arr->clips.size() == 1 && arr->clips[0].start == 48000, "a solo counts in its own timeline");
+    lanes[0].setProperty (IDs::solo, false, nullptr);
+    c.setProperty (IDs::gainDb, -6.0206, nullptr);
+    c.setProperty (IDs::fadeIn, 0.5, nullptr);
+    arr = Arrangement::build (p, lookup);
+    check (std::abs (clipAt (48000)->gain - 0.5f) < 1.0e-4 && clipAt (48000)->windows.size() == 1
+           && clipAt (48000)->windows[0].fadeIn == 24000 && clipAt (48000)->gainAtTime (48000) == 0.0f,
+           "the container's gain and fade in shape what is inside");
+    c.setProperty (IDs::gainDb, 0.0, nullptr);
+    c.setProperty (IDs::fadeIn, 0.0, nullptr);
+
+    // == Window: the scale is baked in, nothing moves
+    p.setStretch (c, false);
+    arr = Arrangement::build (p, lookup);
+    check (! Project::isStretch (c) && near (Project::containerScale (c), 1.0) && near (Project::boxStart (b), 0.4)
+           && near (Project::boxStart (txt), 1.6) && near (Project::boxLength (txt), 0.4) && near (Project::boxLength (a), 2.0)
+           && clipAt (67200) != nullptr, "stretch to window: inner times take the scale (0.4), sounds keep their length, nothing moves");
+    p.trimStart (c, 1.5);
+    arr = Arrangement::build (p, lookup);
+    check (near (Project::innerOffset (c), 0.5) && clipAt (48000) != nullptr && clipAt (48000)->playFrom == 72000 && clipAt (48000)->windows.size() == 1
+           && clipAt (48000)->windows[0].fadeIn == 240, "trimming a window's left edge moves the window: the first sound stays put, cut at 1.5 s");
+    p.trimEnd (c, 5.0);
+    arr = Arrangement::build (p, lookup);
+    check (clipAt (67200) != nullptr && clipAt (67200)->playTo == 67200 + 96000, "a longer window shows more: the second sound plays to its end");
+    p.setStretch (c, true);
+    check (Project::isStretch (c) && near (Project::innerLength (c), 3.5) && near (Project::containerScale (c), 1.0),
+           "window to stretch: the present length becomes the inner length");
+
+    // == Undo takes it all back
+    p.getUndoManager().undo();                  // everything since "Group" was one step
+    check (! c.getParent().isValid() && a.getParent() == t1 && b.getParent() == t2 && near (Project::boxStart (a), 1.0)
+           && near (Project::boxStart (txt), 5.0), "undo puts the boxes back as they were");
+    p.getUndoManager().redo();
+    check (c.getParent() == t1 && a.getParent().getParent() == Project::innerTracks (c), "redo groups them again");
+
+    // == Ungroup: back where they sounded, on the tracks of the same names
+    p.getUndoManager().beginNewTransaction ("Stretch");
+    p.setStretch (c, false);
+    p.setStretch (c, true);
+    p.trimEnd (c, Project::boxStart (c) + 2.0 * Project::boxLength (c));
+    const double k = Project::containerScale (c), cStart = Project::boxStart (c), off = Project::innerOffset (c);
+    const double bWas = Project::toOuter (c, Project::boxStart (b)), txtLen = Project::outerLength (c, txt);
+    p.getUndoManager().beginNewTransaction ("Ungroup");
+    auto moved = p.ungroupContainer (c);
+    check (moved.size() == 3 && ! c.getParent().isValid() && a.getParent() == t1 && b.getParent() == t2 && near (Project::boxStart (b), bWas)
+           && near (Project::boxLength (txt), txtLen) && near (Project::boxLength (a), 2.0) && near (k, 2.0),
+           "ungroup: each box where it sounded (scale " + fmt (k, 1) + "), on its old track; the text box keeps its stretched length");
+    juce::ignoreUnused (cStart, off);
+    {
+        Project q;
+        q.resetToDefault ("Ungroup", rate);
+        auto box = q.addTextBox (q.getTrack (0), 1.0, 1.0);
+        auto cq = q.groupIntoContainer ({ box });
+        Project::innerLanes (cq)[0].setProperty (IDs::name, "Elsewhere", nullptr);
+        q.ungroupContainer (cq);
+        check (q.getNumTracks() == 2 && q.getTrack (1)[IDs::name].toString() == "Elsewhere" && box.getParent() == q.getTrack (1),
+               "an inner track with no namesake outside becomes a new track below the container's");
+    }
+
+    // == Nested containers: the scales compose
+    {
+        Project q;
+        q.resetToDefault ("Nested", rate);
+        q.addSound (rec);
+        auto s = q.addSoundBox (q.getTrack (0), 2.0, "s1");
+        q.setFades (s, 0.0, 0.0);
+        auto inner = q.groupIntoContainer ({ s });                 // 2..4, s at 0
+        auto outer = q.groupIntoContainer ({ inner });             // 2..4, inner at 0
+        auto sound = [&q, &lookup] { auto r = Arrangement::build (q, lookup); return r->clips.empty() ? (int64_t) -1 : r->clips[0].start; };
+        check (sound() == 96000 && outer.getParent() == q.getTrack (0) && inner.getParent().getParent() == Project::innerTracks (outer),
+               "a container inside a container: the sound still at 2 s");
+        q.trimStart (outer, 1.0);                                  // outer 1..4: scale 1.5, the inner one from 1 s
+        check (sound() == 48000, "stretching the outer container moves the sound inside the inner one");
+        q.setStretch (outer, false);
+        check (sound() == 48000 && near (Project::boxLength (inner), 3.0), "baking the outer scale: the inner container takes it (length 3 s), the sound stays at 1 s");
+        auto r = Arrangement::build (q, lookup);
+        check (r->clips.size() == 1 && r->clips[0].windows.empty() && r->clips[0].playTo == 48000 + 96000, "inside both windows, untouched");
+    }
+
+    // == Copies, splits and kinds
+    {
+        Project q;
+        q.resetToDefault ("Copies", rate);
+        auto box = q.addTextBox (q.getTrack (0), 0.0, 4.0);
+        auto cq = q.groupIntoContainer ({ box });
+        q.trimEnd (cq, 8.0);                                       // scale 2
+        auto dup = q.duplicateBox (cq);
+        auto innerOf = [] (const juce::ValueTree& x) { return Project::innerLanes (x)[0]; };
+        check (innerOf (dup)[IDs::id] != innerOf (cq)[IDs::id] && innerOf (dup).getChild (0)[IDs::id] != box[IDs::id], "a duplicate's inside has new ids");
+        auto right = q.splitBox (cq, 2.0);
+        check (right.isValid() && near (Project::innerLength (cq), 1.0) && near (Project::innerOffset (right), 1.0) && near (Project::innerLength (right), 3.0)
+               && near (Project::containerScale (right), 2.0) && near (Project::containerScale (cq), 2.0) && innerOf (right)[IDs::id] != innerOf (cq)[IDs::id],
+               "a split: each part shows its stretch of a copy of the inside, at the same scale");
+        auto other = q.addTextBox (q.getTrack (0), 20.0, 1.0);
+        q.setKind (other, "container");
+        check (Project::innerLanes (other).size() == 1 && Project::isStretch (other) && near (Project::innerLength (other), 1.0),
+               "a text box changed to a container gets an empty timeline of its own");
+        q.setKind (other, "text");
+        check (Project::innerTracks (other).isValid(), "changed back, it keeps it (for switching again)");
+
+        juce::String error;
+        Project r;
+        check (r.fromJson (q.toJson(), error) && Project::innerLanes (r.findBox (cq[IDs::id].toString())).size() == 1
+               && Project::innerLanes (r.findBox (cq[IDs::id].toString()))[0].getNumChildren() == 1, "containers are saved and read back");
+    }
+
+    // == Swap and opacity
+    {
+        Project q;
+        q.resetToDefault ("Swap", rate);
+        auto x = q.addTextBox (q.getTrack (0), 0.0, 3.0);
+        auto y = q.addTextBox (q.getTrack (0), 4.0, 2.0);
+        q.swapBoxes (y, x);
+        check (near (Project::boxStart (y), 0.0) && near (Project::boxStart (x), 3.0) && near (Project::boxEnd (x), 6.0),
+               "swap: the later box starts where the earlier one started, the earlier one ends where the later one ended (the gap stays)");
+    }
+    check (Project::gainOpacity (0.0) == 1.0f && Project::gainOpacity (6.0) == 1.0f && Project::gainOpacity (-72.0) == 0.15f
+           && Project::gainOpacity (-90.0) == 0.15f && std::abs (Project::gainOpacity (-36.0) - 0.575f) < 1.0e-6,
+           "opacity from gain: 0 dB and up opaque, -72 dB and down the faintest, linear in dB between");
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -1543,7 +1739,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -1575,6 +1771,7 @@ int main (int argc, char** argv)
     std::cout << "Junctions..." << std::endl;          testJunctions();
     std::cout << "Overview..." << std::endl;           testOverview();
     std::cout << "Dynamic form..." << std::endl;       testDynamicForm();
+    std::cout << "Containers..." << std::endl;         testContainers();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

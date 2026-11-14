@@ -195,6 +195,13 @@ private:
 
     void paintTrackHeader (juce::Graphics&, const TrackRow&, int index);
     void paintBox (juce::Graphics&, const juce::ValueTree& box, const TrackRow&);
+    void paintFades (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>);
+    void paintFadeHandles (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>);
+    /** A container (stage 5a): header, miniature of the inside, fades, double edge. */
+    void paintContainer (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>, float alpha,
+                         juce::Colour base, bool selected, bool emphasis);
+    /** The container's inner tracks as thin rows and their boxes where they sound. */
+    void paintMiniature (juce::Graphics&, const juce::ValueTree& container, juce::Rectangle<float>, float alpha, int depth);
     void paintWaveform (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> r);
     /** The colour of the box in the current colour mode (track colour, or a category's colours). */
     juce::Colour boxColour (const juce::ValueTree& box, const TrackRow& row);
