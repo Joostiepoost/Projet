@@ -5,10 +5,10 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 0.0,
-  "pixelsPerSecond": 68.445713321807759,
-  "playhead": 34.85722086079717,
-  "activeLayer": "81cac3b3253744b181420ef3183983b0",
+  "viewStart": 3.288232328990183,
+  "pixelsPerSecond": 35.816641197055617,
+  "playhead": 9.724551761671968,
+  "activeLayer": "2718cdbf610642b38c2fcc39f7c89701",
   "fwLanguage": "en",
   "frameLength": 210.099004712476187,
   "spanStart": 3.514880149435655,
@@ -100,7 +100,7 @@
               "id": "a2438d464e584cafaa1349d14c16fea4",
               "kind": "text",
               "name": "Text",
-              "start": 5.763625156711811,
+              "start": 5.763625156711812,
               "length": 7.307376480666057,
               "opacity": 1.0,
               "notes": "",
@@ -209,8 +209,8 @@
               "id": "d9b3a532841c4f85b773e37c383c4502",
               "kind": "text",
               "name": "Raw box",
-              "start": 7.741905075891085,
-              "length": 8.553764459733333,
+              "start": 6.51070231847055,
+              "length": 9.78496721715387,
               "opacity": 1.0,
               "notes": "",
               "gainDb": 0.0,
@@ -567,7 +567,7 @@
           "id": "b569d4b4eae34bb1a8cc56f3f871cca3",
           "kind": "time",
           "name": "Time",
-          "height": 52,
+          "height": 28,
           "visible": true
         },
         {
@@ -576,7 +576,7 @@
           "kind": "proportion",
           "name": "Proportion",
           "height": 90,
-          "visible": true,
+          "visible": false,
           "snap": true,
           "frame": "piece",
           "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
@@ -588,7 +588,7 @@
           "kind": "proportion",
           "name": "Proportion",
           "height": 90,
-          "visible": true,
+          "visible": false,
           "snap": true,
           "frame": "span",
           "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
@@ -602,7 +602,7 @@
           "lane": "composition.energies",
           "name": "Energies",
           "height": 69,
-          "visible": true
+          "visible": false
         },
         {
           "type": "LAYER",
@@ -610,7 +610,7 @@
           "kind": "lane",
           "lane": "schaeffer.typology",
           "name": "Typology",
-          "height": 59,
+          "height": 193,
           "visible": true
         },
         {
@@ -619,8 +619,20 @@
           "kind": "time",
           "name": "Time",
           "height": 52,
-          "visible": true,
+          "visible": false,
           "frame": "da978678499a49918e2949fd43acb4e8"
+        },
+        {
+          "type": "LAYER",
+          "id": "2718cdbf610642b38c2fcc39f7c89701",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "span",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
         },
         {
           "type": "LAYER",
@@ -629,7 +641,7 @@
           "lane": "thoresen.dynamic",
           "name": "Dynamic form",
           "height": 53,
-          "visible": true
+          "visible": false
         },
         {
           "type": "LAYER",
@@ -799,6 +811,41 @@
           "name": "Rawbox3",
           "frame": "d9b3a532841c4f85b773e37c383c4502",
           "expr": "5/9"
+        },
+        {
+          "type": "MARK",
+          "id": "61afc5ae0633423fb15eceb0c37c207c",
+          "name": "Rawbox4",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "2/5"
+        },
+        {
+          "type": "MARK",
+          "id": "1cbe92e6625e4d9281c3a4d50d680ec9",
+          "name": "Rawbox5",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "7/10"
+        },
+        {
+          "type": "MARK",
+          "id": "c907c7112e1c4f42bd350d482b4c4b44",
+          "name": "Rawbox6",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "9/10"
+        },
+        {
+          "type": "MARK",
+          "id": "623fea2602164f4680fe0e62857ab4f0",
+          "name": "m1",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "2.896946"
+        },
+        {
+          "type": "MARK",
+          "id": "3e46d9c537634997988b09baa9d6e049",
+          "name": "m2",
+          "frame": "span",
+          "expr": "2/7"
         }
       ]
     },
@@ -899,8 +946,8 @@
           "type": "NODE",
           "id": "b041d8c1be614e96a25643800a53d53a",
           "folderId": "50ce766bc1d04434a106c7656522f450",
-          "start": 12.647070611994462,
-          "length": 9.083639881672919
+          "start": 8.51461594498539,
+          "length": 13.801025823019007
         },
         {
           "type": "NODE",
