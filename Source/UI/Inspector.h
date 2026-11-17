@@ -55,6 +55,9 @@ public:
     /** The Framework tab's "Frameworks..." button. */
     std::function<void()> onShowFrameworks;
     std::function<void()> onHidePanel;          // the panel's own hide button (stage 4c)
+    /** New takes from sound files (stage 7): MainComponent asks for them. */
+    std::function<void (juce::ValueTree box)> onAddSoundTakes;
+    std::function<void()> onToggleShowTakes;
 
 private:
     enum class Mode { project, sound, text, container, several, ruler, display, packages };
@@ -112,6 +115,22 @@ private:
     juce::TextEditor startField, lengthField;
     juce::Label propInfo, propError;
     juce::ToggleButton lockToggle { "Keep the proportions when the frame changes" };
+
+    // Takes (stage 7): a cell per take (click to switch), New take, the take's note.
+    struct TakesStrip : juce::Component, juce::SettableTooltipClient
+    {
+        juce::ValueTree box;
+        std::function<void (juce::ValueTree take)> onPick;
+        std::vector<std::pair<juce::Rectangle<float>, juce::ValueTree>> cells;
+        void paint (juce::Graphics&) override;
+        void mouseDown (const juce::MouseEvent&) override;
+        juce::String getTooltip() override;
+    };
+    juce::Label takesLabel { {}, "Takes" };
+    TakesStrip takesStrip;
+    juce::TextButton newTakeButton { "New take" };
+    juce::TextEditor takeNote;
+    void commitTakeNote();
 
     juce::Label notesLabel { {}, "Notes (kept whatever the kind)" };
     NotesEditor notes;

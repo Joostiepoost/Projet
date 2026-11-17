@@ -172,6 +172,54 @@ public:
     /** The inner tracks that can hold boxes, in order. */
     static juce::Array<juce::ValueTree> innerLanes (const juce::ValueTree& container);
 
+    //== Takes (stage 7) ======================================================
+    // A box can hold takes: alternatives of its content, one of them active.
+    // The active take's content is the box's own (its kind, length, sound,
+    // offset, gain, fades, opacity, framework values and inside), so
+    // everything else works on it unchanged; the others wait in the box's
+    // TAKES, each TAKE holding its content, and are swapped in when chosen.
+    // The box keeps its place (start, proportions), name, colour and notes;
+    // a text take's text is its own (while a text take is active the box's
+    // notes wait in sharedNotes). A box without TAKES has one take.
+    static bool isShellProperty (const juce::Identifier&);
+    /** Its takes in order (empty when it has never had more than one). */
+    static juce::Array<juce::ValueTree> takesOf (const juce::ValueTree& box);
+    static int numTakes (const juce::ValueTree& box)                 { return juce::jmax (1, takesOf (box).size()); }
+    static juce::ValueTree activeTakeOf (const juce::ValueTree& box);
+    static int activeTakeIndex (const juce::ValueTree& box)         { return juce::jmax (0, takesOf (box).indexOf (activeTakeOf (box))); }
+    /** "B/3", or "" when the box has one take. */
+    static juce::String takeBadge (const juce::ValueTree& box);
+    /** The active take's name ("B"), or "" when the box has one take. */
+    static juce::String activeTakeName (const juce::ValueTree& box);
+    /** A take's kind ("sound" when it does not say, as for boxes). */
+    static juce::String takeKind (const juce::ValueTree& box, const juce::ValueTree& take);
+    /** How long a take lasts in the box's level (the active take: the box). */
+    static double takeLength (const juce::ValueTree& box, const juce::ValueTree& take);
+    /** A take's content as a box without an inside, to draw a take that is
+        not active (the active take: the box itself). */
+    static juce::ValueTree takeView (const juce::ValueTree& box, const juce::ValueTree& take);
+    /** Gives the box its TAKES (one take, A, the active one) if it has none. */
+    void ensureTakes (juce::ValueTree box);
+    enum class NewTake { copy, text, container, sound };
+    /** A new take, made active: a copy of the active one, an empty text or
+        container as long as the box, or a sound. Undoable. */
+    juce::ValueTree addTake (juce::ValueTree box, NewTake how, const juce::String& soundId = {});
+    /** Its content becomes the box's. A box whose length is set by a
+        proportion keeps that length (unless keepProportionLength is false).
+        Undoable. */
+    void setActiveTake (juce::ValueTree box, juce::ValueTree take, bool keepProportionLength = true);
+    /** The next (+1) or previous (-1) take, round. */
+    void stepTake (juce::ValueTree box, int delta);
+    /** Not the last one. Undoable. */
+    void removeTake (juce::ValueTree box, juce::ValueTree take);
+    void setTakeName (juce::ValueTree take, const juce::String&);
+    void setTakeNote (juce::ValueTree take, const juce::String&);
+    /** In the piece: in the project, and not in a take put aside. */
+    bool isInPiece (const juce::ValueTree& node) const;
+    static juce::String nextTakeNameForTest (const juce::ValueTree& box)   { return nextTakeName (box); }
+    /** A box anywhere in the piece (every level), by id. */
+    juce::ValueTree findBoxInPiece (const juce::String& boxId);
+
     /** An empty container (one inner track), stretched. Undoable. */
     juce::ValueTree addContainer (juce::ValueTree track, double start, double length, const juce::String& name = "Container");
     /** The container a box or track lies in (invalid at the piece). */
@@ -499,6 +547,17 @@ private:
     static juce::ValueTree makeTrack (const juce::String& name, int colour);
     static juce::ValueTree makeTimeline (bool withTrack);
     static juce::ValueTree makeContainer (double start, double length, const juce::String& name);
+    /** The content side of a split (stage 7: for each take): `right` is a copy
+        of the box's content; both are cut at t. With `rewrite`, the boxes'
+        proportions too (once, with the active take). */
+    void cutContent (juce::ValueTree box, juce::ValueTree right, double start, double end, double t,
+                     juce::UndoManager* rightUndo, bool rewrite);
+    /** New ids for everything with an id inside `node`, recorded in `ids`. */
+    static void renewIdsWithin (juce::ValueTree node, std::map<juce::String, juce::String>& ids);
+    /** References inside `node` (folders, frames, the active layer) follow `ids`. */
+    static void followIds (juce::ValueTree node, const std::map<juce::String, juce::String>& ids);
+    /** The first letter not taken by the box's takes. */
+    static juce::String nextTakeName (const juce::ValueTree& box);
     /** Scales what a box shows by k, its start aside (see scaleTimeline). */
     void scaleBox (juce::ValueTree box, double k);
     /** Inner times times k: starts, text box and container lengths (sounds

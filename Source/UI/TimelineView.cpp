@@ -1,6 +1,7 @@
 // TimelineView.cpp
 
 #include "TimelineView.h"
+#include "TakesMenu.h"
 #include "Dialogs.h"
 #include "Theme.h"
 #include "TimeFormat.h"
@@ -809,7 +810,38 @@ void TimelineView::paintTrackHeader (juce::Graphics& g, const TrackRow& r, int i
 
 void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, const TrackRow& row)
 {
-    auto r = boxBounds (box, row);
+    const auto r = boxBounds (box, row);
+    const auto lanes = takeLanes (box, r);
+    if (lanes.empty())
+    {
+        paintBoxIn (g, box, row, r);
+        if (auto badge = takeBadgeArea (box, r); ! badge.isEmpty()) paintTakeTag (g, badge, Project::takeBadge (box), true);
+        return;
+    }
+
+    // Takes shown stacked (stage 7): the active one as it is, the others faint, each as long as it is.
+    const auto takes = Project::takesOf (box);
+    const auto active = Project::activeTakeOf (box);
+    const juce::ScopedValueSetter<bool> noHandles (drawingTakeLanes, true);
+    for (int i = 0; i < takes.size() && i < (int) lanes.size(); ++i)
+    {
+        const auto lane = lanes[(size_t) i];
+        if (takes[i] == active) paintBoxIn (g, box, row, lane);
+        else
+        {
+            g.beginTransparencyLayer (0.45f);
+            paintBoxIn (g, takeLaneView (box, takes[i]), row, lane);
+            g.endTransparencyLayer();
+        }
+        const auto tag = takes[i][IDs::name].toString();
+        const float w = (float) juce::GlyphArrangement::getStringWidthInt (Theme::font (10.0f, true), tag) + 10.0f;
+        if (lane.getWidth() > w + 30.0f)
+            paintTakeTag (g, { lane.getRight() - 12.0f - w, lane.getY() + 1.0f, w, juce::jmin (13.0f, lane.getHeight() - 2.0f) }, tag, takes[i] == active);
+    }
+}
+
+void TimelineView::paintBoxIn (juce::Graphics& g, const juce::ValueTree& box, const TrackRow& row, juce::Rectangle<float> r)
+{
     const bool selected = isSelected (box);
     const bool sound = Project::isSound (box);
     // Sounds and containers are drawn as loud as they are (5a); text boxes have an opacity of their own.
@@ -907,6 +939,87 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
     g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : (wm.emphasis ? 1.8f : 1.0f));
 }
 
+//== Takes (stage 7) ===========================================================
+
+std::vector<juce::Rectangle<float>> TimelineView::takeLanes (const juce::ValueTree& box, juce::Rectangle<float> r) const
+{
+    std::vector<juce::Rectangle<float>> lanes;
+    const auto takes = Project::takesOf (box);
+    if (! showingTakes() || takes.size() < 2) return lanes;
+    const float h = r.getHeight() / (float) takes.size();
+    if (h < 12.0f) return lanes;                     // too thin: the badge instead
+    const auto active = Project::activeTakeOf (box);
+    for (int i = 0; i < takes.size(); ++i)
+    {
+        const float x1 = takes[i] == active ? r.getRight()
+                                            : juce::jmax (r.getX() + 2.0f, timeToX (Project::boxStart (box) + Project::takeLength (box, takes[i])));
+        lanes.push_back ({ r.getX(), r.getY() + h * (float) i + 0.5f, x1 - r.getX(), h - 1.0f });
+    }
+    return lanes;
+}
+
+juce::Rectangle<float> TimelineView::takeBadgeArea (const juce::ValueTree& box, juce::Rectangle<float> r) const
+{
+    const auto lanes = takeLanes (box, r);
+    const auto text = lanes.empty() ? Project::takeBadge (box) : Project::activeTakeOf (box)[IDs::name].toString();
+    if (text.isEmpty()) return {};
+    const float w = (float) juce::GlyphArrangement::getStringWidthInt (Theme::font (10.0f, true), text) + 10.0f;
+    if (! lanes.empty())
+    {
+        const auto lane = lanes[(size_t) Project::activeTakeIndex (box)];
+        if (lane.getWidth() <= w + 30.0f) return {};
+        return { lane.getRight() - 12.0f - w, lane.getY() + 1.0f, w, juce::jmin (13.0f, lane.getHeight() - 2.0f) };
+    }
+    if (r.getWidth() < w + 40.0f || r.getHeight() < 16.0f) return {};
+    return { r.getRight() - 12.0f - w, r.getY() + 2.0f, w, 13.0f };
+}
+
+void TimelineView::paintTakeTag (juce::Graphics& g, juce::Rectangle<float> area, const juce::String& text, bool active)
+{
+    g.setColour (Theme::background.withAlpha (0.88f));
+    g.fillRoundedRectangle (area, 3.0f);
+    g.setColour ((active ? Theme::accent : Theme::textMuted).withAlpha (0.9f));
+    g.drawRoundedRectangle (area.reduced (0.5f), 3.0f, 1.0f);
+    g.setFont (Theme::font (10.0f, true));
+    g.drawText (text, area, juce::Justification::centred, false);
+}
+
+juce::ValueTree TimelineView::takeLaneView (const juce::ValueTree& box, const juce::ValueTree& take)
+{
+    if (takeViewsCount != project.getChangeCount()) { takeViews.clear(); takeViewsCount = project.getChangeCount(); }
+    const auto key = take[IDs::id].toString();
+    if (auto it = takeViews.find (key); it != takeViews.end()) return it->second;
+    auto v = Project::takeView (box, take);
+    v.removeProperty (IDs::id, nullptr);               // never drawn as selected
+    const auto note = take[IDs::takeNote].toString();
+    v.setProperty (IDs::name, take[IDs::name].toString() + (note.isEmpty() ? juce::String() : "  " + note), nullptr);
+    if (auto inside = take.getChildWithName (IDs::TIMELINE); inside.isValid()) v.appendChild (inside.createCopy(), nullptr);
+    takeViews[key] = v;
+    return v;
+}
+
+TimelineView::TakeHit TimelineView::takeAt (juce::Point<float> p)
+{
+    auto row = rowAt ((int) p.y);
+    if (! row.track.isValid() || row.folder) return {};
+    for (auto b : row.track)
+    {
+        const auto r = boxBounds (b, row);
+        if (takeBadgeArea (b, r).expanded (2.0f).contains (p)) return { b, {}, true };
+        const auto lanes = takeLanes (b, r);
+        const auto takes = Project::takesOf (b);
+        for (size_t i = 0; i < lanes.size(); ++i)
+            if (lanes[i].contains (p)) return { b, takes[(int) i], false };
+    }
+    return {};
+}
+
+void TimelineView::showTakesMenu (juce::ValueTree box)
+{
+    juce::Component::SafePointer<TimelineView> safe (this);
+    TakesMenu::show (project, box, this, true, true, { onAddSoundTakes, onToggleShowTakes }, [safe] { if (safe != nullptr) safe->repaint(); });
+}
+
 void TimelineView::paintWindowEdges (juce::Graphics& g)
 {
     // Inside a container (5b): what lies outside the part it shows is dimmed
@@ -966,6 +1079,7 @@ void TimelineView::paintFades (juce::Graphics& g, const juce::ValueTree& box, ju
 
 void TimelineView::paintFadeHandles (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r)
 {
+    if (drawingTakeLanes) return;
     if (r.getWidth() <= 24.0f) return;
     const double fs = Project::soundScale (box);
     const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn] / fs);
@@ -1391,6 +1505,14 @@ juce::String TimelineView::getTooltip()
 {
     const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (auto* hit = signAt (getMouseXYRelative().toFloat())) return hit->tip;
+    if (auto take = takeAt (getMouseXYRelative().toFloat()); take.box.isValid())
+    {
+        if (take.badge)
+            return "Take " + Project::activeTakeOf (take.box)[IDs::name].toString() + " of " + juce::String (Project::numTakes (take.box))
+                   + ": click for the list of takes and new ones";
+        if (take.take.isValid() && take.take != Project::activeTakeOf (take.box))
+            return "Take " + TakesMenu::describe (take.take) + ": click to make it the one that plays";
+    }
     return {};
 }
 
@@ -2026,6 +2148,21 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
         }
     }
 
+    // Takes (stage 7): the badge opens their list; a take's lane, shown stacked, makes it active.
+    if (! e.mods.isPopupMenu() && ! e.mods.isShiftDown() && ! e.mods.isCommandDown())
+        if (auto hit = takeAt (e.position); hit.box.isValid())
+        {
+            if (hit.badge) { selectBox (hit.box); showTakesMenu (hit.box); return; }
+            if (hit.take.isValid() && hit.take != Project::activeTakeOf (hit.box))
+            {
+                project.getUndoManager().beginNewTransaction ("Take " + hit.take[IDs::name].toString());
+                project.setActiveTake (hit.box, hit.take);
+                selectBox (hit.box);
+                repaint();
+                return;
+            }
+        }
+
     Zone zone;
     auto box = boxAt (e.position, zone);
     auto row = rowAt (e.y);
@@ -2507,6 +2644,11 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
     m.addItem (1, several ? "Duplicate boxes" : "Duplicate");
     m.addItem (2, several ? "Delete boxes" : "Delete");
     m.addSeparator();
+    if (! several)
+    {
+        const auto badge = Project::takeBadge (box);
+        m.addSubMenu (badge.isEmpty() ? juce::String ("Takes") : "Takes (" + badge + ")", TakesMenu::build (project, box, takesMenuBase, true));
+    }
     {
         juce::PopupMenu kinds;
         const auto kind = Project::kindOf (box);
@@ -2562,6 +2704,7 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
         auto selection = safe->getSelectedBoxes();
         if (selection.isEmpty()) selection.add (box);
         if (r >= boxMenuBase && r < folderMenuBase) { safe->applyFrameworkMenu (r, selection); safe->repaint(); return; }
+        if (TakesMenu::perform (p, box, r, takesMenuBase, { safe->onAddSoundTakes, safe->onToggleShowTakes }, safe->getTopLevelComponent())) { safe->repaint(); return; }
 
         if (r == 1)
         {
@@ -2599,7 +2742,10 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
         else if (r == 21)
         {
             p.getUndoManager().beginNewTransaction ("Ungroup");
+            const bool otherTakes = Project::numTakes (box) > 1;
             safe->setSelection (p.ungroupContainer (box));
+            if (otherTakes && safe->onStatus)
+                safe->onStatus ("Ungrouped the active take's boxes; the container's other takes went with it (Cmd-Z brings them back).", false);
         }
         else if (r == 22 || r == 23)
         {
@@ -2662,7 +2808,16 @@ void TimelineView::filesDropped (const juce::StringArray& files, int x, int y)
 
     juce::StringArray audio;
     for (auto& f : files) if (isAudioFile (f)) audio.add (f);
-    if (audio.isEmpty() || ! onFilesDropped) return;
+    if (audio.isEmpty()) return;
+
+    // Dropped on a box with Alt held: new takes of it (stage 7).
+    if (juce::ModifierKeys::currentModifiers.isAltDown() && onFilesDroppedAsTakes)
+    {
+        Zone zone;
+        auto box = boxAt ({ (float) x, (float) y }, zone);
+        if (box.isValid()) { selectBox (box); onFilesDroppedAsTakes (audio, box); return; }
+    }
+    if (! onFilesDropped) return;
 
     auto row = rowAt (y);
     juce::ValueTree track = row.track;

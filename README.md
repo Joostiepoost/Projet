@@ -52,15 +52,15 @@ Other options:
 | 5a | Containers: boxes holding a timeline of their own, stretch or window, grouping and ungrouping, nested playback, a miniature of the inside; opacity follows gain; swapping boxes | done |
 | 5b | Moving between levels: going inside containers, breadcrumbs and depth, the context strip, the outline panel; each level with its own rulers, marks and lanes | done |
 | 5c | The framework on containers: section fields (writing type, time-feel, nodes) on containers, the dynamic form attached to them, time-field brackets, typological formulas | done |
-| 6 | Magnified inline expansion: a container of the level shown opened in a second timeline below, with full editing, following the selection | built, to test |
-| 7 | Takes | |
+| 6 | Magnified inline expansion: a container of the level shown opened in a second timeline below, with full editing, following the selection | done |
+| 7 | Takes: alternatives of a box's content (sounds, texts, containers), one active; new takes from a copy, the project's sounds or files; switching on the box, in the panel or with Cmd-] and Cmd-[; takes shown stacked in their boxes | built, to test |
 | 8 | Relations, materials, origin | |
 | 9 | Framework, layer 4: factor curves | |
 | 10 | Strata view | |
 | 11 | Board box | |
 | 12 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 
-## Using Projet (stages 1–6)
+## Using Projet (stages 1–7)
 
 ### The project folder
 
@@ -341,6 +341,19 @@ A container of the level you are in can be opened in a **second timeline below**
 - **Closing**: × on the bar, Shift-Cmd-Down again on the magnified container (or with no container selected), double-clicking a container in it (which goes inside that one), Cmd-Up, Cmd-Down, the breadcrumbs or the outline going to another level. If the magnified container goes (deleted, undone), the magnifier closes.
 - The **playhead** is drawn in both, each in its own time; during playback the magnifier follows it while it is inside the container. **Highlight** (View > Highlight, or a lane click) shows in both. One container is magnified at a time.
 
+### Takes (stage 7)
+
+A box can hold **takes**: alternatives of what it is, A, B, C ..., one of them active. Only the active take plays, is drawn, and is what the framework, the outline and (later) the export see.
+- **What a take holds**: its kind and content: a sound (which sound, offset, length, gain, fades), a text (its text, length, opacity) or a container (its inside, stretch or window, length, gain, fades); its framework values; a one-line note. The box keeps its place (track, start, proportions), name, colour and notes. Takes of one box can be of different kinds: the idea written as a text can stay as take A while sounds are tried as B and C.
+- **Notes**: the box's notes are shared by its takes; a text take's text is its own (the panel then says *Text of take B*).
+- **Length**: the box lasts as long as its active take, from the same start; nothing around it moves. A box whose length is set by a proportion keeps that length in every take.
+- **New takes** (the panel's **New take** button, the badge, or right-click > *Takes*): *A copy of take B* (to vary it), *A sound from the project* (every imported sound, by name), *A sound file...* (a file chooser: no need for the Finder in full screen), *An empty text*, *An empty container*. Several sound files become several takes; the first of them plays. A sound file dropped on a box with **Alt** held becomes a take of it. A new take made from a sound has the sound's name as its note.
+- **Switching**: the take cells in the panel (A B C, under the name), the **badge** on the box (B/3: click it for the list, with each take's note and kind), right-click > *Takes*, or **Cmd-]** and **Cmd-[** (also **Alt-Cmd-Right** and **Alt-Cmd-Left**) for the next and previous take of the selected boxes. Switching can be undone. The outline shows the take after the name (0 dB · B), as do the breadcrumbs and the magnifier's bar.
+- **The panel**: the takes row, the active take's note (one line), and in the New take menu *Rename take* and *Delete take*.
+- **Takes shown in the boxes**: *View > Show takes in boxes* (or the same item at the end of the takes menus) draws every take of a box stacked inside it, each as long as it is, the active one bright and the others faint. Click a faint one to make it active. (A taller track shows them better.)
+- **Editing boxes with takes**: copying, pasting, duplicating and moving keep all takes. Splitting cuts every take at the same point (a take that ends before the cut stays whole in the first part). Grouping keeps them inside the container. Ungrouping a container with several takes puts back the active take's boxes; the other takes go (Cmd-Z brings them back).
+- **Containers with takes**: inside a container, or magnified, you see and edit its active take's inside. Switching to a take that is not a container closes the magnifier, or takes you up a level if you were inside it.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -372,6 +385,17 @@ A container of the level you are in can be opened in a **second timeline below**
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 7**:
+- Select a sound box; **New take** > *A sound from the project*: the box gets the other sound's length, B/2 on the box, A B in the panel. Click A and B (and listen); Cmd-] and Cmd-[; Cmd-Z.
+- *A copy of take B*, then change its gain and fades: switching keeps each take's own. Give a take a note; rename one; delete one.
+- *A sound file...* with two files: two takes, the first plays. Drag a file from the Finder onto a box with Alt held.
+- *An empty text* on a sound box: write the text; switch back (the box's notes return), and to the text again.
+- *An empty container*: double-click into it, add boxes; go up; switch to another take and back (the inside comes back). Magnify it, then switch the box to a sound take (the magnifier closes).
+- *View > Show takes in boxes*: the stacked takes, each as long as it is; click a faint one. Make the track taller.
+- Split a box with takes at the playhead (Cmd-T); duplicate and copy-paste one; group it into a container; give a box proportions of the piece and add a take (it keeps the length).
+- Framework values per take: give take A an energy, switch to B (none), back to A.
+- Save, quit, reopen: the takes, the active one and the stacked view are kept.
 
 **Worth testing in stage 6**:
 - On the piece, select a container and Shift-Cmd-Down: the magnifier below, fitted; the blue band above and the blue row in the outline; the bar (depth, place in the piece, ×larger, stretch or window). Select another container above: it follows.

@@ -2021,6 +2021,158 @@ void testMagnifier()
     line();
 }
 
+void testTakes()
+{
+    line ("## 20. Takes (stage 7)");
+    line();
+    auto near = [] (double x, double y) { return std::abs (x - y) < 1.0e-9; };
+    const double rate = 48000.0;
+    Project p;
+    p.resetToDefault ("Takes", rate);
+    for (auto [id, seconds] : { std::pair<const char*, double> { "s1", 2.0 }, { "s2", 3.0 } })
+    {
+        juce::ValueTree rec (IDs::SOUND);
+        rec.setProperty (IDs::id, id, nullptr);
+        rec.setProperty (IDs::name, juce::String (id) == "s1" ? "bell" : "drone", nullptr);
+        rec.setProperty (IDs::lengthSamples, (juce::int64) (seconds * rate), nullptr);
+        p.addSound (rec);
+    }
+    auto two = constantSound (rate, 2.0, 0.5f), three = constantSound (rate, 3.0, 0.25f);
+    const Arrangement::Lookup lookup = [&] (const juce::String& id) { return id == "s1" ? two : (id == "s2" ? three : std::shared_ptr<const SoundData>()); };
+    auto clips = [&] { return Arrangement::build (p, lookup)->clips; };
+
+    auto t1 = p.getTrack (0);
+    auto a = p.addSoundBox (t1, 1.0, "s1");
+    a.setProperty (IDs::notes, "shared remark", nullptr);
+    check (Project::numTakes (a) == 1 && Project::takeBadge (a).isEmpty(), "a box starts with one take, and no badge");
+
+    // == A copy, then switching
+    auto& um = p.getUndoManager();
+    um.beginNewTransaction ("New take");
+    auto b = p.addTake (a, Project::NewTake::copy);
+    check (Project::numTakes (a) == 2 && Project::activeTakeOf (a) == b && Project::takeBadge (a) == "B/2"
+           && a[IDs::soundId].toString() == "s1" && near (Project::boxLength (a), 2.0), "a copy of the active take, made active: B/2");
+    a.setProperty (IDs::gainDb, -6.0, nullptr);
+    um.beginNewTransaction ("Take A");
+    p.setActiveTake (a, Project::takesOf (a)[0]);
+    check (near ((double) a[IDs::gainDb], 0.0) && near ((double) b[IDs::gainDb], -6.0) && ! Project::takesOf (a)[0].hasProperty (IDs::gainDb),
+           "switching: each take keeps its own gain; the active take's content is the box's");
+    um.undo();
+    check (Project::activeTakeOf (a) == b && near ((double) a[IDs::gainDb], -6.0), "switching can be undone");
+    um.redo();
+
+    // == A sound take: the box takes its length; only the active take plays
+    um.beginNewTransaction ("Sound take");
+    auto c = p.addTake (a, Project::NewTake::sound, "s2");
+    check (Project::activeTakeOf (a) == c && near (Project::boxLength (a), 3.0) && c[IDs::takeNote].toString() == "drone"
+           && near (Project::boxStart (a), 1.0), "a sound take: the box lasts as long as it, from the same start; its note is the sound's name");
+    {
+        auto cl = clips();
+        check (cl.size() == 1 && cl[0].sound == three && cl[0].length == (int64_t) (3.0 * rate), "only the active take plays");
+    }
+
+    // == A text take: its text is its own, the box's notes are shared by the others
+    um.beginNewTransaction ("Text take");
+    auto d = p.addTake (a, Project::NewTake::text);
+    check (Project::kindOf (a) == "text" && a[IDs::notes].toString().isEmpty() && a[IDs::sharedNotes].toString() == "shared remark"
+           && near (Project::boxLength (a), 3.0) && clips().empty(), "a text take: empty text, as long as the box; the notes wait aside; nothing plays");
+    a.setProperty (IDs::notes, "an idea", nullptr);
+    p.setActiveTake (a, Project::takesOf (a)[0]);
+    check (a[IDs::notes].toString() == "shared remark" && ! a.hasProperty (IDs::sharedNotes) && d[IDs::notes].toString() == "an idea",
+           "back to a sound take: the shared notes; the text stays with its take");
+    p.setActiveTake (a, d);
+    check (a[IDs::notes].toString() == "an idea", "and the text comes back with it");
+
+    // == A container take: its inside moves with it
+    auto e = p.addTake (a, Project::NewTake::container);
+    auto inside = a.getChildWithName (IDs::TIMELINE);
+    check (Project::isContainer (a) && inside.isValid() && Project::innerTracks (a).getNumChildren() == 1 && p.isInPiece (inside),
+           "a container take: an empty inside of its own");
+    p.setActiveTake (a, Project::takesOf (a)[0]);
+    check (! a.getChildWithName (IDs::TIMELINE).isValid() && e.getChildWithName (IDs::TIMELINE) == inside && ! p.isInPiece (inside),
+           "put aside, its inside goes with it and is no longer in the piece");
+    check (Project::takeKind (a, e) == "container" && Project::takeKind (a, c) == "sound" && near (Project::takeLength (a, c), 3.0)
+           && near (Project::boxLength (Project::takeView (a, c)), 3.0), "the takes put aside: their kinds and lengths");
+
+    // == Next, previous, rename, note, remove
+    p.stepTake (a, -1);
+    check (Project::activeTakeOf (a) == e, "previous take, round");
+    p.stepTake (a, 1);
+    check (Project::activeTakeOf (a) == Project::takesOf (a)[0], "next take, round");
+    p.setTakeName (b, "dry");
+    p.setTakeNote (b, "less reverb\nsecond line");
+    check (b[IDs::name].toString() == "dry" && b[IDs::takeNote].toString() == "less reverb", "a take's name and its one-line note");
+    p.setActiveTake (a, d);
+    p.removeTake (a, d);
+    check (Project::numTakes (a) == 4 && Project::activeTakeOf (a) == e, "removing the active take: the next one becomes active");
+    check (Project::takeBadge (a) == "E/4" && p.nextTakeNameForTest (a) == "B", "the first free letter is used again (B was renamed)");
+
+    // == A length set by a proportion stays
+    {
+        Project q;
+        q.resetToDefault ("Proportion", rate);
+        for (auto* id : { "s1", "s2" })
+        {
+            juce::ValueTree rec (IDs::SOUND);
+            rec.setProperty (IDs::id, id, nullptr);
+            rec.setProperty (IDs::lengthSamples, (juce::int64) ((juce::String (id) == "s1" ? 2.0 : 3.0) * rate), nullptr);
+            q.addSound (rec);
+        }
+        q.setPieceLength (8.0);
+        auto x = q.addTextBox (q.getTrack (0), 0.0, 1.0);
+        q.bindBox (x, "piece");
+        juce::String error;
+        q.setProportion (x, false, "1/4", error);
+        check (near (Project::boxLength (x), 2.0), "a box of 1/4 of the piece");
+        q.addTake (x, Project::NewTake::sound, "s2");
+        check (near (Project::boxLength (x), 2.0) && Project::isSound (x), "a sound take of a box set by a proportion keeps its length");
+    }
+
+    // == Splitting cuts every take; a take that ends before the cut stays whole in the first part
+    {
+        auto s = p.addSoundBox (t1, 10.0, "s2");           // A: 3 s
+        p.setFades (s, 0.0, 0.0);
+        p.addTake (s, Project::NewTake::sound, "s1");       // B: 2 s
+        p.addTake (s, Project::NewTake::text);              // C: a text, 2 s
+        p.setActiveTake (s, Project::takesOf (s)[0]);       // A active: 10 s to 13 s
+        Project::takesOf (s)[2].setProperty (IDs::length, 1.0, nullptr);   // C: 1 s
+        um.beginNewTransaction ("Split");
+        auto right = p.splitBox (s, 11.5);
+        const auto lt = Project::takesOf (s), rt = Project::takesOf (right);
+        check (right.isValid() && near (Project::boxLength (s), 1.5) && near (Project::boxLength (right), 1.5)
+               && near ((double) right[IDs::offset], 1.5) && rt.size() == 2 && Project::activeTakeIndex (right) == 0
+               && Project::activeTakeOf (right)[IDs::id] != Project::activeTakeOf (s)[IDs::id],
+               "split: the active take in two, the right part with its own take ids");
+        check (near (Project::takeLength (s, lt[1]), 1.5) && near (Project::takeLength (right, rt[1]), 0.5) && near ((double) rt[1][IDs::offset], 1.5)
+               && near (Project::takeLength (s, lt[2]), 1.0), "every take cut at the same point; the 1 s text stays whole in the first part");
+        um.undo();
+        check (Project::takesOf (s).size() == 3 && near (Project::boxLength (s), 3.0) && near (Project::takeLength (s, Project::takesOf (s)[1]), 2.0),
+               "and undo puts it all back");
+    }
+
+    // == Duplicating a box: its takes with new ids
+    {
+        auto copy = p.duplicateBox (a);
+        const auto ta = Project::takesOf (a), tc = Project::takesOf (copy);
+        bool distinct = ta.size() == tc.size();
+        for (int i = 0; i < ta.size() && distinct; ++i) distinct = ta[i][IDs::id] != tc[i][IDs::id];
+        check (distinct && Project::activeTakeOf (copy).isValid() && Project::activeTakeIndex (copy) == Project::activeTakeIndex (a),
+               "a duplicate keeps the takes, each with a new id, the same one active");
+    }
+
+    // == Changing the kind of a text take with takes: the text joins the notes
+    {
+        auto x = p.addSoundBox (t1, 20.0, "s1");
+        x.setProperty (IDs::notes, "the box's notes", nullptr);
+        p.addTake (x, Project::NewTake::text);
+        x.setProperty (IDs::notes, "the text", nullptr);
+        p.setKind (x, "sound");
+        check (x[IDs::notes].toString() == juce::String ("the box's notes") + "\n\n" + "the text" && ! x.hasProperty (IDs::sharedNotes),
+               "a text take becoming a sound: its text joins the box's notes");
+    }
+    line();
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
@@ -2030,7 +2182,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -2066,6 +2218,7 @@ int main (int argc, char** argv)
     std::cout << "Levels..." << std::endl;             testLevels();
     std::cout << "Sections..." << std::endl;           testSections();
     std::cout << "Magnifier..." << std::endl;          testMagnifier();
+    std::cout << "Takes..." << std::endl;              testTakes();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

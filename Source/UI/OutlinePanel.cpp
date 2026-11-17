@@ -184,6 +184,7 @@ void OutlinePanel::Rows::paint (juce::Graphics& g)
 
         juce::String name = row.box.isValid() ? row.box[IDs::name].toString() : juce::String ("Piece");
         if (name.isEmpty()) name = row.container ? "Container" : (Project::isSound (row.box) ? "Sound" : "Text");
+        if (row.box.isValid() && Project::numTakes (row.box) > 1) name << juce::String::fromUTF8 (" \xc2\xb7 ") << Project::activeTakeName (row.box);   // its take (stage 7)
         const juce::String time = row.box.isValid() ? TimeFormat::format (Project::boxStart (row.box), 1) : juce::String();
         g.setFont (Theme::mono (10.0f));
         int timeW = time.isEmpty() ? 0 : juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), time) + 8;

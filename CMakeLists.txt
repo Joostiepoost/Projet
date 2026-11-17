@@ -79,6 +79,7 @@ target_sources(Projet PRIVATE
     Source/UI/Inspector.cpp
     Source/UI/LevelBar.cpp
     Source/UI/MagnifierBar.cpp
+    Source/UI/TakesMenu.cpp
     Source/UI/OutlinePanel.cpp
     Source/UI/RulerPanel.cpp
     Source/UI/FrameworkPanel.cpp

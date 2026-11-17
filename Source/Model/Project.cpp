@@ -347,7 +347,23 @@ juce::ValueTree Project::addTextBox (juce::ValueTree track, double start, double
 void Project::setKind (juce::ValueTree box, const juce::String& kind)
 {
     if (kindOf (box) == kind) return;
+    const bool wasText = kindOf (box) == "text";
     box.setProperty (IDs::kind, kind, &undoManager);
+
+    // With takes (stage 7) a text take's text is its own and the box's notes
+    // wait aside meanwhile: the text becomes a text again with the notes (as
+    // changing kind keeps the notes), or joins them when it stops being one.
+    if (box.getChildWithName (IDs::TAKES).isValid() && wasText != (kind == "text"))
+    {
+        if (wasText)
+        {
+            const auto text = box[IDs::notes].toString(), shared = box[IDs::sharedNotes].toString();
+            const auto merged = shared.trim().isEmpty() ? text : (text.trim().isEmpty() ? shared : shared + "\n\n" + text);
+            if (merged != text) box.setProperty (IDs::notes, merged, &undoManager);
+            box.removeProperty (IDs::sharedNotes, &undoManager);
+        }
+        else box.setProperty (IDs::sharedNotes, box[IDs::notes].toString(), &undoManager);
+    }
 
     if (kind == "sound")
     {
@@ -387,31 +403,67 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
 {
     const double start = boxStart (box), end = boxEnd (box);
     if (t <= start + minBoxLength || t >= end - minBoxLength) return {};
-    const double s = soundScale (box);      // a sound's real seconds per second here (5b)
 
     auto right = box.createCopy();
     right.setProperty (IDs::id, newId(), nullptr);
     renewInnerIds (right, box[IDs::id].toString());
     right.setProperty (IDs::start, t, nullptr);
-    right.setProperty (IDs::length, (end - t) * s, nullptr);
+    cutContent (box, right, start, end, t, nullptr, true);
+
+    auto track = box.getParent();
+    track.addChild (right, track.indexOf (box) + 1, &undoManager);
+
+    // Stage 7: every other take is cut at the same point; one that ends
+    // before it stays whole in the first part.
+    const auto leftTakes = takesOf (box), rightTakes = takesOf (right);
+    if (leftTakes.size() > 1 && rightTakes.size() == leftTakes.size())
+    {
+        const int active = activeTakeIndex (box);
+        juce::Array<juce::ValueTree> dropped;
+        {
+            const juce::ScopedValueSetter<bool> svs (applying, true);
+            for (int i = 0; i < leftTakes.size(); ++i)
+            {
+                if (i == active) continue;
+                setActiveTake (box, leftTakes[i], false);
+                setActiveTake (right, rightTakes[i], false);
+                const double takeEnd = start + boxLength (box);
+                if (t < takeEnd - minBoxLength) cutContent (box, right, start, takeEnd, t, &undoManager, false);
+                else dropped.add (rightTakes[i]);
+            }
+            setActiveTake (box, leftTakes[active], false);
+            setActiveTake (right, rightTakes[active], false);
+            auto rightTakesNode = right.getChildWithName (IDs::TAKES);
+            for (auto d : dropped) rightTakesNode.removeChild (d, &undoManager);
+        }
+        changed();
+    }
+    return right;
+}
+
+void Project::cutContent (juce::ValueTree box, juce::ValueTree right, double start, double end, double t,
+                          juce::UndoManager* rightUndo, bool rewrite)
+{
+    const double s = soundScale (box);      // a sound's real seconds per second here (5b)
+    right.setProperty (IDs::length, (end - t) * s, rightUndo);
     if (box.hasProperty (IDs::offset))
-        right.setProperty (IDs::offset, (double) box[IDs::offset] + (t - start) * s, nullptr);
+        right.setProperty (IDs::offset, (double) box[IDs::offset] + (t - start) * s, rightUndo);
 
     // A container: each part shows its own stretch of the same inner
     // timeline (a copy), at the same scale.
     if (isContainer (box))
     {
         const double k = containerScale (box);
-        right.setProperty (IDs::innerOffset, innerOffset (box) + (t - start) / k, nullptr);
-        right.setProperty (IDs::innerLength, (end - t) / k, nullptr);
+        right.setProperty (IDs::innerOffset, innerOffset (box) + (t - start) / k, rightUndo);
+        right.setProperty (IDs::innerLength, (end - t) / k, rightUndo);
         box.setProperty (IDs::innerLength, (t - start) / k, &undoManager);
     }
 
     // The cut gets short fades so it does not click; the outer fades stay where they were.
     constexpr double cutFade = 0.005;
     const double fadeIn = box.getProperty (IDs::fadeIn, 0.0), fadeOut = box.getProperty (IDs::fadeOut, 0.0);
-    right.setProperty (IDs::fadeIn, cutFade, nullptr);
-    right.setProperty (IDs::fadeOut, juce::jmin (fadeOut, (end - t) * s), nullptr);
+    right.setProperty (IDs::fadeIn, cutFade, rightUndo);
+    right.setProperty (IDs::fadeOut, juce::jmin (fadeOut, (end - t) * s), rightUndo);
 
     // Changes along the box (stage 4a, 4b) are proportions of it: each part
     // keeps its own. Every fw.<package>.<category>.along field, whatever the
@@ -432,8 +484,8 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
         const auto base = box[baseId].toString();
         Along::section (base, changes, 0.0, cut, leftBase, leftChanges);
         Along::section (base, changes, cut, 1.0, rightBase, rightChanges);
-        if (rightBase.isEmpty()) right.removeProperty (baseId, nullptr); else right.setProperty (baseId, rightBase, nullptr);
-        if (rightChanges.isEmpty()) right.removeProperty (alongId, nullptr); else right.setProperty (alongId, Along::format (rightChanges), nullptr);
+        if (rightBase.isEmpty()) right.removeProperty (baseId, rightUndo); else right.setProperty (baseId, rightBase, rightUndo);
+        if (rightChanges.isEmpty()) right.removeProperty (alongId, rightUndo); else right.setProperty (alongId, Along::format (rightChanges), rightUndo);
         const auto leftText = Along::format (leftChanges);
         if (leftText.isEmpty()) box.removeProperty (alongId, &undoManager);
         else if (leftText != box[alongId].toString()) box.setProperty (alongId, leftText, &undoManager);
@@ -444,19 +496,18 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
     if (framework != nullptr)
         for (auto& c : framework->getCategories())
         {
-            if (c.between) right.removeProperty (c.property(), nullptr);
+            if (c.between) right.removeProperty (c.property(), rightUndo);
             if (c.atEnd && box.hasProperty (c.property())) box.removeProperty (c.property(), &undoManager);
         }
 
-    rewriteProportions (right, t, end - t, nullptr);
-    rewriteProportions (box, start, t - start, &undoManager);
+    if (rewrite)
+    {
+        rewriteProportions (right, t, end - t, rightUndo);
+        rewriteProportions (box, start, t - start, &undoManager);
+    }
     box.setProperty (IDs::length, (t - start) * s, &undoManager);
     box.setProperty (IDs::fadeIn, juce::jmin (fadeIn, (t - start) * s), &undoManager);
     box.setProperty (IDs::fadeOut, cutFade, &undoManager);
-
-    auto track = box.getParent();
-    track.addChild (right, track.indexOf (box) + 1, &undoManager);
-    return right;
 }
 
 juce::Array<juce::ValueTree> Project::allBoxes()
@@ -681,7 +732,7 @@ double Project::pieceToLevel (double t) const
 
 void Project::setFocus (juce::ValueTree c)
 {
-    if (c.isValid() && (! isContainer (c) || ! c.isAChildOf (state))) c = {};
+    if (c.isValid() && (! isContainer (c) || ! isInPiece (c))) c = {};
     if (c == focus) return;
     focus = c;
     ++focusSets;
@@ -698,12 +749,12 @@ void Project::setFocus (juce::ValueTree c)
 
 bool Project::checkFocus()
 {
-    if (! focus.isValid() || focus.isAChildOf (state)) return false;
+    if (! focus.isValid() || (isInPiece (focus) && isContainer (focus))) return false;     // stage 7: another take may not be one
     // The nearest container around it that is still in the project (from
     // the trail: a removed container no longer knows its parent).
     juce::ValueTree to;
     for (int i = focusTrail.size() - 1; i >= 0; --i)
-        if (focusTrail[i] != focus && focusTrail[i].isAChildOf (state)) { to = focusTrail[i]; break; }
+        if (focusTrail[i] != focus && isInPiece (focusTrail[i]) && isContainer (focusTrail[i])) { to = focusTrail[i]; break; }
     focus = {};                       // so setFocus sees a change
     ++focusSets;
     setFocus (to);
@@ -736,6 +787,278 @@ void Project::prepareLevel (const juce::ValueTree& container)
     const ScopedFocus there (*this, container);
     ensureTimeline (container.getChildWithName (IDs::TIMELINE));
     ensureLevelRulers();
+}
+
+//== Takes (stage 7) ===========================================================
+
+bool Project::isShellProperty (const juce::Identifier& p)
+{
+    return p == IDs::id || p == IDs::name || p == IDs::colour || p == IDs::start || p == IDs::notes
+        || p == IDs::sharedNotes || p == IDs::activeTake
+        || p == IDs::propFrame || p == IDs::propStart || p == IDs::propLength || p == IDs::propLock;
+}
+
+juce::Array<juce::ValueTree> Project::takesOf (const juce::ValueTree& box)
+{
+    juce::Array<juce::ValueTree> out;
+    for (auto t : box.getChildWithName (IDs::TAKES))
+        if (t.hasType (IDs::TAKE)) out.add (t);
+    return out;
+}
+
+juce::ValueTree Project::activeTakeOf (const juce::ValueTree& box)
+{
+    auto takes = box.getChildWithName (IDs::TAKES);
+    auto t = takes.getChildWithProperty (IDs::id, box[IDs::activeTake]);
+    return t.isValid() ? t : takes.getChild (0);
+}
+
+juce::String Project::takeBadge (const juce::ValueTree& box)
+{
+    const int n = numTakes (box);
+    return n > 1 ? activeTakeOf (box)[IDs::name].toString() + "/" + juce::String (n) : juce::String();
+}
+
+juce::String Project::activeTakeName (const juce::ValueTree& box)
+{
+    return numTakes (box) > 1 ? activeTakeOf (box)[IDs::name].toString() : juce::String();
+}
+
+juce::String Project::takeKind (const juce::ValueTree& box, const juce::ValueTree& take)
+{
+    if (! take.isValid() || take == activeTakeOf (box)) return kindOf (box);
+    return take.getProperty (IDs::kind, "sound").toString();
+}
+
+double Project::takeLength (const juce::ValueTree& box, const juce::ValueTree& take)
+{
+    if (! take.isValid() || take == activeTakeOf (box)) return boxLength (box);
+    const double raw = take[IDs::length];
+    return takeKind (box, take) == "sound" ? raw / levelScaleOf (box) : raw;
+}
+
+juce::ValueTree Project::takeView (const juce::ValueTree& box, const juce::ValueTree& take)
+{
+    if (! take.isValid() || take == activeTakeOf (box)) return box;
+    juce::ValueTree v (IDs::BOX);
+    for (int i = 0; i < box.getNumProperties(); ++i)
+        if (isShellProperty (box.getPropertyName (i))) v.setProperty (box.getPropertyName (i), box[box.getPropertyName (i)], nullptr);
+    for (int i = 0; i < take.getNumProperties(); ++i)
+    {
+        const auto p = take.getPropertyName (i);
+        if (p != IDs::id && p != IDs::name && p != IDs::takeNote) v.setProperty (p, take[p], nullptr);
+    }
+    if (takeKind (box, take) != "text") v.setProperty (IDs::notes, box[box.hasProperty (IDs::sharedNotes) ? IDs::sharedNotes : IDs::notes], nullptr);
+    // Its length in the box's level (a sound's is in real seconds).
+    if (takeKind (box, take) == "sound") v.setProperty (IDs::length, takeLength (box, take), nullptr);
+    return v;
+}
+
+juce::String Project::nextTakeName (const juce::ValueTree& box)
+{
+    juce::StringArray used;
+    for (auto t : takesOf (box)) used.add (t[IDs::name].toString());
+    for (int i = 0; ; ++i)
+    {
+        juce::String n;
+        n << (juce::juce_wchar) ('A' + i % 26);
+        if (i >= 26) n << (i / 26 + 1);
+        if (! used.contains (n)) return n;
+    }
+}
+
+void Project::ensureTakes (juce::ValueTree box)
+{
+    if (box.getChildWithName (IDs::TAKES).isValid()) return;
+    juce::ValueTree takes (IDs::TAKES), first (IDs::TAKE);
+    first.setProperty (IDs::id, newId(), nullptr);
+    first.setProperty (IDs::name, "A", nullptr);
+    if (isSound (box))
+        if (auto sound = findSound (box[IDs::soundId].toString()); sound.isValid())
+            first.setProperty (IDs::takeNote, sound[IDs::name].toString(), nullptr);    // as a sound take's
+    takes.appendChild (first, nullptr);
+    box.appendChild (takes, &undoManager);
+    box.setProperty (IDs::activeTake, first[IDs::id], &undoManager);
+    if (kindOf (box) == "text") box.setProperty (IDs::sharedNotes, juce::String(), &undoManager);   // the text is the take's
+}
+
+juce::ValueTree Project::addTake (juce::ValueTree box, NewTake how, const juce::String& soundId)
+{
+    if (! box.isValid() || (how == NewTake::sound && ! findSound (soundId).isValid())) return {};
+    ensureTakes (box);
+    juce::ValueTree take (IDs::TAKE);
+    take.setProperty (IDs::id, newId(), nullptr);
+    take.setProperty (IDs::name, nextTakeName (box), nullptr);
+    const double length = boxLength (box);
+    switch (how)
+    {
+        case NewTake::copy:
+        {
+            for (int i = 0; i < box.getNumProperties(); ++i)
+            {
+                const auto p = box.getPropertyName (i);
+                if (! isShellProperty (p)) take.setProperty (p, box[p], nullptr);
+            }
+            if (kindOf (box) == "text") take.setProperty (IDs::notes, box[IDs::notes], nullptr);
+            for (auto c : box)
+                if (! c.hasType (IDs::TAKES)) take.appendChild (c.createCopy(), nullptr);
+            std::map<juce::String, juce::String> ids;
+            renewIdsWithin (take, ids);
+            followIds (take, ids);
+            break;
+        }
+        case NewTake::text:
+            take.setProperty (IDs::kind, "text", nullptr);
+            take.setProperty (IDs::length, length, nullptr);
+            take.setProperty (IDs::opacity, 1.0, nullptr);
+            break;
+        case NewTake::container:
+            take.setProperty (IDs::kind, "container", nullptr);
+            take.setProperty (IDs::length, length, nullptr);
+            take.setProperty (IDs::gainDb, 0.0, nullptr);
+            take.setProperty (IDs::fadeIn, 0.0, nullptr);
+            take.setProperty (IDs::fadeOut, 0.0, nullptr);
+            take.setProperty (IDs::fadeInShape, (int) FadeShape::sCurve, nullptr);
+            take.setProperty (IDs::fadeOutShape, (int) FadeShape::sCurve, nullptr);
+            take.setProperty (IDs::innerLength, length, nullptr);
+            take.appendChild (makeTimeline (true), nullptr);
+            break;
+        case NewTake::sound:
+        {
+            take.setProperty (IDs::kind, "sound", nullptr);
+            take.setProperty (IDs::soundId, soundId, nullptr);
+            take.setProperty (IDs::offset, 0.0, nullptr);
+            take.setProperty (IDs::length, juce::jmax (minBoxLength, soundSeconds (soundId)), nullptr);
+            take.setProperty (IDs::gainDb, 0.0, nullptr);
+            take.setProperty (IDs::fadeIn, 0.01, nullptr);
+            take.setProperty (IDs::fadeOut, 0.01, nullptr);
+            take.setProperty (IDs::fadeInShape, (int) FadeShape::sCurve, nullptr);
+            take.setProperty (IDs::fadeOutShape, (int) FadeShape::sCurve, nullptr);
+            take.setProperty (IDs::takeNote, findSound (soundId)[IDs::name].toString(), nullptr);
+            break;
+        }
+    }
+    box.getChildWithName (IDs::TAKES).appendChild (take, &undoManager);
+    setActiveTake (box, take);
+    return take;
+}
+
+void Project::setActiveTake (juce::ValueTree box, juce::ValueTree target, bool keepProportionLength)
+{
+    if (! takesOf (box).contains (target)) return;
+    auto current = activeTakeOf (box);
+    if (current == target) return;
+    const bool outer = applying;
+    {
+        const juce::ScopedValueSetter<bool> svs (applying, true);     // one pass of proportions, afterwards
+        auto* um = &undoManager;
+        auto takesNode = box.getChildWithName (IDs::TAKES);
+        const bool keepLength = keepProportionLength && box[IDs::propLength].toString().isNotEmpty();
+        const double keptLength = boxLength (box);
+        const bool wasText = kindOf (box) == "text";
+        const auto shared = box[wasText ? IDs::sharedNotes : IDs::notes].toString();
+
+        // The active content goes into its take ...
+        juce::Array<juce::Identifier> content;
+        for (int i = 0; i < box.getNumProperties(); ++i)
+            if (! isShellProperty (box.getPropertyName (i))) content.add (box.getPropertyName (i));
+        for (auto& p : content) current.setProperty (p, box[p], um);
+        if (wasText) current.setProperty (IDs::notes, box[IDs::notes], um);
+        for (int i = box.getNumChildren(); --i >= 0;)
+        {
+            auto c = box.getChild (i);
+            if (c.hasType (IDs::TAKES)) continue;
+            box.removeChild (c, um);
+            current.addChild (c, 0, um);
+        }
+        for (auto& p : content) box.removeProperty (p, um);
+
+        // ... and the chosen take's becomes the box's.
+        juce::Array<juce::Identifier> incoming;
+        for (int i = 0; i < target.getNumProperties(); ++i)
+        {
+            const auto p = target.getPropertyName (i);
+            if (p != IDs::id && p != IDs::name && p != IDs::takeNote && p != IDs::notes) incoming.add (p);
+        }
+        for (auto& p : incoming) box.setProperty (p, target[p], um);
+        for (auto& p : incoming) target.removeProperty (p, um);
+        while (target.getNumChildren() > 0)
+        {
+            auto c = target.getChild (0);
+            target.removeChild (c, um);
+            box.addChild (c, box.indexOf (takesNode), um);
+        }
+
+        // Notes: a text take's text is its own; the others share the box's.
+        if (kindOf (box) == "text")
+        {
+            box.setProperty (IDs::notes, target[IDs::notes].toString(), um);
+            target.removeProperty (IDs::notes, um);
+            box.setProperty (IDs::sharedNotes, shared, um);
+        }
+        else
+        {
+            if (box[IDs::notes].toString() != shared) box.setProperty (IDs::notes, shared, um);
+            box.removeProperty (IDs::sharedNotes, um);
+        }
+        if (keepLength) box.setProperty (IDs::length, keptLength * soundScale (box), um);
+        box.setProperty (IDs::activeTake, target[IDs::id], um);
+    }
+    if (! outer) changed();
+}
+
+void Project::stepTake (juce::ValueTree box, int delta)
+{
+    const auto takes = takesOf (box);
+    if (takes.size() < 2) return;
+    const int n = takes.size();
+    setActiveTake (box, takes[((activeTakeIndex (box) + delta) % n + n) % n]);
+}
+
+void Project::removeTake (juce::ValueTree box, juce::ValueTree take)
+{
+    const auto takes = takesOf (box);
+    const int i = takes.indexOf (take);
+    if (i < 0 || takes.size() < 2) return;
+    if (take == activeTakeOf (box)) setActiveTake (box, takes[i + 1 < takes.size() ? i + 1 : i - 1]);
+    box.getChildWithName (IDs::TAKES).removeChild (take, &undoManager);
+}
+
+void Project::setTakeName (juce::ValueTree take, const juce::String& name)
+{
+    if (name.trim().isNotEmpty() && name.trim() != take[IDs::name].toString())
+        take.setProperty (IDs::name, name.trim(), &undoManager);
+}
+
+void Project::setTakeNote (juce::ValueTree take, const juce::String& note)
+{
+    const auto line = note.upToFirstOccurrenceOf ("\n", false, false).trim();
+    if (line.isEmpty()) { if (take.hasProperty (IDs::takeNote)) take.removeProperty (IDs::takeNote, &undoManager); }
+    else if (line != take[IDs::takeNote].toString()) take.setProperty (IDs::takeNote, line, &undoManager);
+}
+
+bool Project::isInPiece (const juce::ValueTree& node) const
+{
+    if (! node.isAChildOf (state)) return false;
+    for (auto p = node.getParent(); p.isValid(); p = p.getParent())
+        if (p.hasType (IDs::TAKE)) return false;
+    return true;
+}
+
+juce::ValueTree Project::findBoxInPiece (const juce::String& boxId)
+{
+    std::function<juce::ValueTree (const juce::ValueTree&)> search = [&] (const juce::ValueTree& tracks) -> juce::ValueTree
+    {
+        for (auto t : tracks)
+            for (auto b : t)
+            {
+                if (b[IDs::id].toString() == boxId) return b;
+                if (isContainer (b))
+                    if (auto found = search (innerTracks (b)); found.isValid()) return found;
+            }
+        return {};
+    };
+    return search (getRootTracks());
 }
 
 void Project::ensureLevelRulers()
@@ -963,45 +1286,44 @@ bool Project::swapBoxes (juce::ValueTree a, juce::ValueTree b)
     return true;
 }
 
+void Project::renewIdsWithin (juce::ValueTree node, std::map<juce::String, juce::String>& ids)
+{
+    for (auto child : node)
+    {
+        if (child.hasProperty (IDs::id))
+        {
+            const auto fresh = newId();
+            ids[child[IDs::id].toString()] = fresh;
+            child.setProperty (IDs::id, fresh, nullptr);
+        }
+        renewIdsWithin (child, ids);
+    }
+}
+
+void Project::followIds (juce::ValueTree node, const std::map<juce::String, juce::String>& ids)
+{
+    for (auto child : node)
+    {
+        for (auto* property : { &IDs::folderId, &IDs::propFrame, &IDs::frame, &IDs::activeLayer })
+        {
+            auto it = ids.find (child[*property].toString());
+            if (it != ids.end()) child.setProperty (*property, it->second, nullptr);
+        }
+        followIds (child, ids);
+    }
+}
+
 void Project::renewInnerIds (juce::ValueTree box, const juce::String& formerId)
 {
-    auto timeline = box.getChildWithName (IDs::TIMELINE);
-    if (! timeline.isValid()) return;
-
     // Everything with an id inside (tracks, boxes, layers, marks, drawn
-    // items, nodes), and the references to them (folders, frames, the
-    // active layer).
+    // items, nodes; the takes and what they hold, stage 7), and the
+    // references to them (folders, frames, the active layer, the active take).
     std::map<juce::String, juce::String> ids;
     if (formerId.isNotEmpty()) ids[formerId] = box[IDs::id].toString();     // the container's own nodes (5c)
-    std::function<void (juce::ValueTree)> assign = [&] (juce::ValueTree node)
-    {
-        for (auto child : node)
-        {
-            if (child.hasProperty (IDs::id))
-            {
-                const auto fresh = newId();
-                ids[child[IDs::id].toString()] = fresh;
-                child.setProperty (IDs::id, fresh, nullptr);
-            }
-            assign (child);
-        }
-    };
-    std::function<void (juce::ValueTree)> follow = [&] (juce::ValueTree node)
-    {
-        for (auto child : node)
-        {
-            for (auto* property : { &IDs::folderId, &IDs::propFrame, &IDs::frame, &IDs::activeLayer })
-            {
-                auto it = ids.find (child[*property].toString());
-                if (it != ids.end()) child.setProperty (*property, it->second, nullptr);
-            }
-            follow (child);
-        }
-    };
-    assign (timeline);
-    follow (timeline);
-    auto it = ids.find (timeline[IDs::activeLayer].toString());
-    if (it != ids.end()) timeline.setProperty (IDs::activeLayer, it->second, nullptr);
+    renewIdsWithin (box, ids);
+    followIds (box, ids);
+    auto it = ids.find (box[IDs::activeTake].toString());
+    if (it != ids.end()) box.setProperty (IDs::activeTake, it->second, nullptr);
 }
 
 //== Proportion frames =========================================================

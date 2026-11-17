@@ -4,6 +4,7 @@
 #include "Theme.h"
 #include "TimeFormat.h"
 #include "../Model/Proportion.h"
+#include "TakesMenu.h"
 
 namespace
 {
@@ -60,6 +61,36 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     nameEditor.onReturnKey = [this] { commitName(); };
     nameEditor.onFocusLost = [this] { commitName(); };
     addAndMakeVisible (nameEditor);
+
+    // Takes (stage 7)
+    styleLabel (takesLabel);
+    addAndMakeVisible (takesLabel);
+    takesStrip.onPick = [this] (juce::ValueTree take)
+    {
+        if (! box.isValid() || take == Project::activeTakeOf (box)) return;
+        notes.commit();
+        commitTakeNote();
+        project.getUndoManager().beginNewTransaction ("Take " + take[IDs::name].toString());
+        project.setActiveTake (box, take);
+    };
+    addAndMakeVisible (takesStrip);
+    newTakeButton.setTooltip ("A new take of this box: a copy of the active one, a sound from the project or a file, an empty text or container; renaming and deleting takes");
+    newTakeButton.onClick = [this]
+    {
+        if (! box.isValid()) return;
+        notes.commit();
+        commitTakeNote();
+        juce::Component::SafePointer<Inspector> safe (this);
+        TakesMenu::Actions actions;
+        actions.addSoundFiles = [safe] (juce::ValueTree b) { if (safe != nullptr && safe->onAddSoundTakes) safe->onAddSoundTakes (b); };
+        actions.toggleShowTakes = [safe] { if (safe != nullptr && safe->onToggleShowTakes) safe->onToggleShowTakes(); };
+        TakesMenu::show (project, box, &newTakeButton, false, false, actions, [safe] { if (safe != nullptr) safe->refresh(); });
+    };
+    addAndMakeVisible (newTakeButton);
+    takeNote.setFont (Theme::font (13.0f));
+    takeNote.onReturnKey = [this] { commitTakeNote(); };
+    takeNote.onFocusLost = [this] { commitTakeNote(); };
+    addChildComponent (takeNote);
 
     kindBox.addItem ("Sound", kindSound);
     kindBox.addItem ("Text", kindText);
@@ -380,6 +411,66 @@ juce::String Inspector::ratioReport()
     return s;
 }
 
+void Inspector::commitTakeNote()
+{
+    if (updating || ! box.isValid() || Project::numTakes (box) < 2) return;
+    auto take = Project::activeTakeOf (box);
+    if (takeNote.getText().trim() != take[IDs::takeNote].toString())
+    {
+        project.getUndoManager().beginNewTransaction ("Take note");
+        project.setTakeNote (take, takeNote.getText());
+    }
+}
+
+void Inspector::TakesStrip::paint (juce::Graphics& g)
+{
+    cells.clear();
+    const auto takes = Project::takesOf (box);
+    if (takes.size() < 2)
+    {
+        g.setColour (Theme::textMuted);
+        g.setFont (Theme::font (12.0f).italicised());
+        g.drawText ("one take", getLocalBounds().reduced (2, 0), juce::Justification::centredLeft, true);
+        return;
+    }
+    const auto active = Project::activeTakeOf (box);
+    float x = 0.0f;
+    const auto font = Theme::font (12.0f, true);
+    for (auto t : takes)
+    {
+        const auto name = t[IDs::name].toString();
+        const float w = juce::jmax (24.0f, (float) juce::GlyphArrangement::getStringWidthInt (font, name) + 14.0f);
+        if (x + w > (float) getWidth()) break;
+        juce::Rectangle<float> cell (x, 1.0f, w, (float) getHeight() - 2.0f);
+        const bool on = t == active;
+        g.setColour (on ? Theme::accent.withAlpha (0.25f) : Theme::background);
+        g.fillRoundedRectangle (cell, 4.0f);
+        g.setColour (on ? Theme::accent : Theme::line.brighter (0.3f));
+        g.drawRoundedRectangle (cell.reduced (0.5f), 4.0f, 1.0f);
+        g.setColour (on ? Theme::accent : Theme::text);
+        g.setFont (font);
+        g.drawText (name, cell, juce::Justification::centred, false);
+        cells.push_back ({ cell, t });
+        x += w + 4.0f;
+    }
+}
+
+void Inspector::TakesStrip::mouseDown (const juce::MouseEvent& e)
+{
+    for (auto& [cell, take] : cells)
+        if (cell.contains (e.position)) { if (onPick) onPick (take); return; }
+}
+
+juce::String Inspector::TakesStrip::getTooltip()
+{
+    const auto p = getMouseXYRelative().toFloat();
+    for (auto& [cell, take] : cells)
+        if (cell.contains (p))
+            return "Take " + TakesMenu::describe (take) + " (" + Project::takeKind (box, take) + ", "
+                   + TimeFormat::format (Project::takeLength (box, take), 1) + "): click to make it the one that plays";
+    return {};
+}
+
 void Inspector::commitName()
 {
     if (updating || ! box.isValid()) return;
@@ -490,6 +581,9 @@ void Inspector::setMode (Mode m)
     const bool sound = m == Mode::sound;
     const bool container = m == Mode::container;
 
+    for (juce::Component* c : std::initializer_list<juce::Component*> { &takesLabel, &takesStrip, &newTakeButton })
+        c->setVisible (anyBox);
+    takeNote.setVisible (anyBox && box.isValid() && Project::numTakes (box) > 1);
     for (juce::Component* c : std::initializer_list<juce::Component*> { &nameLabel, &nameEditor, &kindLabel, &kindBox,
                                                                         &times, &notesLabel, &notes, &propLabel, &frameBox, &startLabel,
                                                                         &lengthLabel, &startField, &lengthField, &propInfo, &propError, &lockToggle })
@@ -640,12 +734,26 @@ void Inspector::refresh()
     title.setText (sound ? "SOUND BOX" : (container ? "CONTAINER" : "TEXT BOX"), juce::dontSendNotification);
     if (! nameEditor.hasKeyboardFocus (true))
         nameEditor.setText (box[IDs::name].toString(), false);
+
+    // Takes (stage 7)
+    {
+        const int n = Project::numTakes (box);
+        const auto active = Project::activeTakeOf (box);
+        takesStrip.box = box;
+        takesStrip.repaint();
+        takesLabel.setText (n > 1 ? "Takes (" + juce::String (n) + "): click one to hear it" : juce::String ("Takes"), juce::dontSendNotification);
+        takeNote.setTextToShowWhenEmpty (n > 1 ? "A note on take " + active[IDs::name].toString() + " (one line)" : juce::String(), Theme::textMuted);
+        if (! takeNote.hasKeyboardFocus (false)) takeNote.setText (n > 1 ? active[IDs::takeNote].toString() : juce::String(), false);
+        const bool textTake = Project::kindOf (box) == "text";
+        notesLabel.setText (n > 1 ? (textTake ? "Text of take " + active[IDs::name].toString() + " (its own)" : juce::String ("Notes (shared by the takes)"))
+                                  : juce::String ("Notes (kept whatever the kind)"), juce::dontSendNotification);
+    }
     kindBox.setSelectedId (sound ? kindSound : (container ? kindContainer : kindText), juce::dontSendNotification);
     opacity.setValue (box.getProperty (IDs::opacity, 1.0), juce::dontSendNotification);
 
     juce::String t;
     t << TimeFormat::format (Project::boxStart (box)) << " - " << TimeFormat::format (Project::boxEnd (box))
-      << "   length " << TimeFormat::format (Project::boxLength (box));
+      << "\nlength " << TimeFormat::format (Project::boxLength (box));
     if (sound) t << "\noffset into the sound " << TimeFormat::format ((double) box.getProperty (IDs::offset, 0.0));
     times.setText (t, juce::dontSendNotification);
 
@@ -758,6 +866,21 @@ void Inspector::resized()
     {
         labelled (nameLabel, nameEditor, 26);
 
+        // Takes (stage 7)
+        takesLabel.setBounds (r.removeFromTop (17));
+        {
+            auto takesRow = r.removeFromTop (24);
+            newTakeButton.setBounds (takesRow.removeFromRight (88));
+            takesRow.removeFromRight (6);
+            takesStrip.setBounds (takesRow);
+        }
+        if (takeNote.isVisible())
+        {
+            r.removeFromTop (4);
+            takeNote.setBounds (r.removeFromTop (24));
+        }
+        r.removeFromTop (7);
+
         auto row = r.removeFromTop (17);
         kindLabel.setBounds (row.removeFromLeft (100));
         row.removeFromLeft (8);
@@ -793,7 +916,7 @@ void Inspector::resized()
             r.removeFromTop (4);
         }
         if (mode == Mode::text) labelled (opacityLabel, opacity, 22);
-        times.setBounds (r.removeFromTop (mode == Mode::sound ? 32 : 18));
+        times.setBounds (r.removeFromTop (mode == Mode::sound ? 46 : 32));
         r.removeFromTop (4);
 
         propLabel.setBounds (r.removeFromTop (17));

@@ -100,7 +100,9 @@ void LevelBar::paint (juce::Graphics& g)
     {
         separator();
         auto name = trail[i][IDs::name].toString();
-        crumb (name.isEmpty() ? juce::String ("Container") : name, trail[i], i == trail.size() - 1);
+        if (name.isEmpty()) name = "Container";
+        if (Project::numTakes (trail[i]) > 1) name << juce::String::fromUTF8 (" \xc2\xb7 ") << Project::activeTakeName (trail[i]);   // its take (stage 7)
+        crumb (name, trail[i], i == trail.size() - 1);
     }
     const double k = Project::containerScale (focus);
     juce::String about;

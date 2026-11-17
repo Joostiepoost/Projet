@@ -51,7 +51,8 @@ public:
         cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap,           // stage 5a
         cmdAudioEngine,
         cmdDiveIn, cmdLevelUp, cmdToggleOutline,                 // stage 5b
-        cmdMagnify                                               // stage 6
+        cmdMagnify,                                              // stage 6
+        cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes   // stage 7
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -132,10 +133,14 @@ private:
 
     //== Sounds =================================================================
     void importDialog();
-    void importFiles (const juce::StringArray& files, juce::ValueTree track, double start);
+    void importFiles (const juce::StringArray& files, juce::ValueTree track, double start, const juce::String& takeBoxId = {});
+    /** Sound files chosen to become new takes of a box (stage 7). */
+    void addSoundTakes (juce::ValueTree box);
     struct ImportBatch
     {
         juce::String trackId;
+        juce::String takeBoxId;            // stage 7: the sounds become takes of this box
+        bool firstTakeMade = false;
         double cursor = 0.0;
         int next = 0;
         std::vector<std::optional<projet::ImportResult>> results;

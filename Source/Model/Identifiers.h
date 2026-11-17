@@ -45,6 +45,8 @@ namespace IDs
     PROJET_ID (TRACK)
     PROJET_ID (BOX)
     PROJET_ID (TIMELINE)              // a container's inner timeline (stage 5a)
+    PROJET_ID (TAKES)                 // a box's takes (stage 7)
+    PROJET_ID (TAKE)                  // a take put aside: its content (properties, inner timeline)
 
     // Project
     PROJET_ID (formatVersion)
@@ -124,6 +126,10 @@ namespace IDs
     PROJET_ID (stretch)               // a container: the inner timeline scales with the box (default on, 5a)
     PROJET_ID (innerLength)           // a stretched container: the inner seconds its length shows
     PROJET_ID (innerOffset)           // a container: the inner time at its left edge
+    PROJET_ID (activeTake)            // a box with takes: the id of the active one (stage 7)
+    PROJET_ID (takeNote)              // a take's one-line note
+    PROJET_ID (sharedNotes)           // a box whose active take is a text: its own notes meanwhile
+    PROJET_ID (showTakes)             // view setting: takes drawn stacked in their boxes
     // Framework values: fw.<package>.<category> (Framework::Category::property()),
     // never "type", which names the node in the project file.
 

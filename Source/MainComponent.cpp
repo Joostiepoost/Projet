@@ -93,6 +93,8 @@ MainComponent::MainComponent()
     transport.onToggleAudio = [this] { setAudioOn (! audioOn); };
 
     inspector.onExpandNotes = [this] { openNotesWindow(); };
+    inspector.onAddSoundTakes = [this] (juce::ValueTree box) { addSoundTakes (box); };
+    inspector.onToggleShowTakes = [this] { commandManager.invokeDirectly (cmdShowTakes, false); };
     inspector.getRulerPanel().getPlayhead = [this] { return playheadInLevel(); };
     inspector.getRulerPanel().setProperties (properties.getUserSettings());
     inspector.getRulerPanel().onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
@@ -202,7 +204,7 @@ void MainComponent::goTo (juce::ValueTree container)
 {
     inspector.commitNotes();
     closeMagnifier();
-    if (container.isValid() && (! Project::isContainer (container) || ! container.isAChildOf (project.getState()))) container = {};
+    if (container.isValid() && (! Project::isContainer (container) || ! project.isInPiece (container))) container = {};
     if (container != timeline.getLevel())
         timeline.setLevel (container);
     if (project.getFocus() == container) levelsChanged();   // the focus was already there (the magnifier's)
@@ -278,6 +280,9 @@ void MainComponent::wireView (TimelineView& v)
         transport.setStatus (h.isActive() ? "Highlighting " + h.describe (framework) + " (click the lane again, or View > Highlight > Show all, to clear)" : juce::String());
     };
     v.onFilesDropped = [this] (const juce::StringArray& files, juce::ValueTree track, double t) { importFiles (files, track, t); };
+    v.onAddSoundTakes = [this] (juce::ValueTree box) { addSoundTakes (box); };
+    v.onToggleShowTakes = [this] { commandManager.invokeDirectly (cmdShowTakes, false); };
+    v.onFilesDroppedAsTakes = [this] (const juce::StringArray& files, juce::ValueTree box) { importFiles (files, {}, 0.0, box[IDs::id].toString()); };
     v.onRevealOriginal = [this] (juce::ValueTree box)
     {
         auto s = project.findSound (box[IDs::soundId].toString());
@@ -310,7 +315,7 @@ void MainComponent::activate (TimelineView& v)
 
 void MainComponent::openMagnifier (juce::ValueTree c)
 {
-    if (! Project::isContainer (c) || ! c.isAChildOf (project.getState()) || Project::containerOf (c) != timeline.getLevel()) return;
+    if (! Project::isContainer (c) || ! project.isInPiece (c) || Project::containerOf (c) != timeline.getLevel()) return;
     inspector.commitNotes();
     project.prepareLevel (c);                      // its own rulers, on a first visit
     if (active == &magnifier) activate (timeline);
@@ -365,6 +370,7 @@ void MainComponent::updateMagnifierBar()
     if (! c.isValid()) return;
     juce::String name = c[IDs::name].toString();
     if (name.isEmpty()) name = "Container";
+    if (Project::numTakes (c) > 1) name << juce::String::fromUTF8 (" \xc2\xb7 take ") << Project::activeTakeName (c);   // stage 7
     // Its place in the piece, and how much larger it is drawn than above.
     double from = 0.0, to = 0.0, upperPps = 1.0;
     {
@@ -655,10 +661,14 @@ void MainComponent::modelChanged()
 {
     project.checkFocus();                // the container worked on may have gone (undo, delete)
     // The magnified container, or the one shown above, may have gone too (stage 6).
-    auto gone = [this] (const juce::ValueTree& c) { return c.isValid() && ! c.isAChildOf (project.getState()); };
+    // ... or stopped being a container (another take, stage 7).
+    auto gone = [this] (const juce::ValueTree& c) { return c.isValid() && (! project.isInPiece (c) || ! Project::isContainer (c)); };
     if (magnifierShown && (gone (magnifier.getLevel()) || Project::containerOf (magnifier.getLevel()) != timeline.getLevel()))
         closeMagnifier();
-    if (gone (timeline.getLevel())) goTo (project.getFocus().isAChildOf (project.getState()) ? project.getFocus() : juce::ValueTree());
+    if (gone (timeline.getLevel())) goTo (gone (project.getFocus()) ? juce::ValueTree() : project.getFocus());
+    // A container's take with an inside never shown yet gets its rulers.
+    if (magnifierShown) project.prepareLevel (magnifier.getLevel());
+    if (timeline.getLevel().isValid()) project.prepareLevel (timeline.getLevel());
     outline.refresh();
     levelBar.repaint();
     syncSounds();
@@ -704,12 +714,31 @@ void MainComponent::importDialog()
     });
 }
 
-void MainComponent::importFiles (const juce::StringArray& files, juce::ValueTree track, double start)
+void MainComponent::addSoundTakes (juce::ValueTree box)
+{
+    if (! box.isValid()) return;
+    chooser = std::make_unique<juce::FileChooser> ("Sounds as new takes of " + box[IDs::name].toString(),
+                                                   juce::File::getSpecialLocation (juce::File::userMusicDirectory), audioPatterns, true);
+    juce::Component::SafePointer<MainComponent> safeThis (this);
+    const auto boxId = box[IDs::id].toString();
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
+                          | juce::FileBrowserComponent::canSelectMultipleItems,
+                          [safeThis, boxId] (const juce::FileChooser& fc)
+    {
+        if (safeThis == nullptr) return;
+        juce::StringArray paths;
+        for (auto& f : fc.getResults()) paths.add (f.getFullPathName());
+        if (! paths.isEmpty()) safeThis->importFiles (paths, {}, 0.0, boxId);
+    });
+}
+
+void MainComponent::importFiles (const juce::StringArray& files, juce::ValueTree track, double start, const juce::String& takeBoxId)
 {
     if (! folder.isValid() || files.isEmpty()) return;
 
     auto batch = std::make_shared<ImportBatch>();
     batch->trackId = track[IDs::id].toString();
+    batch->takeBoxId = takeBoxId;
     batch->cursor = start;
     batch->results.resize ((size_t) files.size());
     batches.push_back (batch);
@@ -780,6 +809,19 @@ void MainComponent::placeReady (std::shared_ptr<ImportBatch> batch)
             s.setProperty (IDs::format, format, nullptr);
             project.addSound (s);
         }
+
+        // New takes of a box (stage 7): the first of them is the one that plays.
+        if (batch->takeBoxId.isNotEmpty())
+            if (auto takeBox = project.findBoxInPiece (batch->takeBoxId); takeBox.isValid())
+            {
+                project.getUndoManager().beginNewTransaction ("New take " + r.original.getFileName());
+                const auto playing = Project::activeTakeOf (takeBox);
+                project.addTake (takeBox, Project::NewTake::sound, soundId);
+                if (batch->firstTakeMade && playing.isValid()) project.setActiveTake (takeBox, playing);
+                batch->firstTakeMade = true;
+                selectInView (takeBox);
+                continue;
+            }
 
         auto track = project.findTrack (batch->trackId);
         if (track.isValid() && Project::isFolder (track)) track = {};
@@ -1086,7 +1128,8 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& c)
                   cmdPlayStop, cmdToStart, cmdZoomIn, cmdZoomOut, cmdZoomFit,
                   cmdAddTrack, cmdAudioSettings, cmdAudioEngine, cmdShortcuts,
                   cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel,
-                  cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, cmdDiveIn, cmdLevelUp, cmdToggleOutline, cmdMagnify });
+                  cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, cmdDiveIn, cmdLevelUp, cmdToggleOutline, cmdMagnify,
+                  cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes });
 }
 
 void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommandInfo& info)
@@ -1185,6 +1228,27 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             info.setActive (any);
             break;
         }
+        case cmdNextTake:
+        case cmdPreviousTake:
+        {
+            bool any = false;
+            if (hasProject()) for (auto b : view().getSelectedBoxes()) any = any || Project::numTakes (b) > 1;
+            const bool next = id == cmdNextTake;
+            info.setInfo (next ? "Next take" : "Previous take", next ? "The selected boxes play their next take" : "The selected boxes play their previous take", "Edit", 0);
+            info.addDefaultKeypress (next ? ']' : '[', cmd);
+            info.addDefaultKeypress (next ? KP::rightKey : KP::leftKey, cmd | juce::ModifierKeys::altModifier);
+            info.setActive (any);
+            break;
+        }
+        case cmdNewTake:
+            info.setInfo ("New take (a copy)", "A new take of the selected box: a copy of the active one, to vary", "Edit", 0);
+            info.setActive (hasProject() && view().getSelectedBoxes().size() == 1);
+            break;
+        case cmdShowTakes:
+            info.setInfo ("Show takes in boxes", "Draw every take of a box stacked inside it (click one to make it active)", "View", 0);
+            info.setTicked (hasProject() && (bool) project.getState().getProperty (IDs::showTakes, false));
+            info.setActive (hasProject());
+            break;
         case cmdSwap:          info.setInfo ("Swap the two boxes", "The two selected boxes change places, each keeping its length", "Edit", 0); info.setActive (hasProject() && view().getSelectedBoxes().size() == 2); break;
         default: break;
     }
@@ -1253,9 +1317,15 @@ bool MainComponent::perform (const InvocationInfo& info)
         {
             juce::Array<juce::ValueTree> moved;
             project.getUndoManager().beginNewTransaction ("Ungroup");
+            bool otherTakes = false;
             for (auto b : view().getSelectedBoxes())
-                if (Project::isContainer (b)) moved.addArray (project.ungroupContainer (b));
+                if (Project::isContainer (b))
+                {
+                    otherTakes = otherTakes || Project::numTakes (b) > 1;
+                    moved.addArray (project.ungroupContainer (b));
+                }
             view().setSelection (moved);
+            if (otherTakes) transport.setStatus ("Ungrouped the active take's boxes; the container's other takes went with it (Cmd-Z brings them back).");
             break;
         }
         case cmdSwap:
@@ -1267,6 +1337,29 @@ bool MainComponent::perform (const InvocationInfo& info)
             break;
         }
         case cmdDeselect:     view().selectBox ({}); break;
+        case cmdNextTake:
+        case cmdPreviousTake:
+        {
+            auto boxes = view().getSelectedBoxes();
+            project.getUndoManager().beginNewTransaction (info.commandID == cmdNextTake ? "Next take" : "Previous take");
+            for (auto b : boxes) project.stepTake (b, info.commandID == cmdNextTake ? 1 : -1);
+            juce::StringArray names;
+            for (auto b : boxes) if (Project::numTakes (b) > 1) names.add (b[IDs::name].toString() + ": take " + Project::activeTakeName (b));
+            transport.setStatus (names.joinIntoString (", "));
+            break;
+        }
+        case cmdNewTake:
+        {
+            auto boxes = view().getSelectedBoxes();
+            if (boxes.size() != 1) break;
+            project.getUndoManager().beginNewTransaction ("New take");
+            project.addTake (boxes[0], Project::NewTake::copy);
+            break;
+        }
+        case cmdShowTakes:
+            setViewSetting (IDs::showTakes, (bool) project.getState().getProperty (IDs::showTakes, false) ? juce::String() : juce::String ("1"));
+            commandManager.commandStatusChanged();
+            break;
 
         case cmdPlayStop:     playStop(); break;
         case cmdToStart:      locate (0.0); break;
@@ -1318,10 +1411,10 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             break;
         }
         case 1: add ({ cmdUndo, cmdRedo, 0, cmdCut, cmdCopy, cmdPaste, cmdDuplicate, cmdDelete, 0, cmdSplit, cmdNewTextBox, cmdNotesWindow,
-                       0, cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, 0, cmdSelectAll, cmdDeselect }); break;
+                       0, cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, 0, cmdNewTake, cmdNextTake, cmdPreviousTake, 0, cmdSelectAll, cmdDeselect }); break;
         case 2:
         {
-            add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit, 0, cmdDiveIn, cmdLevelUp, cmdMagnify, 0, cmdTogglePanel, cmdToggleOutline });
+            add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit, 0, cmdDiveIn, cmdLevelUp, cmdMagnify, 0, cmdShowTakes, 0, cmdTogglePanel, cmdToggleOutline });
             m.addSeparator();
             // Colour modes (stage 4a, 4b): 6000 = track colours, 6001 + category index
             const auto mode = project.getState().getProperty (IDs::colourMode, "own").toString();

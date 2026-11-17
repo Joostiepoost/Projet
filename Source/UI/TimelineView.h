@@ -116,6 +116,10 @@ public:
     std::function<void()> onSelectionChanged;
     std::function<void (const juce::StringArray& files, juce::ValueTree track, double seconds)> onFilesDropped;
     std::function<void (juce::ValueTree box)> onRevealOriginal;
+    /** Takes (stage 7): sound files to choose as new takes of the box; files dropped with Alt on a box. */
+    std::function<void (juce::ValueTree box)> onAddSoundTakes;
+    std::function<void (const juce::StringArray& files, juce::ValueTree box)> onFilesDroppedAsTakes;
+    std::function<void()> onToggleShowTakes;
     std::function<void (juce::ValueTree track, double seconds)> onAddTextBox;
     std::function<void (juce::ValueTree box)> onEditNotes, onSplitAtPlayhead, onOpenNotesWindow;
     /** Go inside a container (stage 5b). */
@@ -231,6 +235,24 @@ private:
 
     void paintTrackHeader (juce::Graphics&, const TrackRow&, int index);
     void paintBox (juce::Graphics&, const juce::ValueTree& box, const TrackRow&);
+    void paintBoxIn (juce::Graphics&, const juce::ValueTree& box, const TrackRow&, juce::Rectangle<float> r);
+    //== Takes (stage 7) ======================================================
+    bool showingTakes() const                       { return (bool) project.getState().getProperty (IDs::showTakes, false); }
+    /** With View > Show takes in boxes: a lane per take, in order (a take
+        put aside as long as it is); empty when not stacked. */
+    std::vector<juce::Rectangle<float>> takeLanes (const juce::ValueTree& box, juce::Rectangle<float> r) const;
+    /** The badge (B/3) that opens the takes' list; stacked, the active lane's tag. */
+    juce::Rectangle<float> takeBadgeArea (const juce::ValueTree& box, juce::Rectangle<float> r) const;
+    void paintTakeTag (juce::Graphics&, juce::Rectangle<float> area, const juce::String& text, bool active);
+    /** A take put aside, as a box to draw (cached until the project changes). */
+    juce::ValueTree takeLaneView (const juce::ValueTree& box, const juce::ValueTree& take);
+    std::map<juce::String, juce::ValueTree> takeViews;
+    bool drawingTakeLanes = false;                  // no fade handles in the lanes
+    int takeViewsCount = -1;
+    struct TakeHit { juce::ValueTree box, take; bool badge = false; };
+    TakeHit takeAt (juce::Point<float>);
+    void showTakesMenu (juce::ValueTree box);
+    static constexpr int takesMenuBase = 200000;
     void paintFades (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>);
     void paintFadeHandles (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>);
     /** A container (stage 5a): header, miniature of the inside, fades, double edge. */
