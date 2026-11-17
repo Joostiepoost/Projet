@@ -1000,10 +1000,33 @@ void TimelineView::askRatioSplit (const juce::String& frameRef, juce::ValueTree 
             if (! Proportion::isValidName (prefix + "1")) prefix = "r";
             p.getUndoManager().beginNewTransaction ("Split by ratio");
             auto marks = p.splitFrameByRatio (ref, parts, prefix);
-            if (safe->onStatus) safe->onStatus ("Made " + juce::String (marks.size()) + " marks in " + p.frameName (ref) + ".", false);
+            // Marks show on a proportion layer framed by their frame: a box
+            // gets one of its own if no layer shows it yet.
+            const bool added = boxToCut.isValid() && safe->showFrameLayer (ref);
+            if (safe->onStatus) safe->onStatus ("Made " + juce::String (marks.size()) + " marks in " + p.frameName (ref)
+                                                + (added ? ", on a new proportion layer framed by it." : "."), false);
         }
         safe->repaint();
     }), true);
+}
+
+bool TimelineView::showFrameLayer (const juce::String& ref)
+{
+    auto rulers = project.getRulers();
+    int insertAt = 0;
+    for (int i = 0; i < rulers.getNumChildren(); ++i)
+    {
+        auto l = rulers.getChild (i);
+        if (! Project::isLaneLayer (l)) insertAt = i + 1;           // below the time and proportion layers
+        if (Project::isProportionLayer (l) && project.layerFrame (l) == ref)
+        {
+            l.setProperty (IDs::visible, true, nullptr);
+            return false;
+        }
+    }
+    auto l = project.addLayer ("proportion", insertAt);
+    project.setLayerFrame (l, ref);
+    return true;
 }
 
 //== Lanes (stage 4d) ==========================================================

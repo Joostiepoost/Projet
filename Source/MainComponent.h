@@ -45,7 +45,8 @@ public:
         cmdAddTrack, cmdAudioSettings, cmdShortcuts,
         cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow,
         cmdTogglePanel,
-        cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap            // stage 5a
+        cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap,           // stage 5a
+        cmdAudioEngine
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -169,6 +170,9 @@ private:
     projet::Importer importer;
     projet::PlaybackEngine engine;
     juce::AudioDeviceManager deviceManager;
+    /** The audio engine on or off (off: the device is closed, saving CPU and battery). */
+    bool audioOn = true;
+    void setAudioOn (bool on, bool announce = true);
 
     juce::ApplicationProperties properties;
     juce::RecentlyOpenedFilesList recentProjects;

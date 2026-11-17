@@ -125,6 +125,9 @@ public:
 
     /** Asks for parts ("2:3:5:8") and splits the frame into marks, or the box into parts. */
     void askRatioSplit (const juce::String& frameRef, juce::ValueTree boxToCut);
+    /** Makes sure a proportion layer framed by `ref` is shown (adding one
+        below the others if needed); true if one was added. */
+    bool showFrameLayer (const juce::String& ref);
     static constexpr int addTrackHeight = 34;
 
 private:
