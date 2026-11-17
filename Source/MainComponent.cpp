@@ -732,7 +732,7 @@ void MainComponent::paste()
         const auto id = Project::newId();
         newIds[copy[IDs::id].toString()] = id;
         copy.setProperty (IDs::id, id, nullptr);
-        Project::renewInnerIds (copy);                 // a container's inside too (5a)
+        Project::renewInnerIds (copy, item.box[IDs::id].toString());     // a container's inside too (5a), its own nodes (5c)
         copy.setProperty (IDs::start, t + item.timeOffset, nullptr);
         copies.push_back (copy);
     }

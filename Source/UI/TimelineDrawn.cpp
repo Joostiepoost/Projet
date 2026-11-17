@@ -65,7 +65,10 @@ TimelineView::DrawnGeometry TimelineView::drawnGeometry (const LayerRow& row, in
     g.pointsH = juce::jlimit (9.0f, 22.0f, (float) row.h * 0.25f);
     g.rowsTop = g.pointsTop + g.pointsH + 1.0f;
     g.rows = juce::jmax (1, rows);
-    g.rowH = juce::jmax (4.0f, ((float) (row.y + row.h) - 2.0f - g.rowsTop) / (float) g.rows);
+    // Time-field brackets under the signs (5c): one per container of the level.
+    g.brackets = ! project.levelContainers().isEmpty() && row.h >= 30;
+    g.bracketTop = (float) (row.y + row.h) - (g.brackets ? 10.0f : 2.0f);
+    g.rowH = juce::jmax (4.0f, (g.bracketTop - g.rowsTop) / (float) g.rows);
     return g;
 }
 
@@ -225,6 +228,39 @@ void TimelineView::paintDrawnLane (juce::Graphics& g, const LayerRow& row, const
         paintSpan (g, lane, p.item, r, p.item[IDs::id].toString() == selectedItemId);
     }
 
+    // Time-field brackets (5c): a bracket under each container of this level,
+    // solid where a span is attached to it.
+    if (geo.brackets)
+    {
+        juce::StringArray attached;
+        for (auto item : project.drawnItems (lane.key())) attached.add (item[IDs::attached].toString());
+        const float y = geo.bracketTop + 7.0f;
+        for (auto c : project.levelContainers())
+        {
+            const float x0 = timeToX (Project::boxStart (c)) + 1.0f, x1 = timeToX (Project::boxEnd (c)) - 1.0f;
+            if (x1 < (float) headerWidth || x0 > (float) getWidth() || x1 - x0 < 3.0f) continue;
+            const bool linked = attached.contains (c[IDs::id].toString());
+            g.setColour (Theme::signs.withAlpha (linked ? 0.9f : 0.45f));
+            juce::Path bracket;
+            bracket.startNewSubPath (x0, y - 5.0f);
+            bracket.lineTo (x0, y);
+            bracket.lineTo (x1, y);
+            bracket.lineTo (x1, y - 5.0f);
+            g.strokePath (bracket, juce::PathStrokeType (linked ? 1.4f : 1.0f));
+            const auto name = c[IDs::name].toString();
+            g.setFont (Theme::font (9.0f));
+            const int w = juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), name) + 6;
+            if (x1 - x0 > (float) w + 10.0f)
+            {
+                const auto label = juce::Rectangle<float> ((x0 + x1 - (float) w) / 2.0f, y - 6.0f, (float) w, 10.0f);
+                g.setColour (Theme::background);
+                g.fillRect (label);
+                g.setColour (Theme::signs.withAlpha (linked ? 0.9f : 0.55f));
+                g.drawText (name, label, juce::Justification::centred, false);
+            }
+        }
+    }
+
     // The span being drawn.
     if (dragMode == DragMode::drawSpan && drawLayer == row.layer)
     {
@@ -317,6 +353,10 @@ bool TimelineView::drawnMouseDown (const LayerRow& row, const Framework::Lane& l
         else if (std::abs (pos.x - r.getX()) <= edgeGrab) dragMode = DragMode::itemStart;
         else if (std::abs (pos.x - r.getRight()) <= edgeGrab) dragMode = DragMode::itemEnd;
         else dragMode = DragMode::itemMove;
+        // While it is dragged it no longer follows its container; let go on
+        // a container's edges, it is attached again (5c).
+        if (dragMode == DragMode::itemStart || dragMode == DragMode::itemEnd || dragMode == DragMode::itemMove)
+            if (dragItem.hasProperty (IDs::attached)) dragItem.removeProperty (IDs::attached, project.um());
         return true;
     }
 
@@ -443,6 +483,7 @@ bool TimelineView::drawnMouseUp (const juce::MouseEvent& e)
     if (mode == DragMode::itemMove || mode == DragMode::itemStart || mode == DragMode::itemEnd || mode == DragMode::itemGoal || mode == DragMode::itemGoalEnd
         || mode == DragMode::nodeMove || mode == DragMode::nodeStart || mode == DragMode::nodeEnd)
     {
+        if (mode == DragMode::itemMove || mode == DragMode::itemStart || mode == DragMode::itemEnd) project.attachSpan (dragItem);
         dragMode = DragMode::none;
         dragItem = {};
         dragNode = {};
@@ -652,6 +693,61 @@ void TimelineView::paintNodes (juce::Graphics& g)
         }
     }
 
+    // Nodes of the whole container shown (5c): across every track and lane,
+    // a diamond on the section row.
+    if (auto focus = project.getFocus(); focus.isValid())
+    {
+        float sectionY = 0.0f, sectionH = 0.0f;
+        for (auto& l : layers) if (l.section) { sectionY = (float) l.y; sectionH = (float) l.h; }
+        float bottom = (float) tracksTop();
+        for (auto& r : rs) bottom = juce::jmax (bottom, (float) (r.y + r.h));
+        auto across = [&] (float x0, float x1, juce::Colour fill, juce::Colour edge)
+        {
+            auto band = [&] (float top, float bot)
+            {
+                if (bot <= top) return;
+                g.setColour (fill);
+                g.fillRect (x0, top, x1 - x0, bot - top);
+                g.setColour (edge);
+                g.fillRect (x0, top, 1.0f, bot - top);
+                g.fillRect (x1 - 1.0f, top, 1.0f, bot - top);
+            };
+            band ((float) tracksTop(), bottom);
+            for (auto& l : layers) if (l.lane) band ((float) l.y, (float) (l.y + l.h - 1));
+            band (sectionY, sectionY + sectionH - 1.0f);
+        };
+        for (auto node : project.nodesOf (focus))
+        {
+            const float x0 = timeToX ((double) node[IDs::start]);
+            const float x1 = juce::jmax (x0 + 2.0f, timeToX ((double) node[IDs::start] + (double) node[IDs::length]));
+            if (x1 < (float) headerWidth || x0 > (float) getWidth()) continue;
+            const bool selected = node[IDs::id].toString() == selectedNodeId;
+            const auto check = rules.present ? Lanes::checkNode (project, rules, node) : Lanes::NodeCheck();
+            const bool flagged = check.tooShort || check.tooLong || ! check.still.isEmpty();
+            const auto colour = flagged ? Theme::nodesFlagged : Theme::nodes;
+            across (x0, x1, Theme::nodes.withAlpha (selected ? 0.22f : 0.11f), colour.withAlpha (selected ? 0.95f : 0.6f));
+            juce::Path diamond;
+            const float cx = (x0 + x1) / 2.0f, cy = sectionY + sectionH * 0.5f;
+            diamond.addQuadrilateral (cx, cy - 5.0f, cx + 5.0f, cy, cx, cy + 5.0f, cx - 5.0f, cy);
+            g.setColour (selected ? colour.brighter (0.3f) : colour);
+            g.fillPath (diamond);
+            if (flagged)
+            {
+                g.setFont (Theme::font (10.0f, true));
+                g.drawText ("!", juce::Rectangle<float> (cx + 6.0f, sectionY, 12.0f, sectionH).toNearestInt(), juce::Justification::centredLeft, false);
+            }
+        }
+        if (dragMode == DragMode::drawNode && drawFolder == focus)
+        {
+            const float x0 = timeToX (juce::jmin (drawStart, drawEnd)), x1 = juce::jmax (x0 + 1.0f, timeToX (juce::jmax (drawStart, drawEnd)));
+            across (x0, x1, Theme::nodes.withAlpha (0.25f), Theme::nodes);
+            g.setColour (Theme::nodes);
+            g.setFont (Theme::font (10.5f));
+            g.drawText (TimeFormat::format (std::abs (drawEnd - drawStart)), juce::Rectangle<float> (x1 + 4.0f, sectionY, 90.0f, sectionH).toNearestInt(),
+                        juce::Justification::centredLeft, false);
+        }
+    }
+
     // A node being drawn
     if (dragMode == DragMode::drawNode && drawFolder.isValid())
         for (auto& fr : rs)
@@ -670,6 +766,110 @@ void TimelineView::paintNodes (juce::Graphics& g)
                 g.drawText (TimeFormat::format (std::abs (drawEnd - drawStart)), juce::Rectangle<float> (x1 + 4.0f, (float) fr.y, 90.0f, (float) fr.h).toNearestInt(),
                             juce::Justification::centredLeft, false);
             }
+}
+
+//== The section row (stage 5c) =================================================
+// Inside a container, the bottom row of the ruler stands for the container as
+// a section: its writing type and time-feel at the left, its nodes (drag to
+// draw one), right-click for its fields.
+
+void TimelineView::paintSectionRow (juce::Graphics& g, const LayerRow& row)
+{
+    auto focus = project.getFocus();
+    g.setColour (juce::Colour (0xff1a1b1f));
+    g.fillRect (0, row.y, getWidth(), row.h);
+    g.setColour (Theme::line);
+    g.fillRect (0, row.y + row.h - 1, getWidth(), 1);
+    if (! focus.isValid()) return;
+    g.setColour (Theme::trackColour (project.effectiveColour (focus.getParent())));
+    g.fillRect (0, row.y, 3, row.h - 1);
+    g.setColour (Theme::text);
+    g.setFont (Theme::font (11.0f, true));
+    g.drawText (Theme::capitals (focus[IDs::name].toString()) + juce::String::fromUTF8 (" \xe2\x96\xbe"), 12, row.y, headerWidth - 16, row.h,
+                juce::Justification::centredLeft, true);
+
+    juce::StringArray labels;
+    for (auto& c : framework.getCategories())
+        if (c.forSections() && markFor (c) == Framework::Mark::label && focus[c.property()].toString().isNotEmpty())
+            labels.add (framework.valueName (c, focus[c.property()].toString()));
+    const auto formula = project.typologyFormula (focus);
+    juce::Graphics::ScopedSaveState ss (g);
+    g.reduceClipRegion (headerWidth, row.y, getWidth() - headerWidth, row.h);
+    float x = (float) headerWidth + 6.0f;
+    if (! labels.isEmpty())
+    {
+        const auto text = labels.joinIntoString (juce::String::fromUTF8 (" \xc2\xb7 "));
+        const auto font = Theme::font (11.0f);
+        const float w = (float) juce::GlyphArrangement::getStringWidthInt (font, text) + 12.0f;
+        const auto pill = juce::Rectangle<float> (x, (float) row.y + (float) row.h * 0.5f - 8.0f, w, 16.0f);
+        g.setColour (Theme::background.withAlpha (0.88f));
+        g.fillRoundedRectangle (pill, 8.0f);
+        g.setColour (Theme::textMuted.brighter (0.2f));
+        g.setFont (font);
+        g.drawText (text, pill, juce::Justification::centred, true);
+        x += w + 10.0f;
+    }
+    if (formula.isNotEmpty())
+    {
+        g.setColour (Theme::textMuted);
+        g.setFont (Theme::mono (10.5f));
+        g.drawText (formula, juce::Rectangle<float> (x, (float) row.y, 400.0f, (float) row.h), juce::Justification::centredLeft, true);
+    }
+}
+
+bool TimelineView::sectionMouseDown (const LayerRow& row, const juce::MouseEvent& e)
+{
+    auto focus = project.getFocus();
+    if (! focus.isValid()) return true;
+    if (e.x < headerWidth) { showSectionMenu (xToTime ((float) headerWidth)); return true; }
+
+    // On one of its nodes: the node's own handling (move, edges, its menu).
+    bool onNode = false;
+    for (auto node : project.nodesOf (focus))
+    {
+        const float x0 = timeToX ((double) node[IDs::start]);
+        const float x1 = juce::jmax (x0 + 2.0f, timeToX ((double) node[IDs::start] + (double) node[IDs::length]));
+        onNode = onNode || (e.position.x >= x0 - edgeGrab && e.position.x <= x1 + edgeGrab);
+    }
+    if (e.mods.isPopupMenu() && ! onNode) { showSectionMenu (juce::jmax (0.0, xToTime (e.position.x))); return true; }
+    if (! framework.getNodeRules().present) return true;
+    TrackRow asFolder;
+    asFolder.track = focus;
+    asFolder.folder = true;
+    asFolder.y = row.y;
+    asFolder.h = row.h;
+    return nodeMouseDown (asFolder, e);
+}
+
+void TimelineView::showSectionMenu (double t)
+{
+    auto focus = project.getFocus();
+    if (! focus.isValid()) return;
+    juce::PopupMenu m;
+    m.addSectionHeader (Theme::capitals (focus[IDs::name].toString()) + ": the container as a section");
+    addFrameworkMenus (m, { focus }, [] (const Framework::Category& c) { return c.forSections(); });
+    const auto formula = project.typologyFormula (focus);
+    if (formula.isNotEmpty()) m.addItem (-1, "Formula: " + formula, false);
+    const auto& rules = framework.getNodeRules();
+    if (rules.present)
+    {
+        m.addSeparator();
+        m.addItem (2, "Add a " + framework.text (rules.name) + " here (" + TimeFormat::format (defaultNodeLength) + ")");
+        m.addItem (3, "Or drag on this row to draw one", false);
+    }
+    juce::Component::SafePointer<TimelineView> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options(), [safe, focus, t] (int r)
+    {
+        if (safe == nullptr || r == 0) return;
+        if (r >= boxMenuBase && r < folderMenuBase) safe->applyFrameworkMenu (r, { focus });
+        else if (r == 2)
+        {
+            safe->project.getUndoManager().beginNewTransaction ("Add node");
+            auto n = safe->project.addNode (focus, juce::jmax (0.0, t - defaultNodeLength / 2.0), defaultNodeLength);
+            safe->selectDrawn ({}, n[IDs::id].toString());
+        }
+        safe->repaint();
+    });
 }
 
 bool TimelineView::nodeMouseDown (const TrackRow& row, const juce::MouseEvent& e)
@@ -736,6 +936,8 @@ std::pair<juce::String, juce::String> TimelineView::describeNode (const juce::Va
 {
     const auto& rules = framework.getNodeRules();
     auto folder = project.findTrack (node[IDs::folderId].toString());
+    const bool whole = ! folder.isValid() && project.getFocus()[IDs::id].toString() == node[IDs::folderId].toString();
+    if (whole) folder = project.getFocus();            // a node of the whole container (5c)
     const double s = node[IDs::start], len = node[IDs::length];
     juce::String title = Theme::capitals (framework.text (rules.name)) + juce::String::fromUTF8 (" \xc2\xb7 ") + Theme::capitals (folder[IDs::name].toString());
     juce::String text;
@@ -751,10 +953,11 @@ std::pair<juce::String, juce::String> TimelineView::describeNode (const juce::Va
         text << ".\n";
     }
     else
-        text << "\nNothing comes before it in the folder.\n";
-    if (c.tracks == 0) text << "\nThe folder has no tracks with boxes.";
+        text << "\nNothing comes before it in the " << (whole ? "container" : "folder") << ".\n";
+    if (c.tracks == 0) text << "\nThe " << (whole ? "container" : "folder") << " has no tracks with boxes.";
     else if (c.still.isEmpty()) text << "\nEvery voice changes within it (" << c.tracks << (c.tracks == 1 ? " track" : " tracks") << ").";
     else text << "\nNot changing within it: " << c.still.joinIntoString (", ") << " (of " << c.tracks << ").";
-    text << "\n\n" << framework.text (rules.about) << ".\n\nDrag it, or its edges, on the folder's lane; right-click it to delete it; Delete removes it too.";
+    text << "\n\n" << framework.text (rules.about) << ".\n\nDrag it, or its edges, on the " << (whole ? "section row" : "folder's lane")
+         << "; right-click it to delete it; Delete removes it too.";
     return { title, text };
 }

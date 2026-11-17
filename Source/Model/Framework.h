@@ -143,6 +143,12 @@ public:
         bool laneOnly = false;                  // describes what is drawn in a lane (4d.2: the dynamic form)
         /** Something boxes can carry (not a folder's or a lane's only). */
         bool forBoxes() const noexcept          { return ! foldersOnly && ! laneOnly; }
+        // Stage 5c
+        /** A section's own field: set on folders and on containers (the
+            sections the folders stood in for). */
+        bool forSections() const noexcept       { return foldersOnly; }
+        /** Its values' labels make a container's typological formula (Schaeffer's types). */
+        bool formula = false;
     };
 
     /** A value one category gives another in the boxes of a folder: a
@@ -215,6 +221,9 @@ public:
     /** All categories of all packages, package by package, in order. */
     const juce::Array<Category>& getCategories() const  { return categories; }
     const Category* findCategory (const juce::String& key) const;
+    /** The category whose labels make containers' typological formulas (5c):
+        one marked "formula", else Schaeffer's type. */
+    const Category* formulaCategory() const;
     /** The category whose values and groups `c` uses (itself, or its valuesFrom). */
     const Category& source (const Category& c) const;
     const juce::Array<Value>& valuesOf (const Category& c) const        { return source (c).values; }

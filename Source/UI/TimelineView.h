@@ -165,7 +165,13 @@ private:
     double snap (double t, const juce::ValueTree& exclude, bool enabled) const;
 
     //== Ruler layers (TimelineRuler.cpp) =====================================
-    struct LayerRow { juce::ValueTree layer; int y = 0, h = 0; bool time = false, lane = false; };
+    struct LayerRow { juce::ValueTree layer; int y = 0, h = 0; bool time = false, lane = false, section = false; };
+    /** Inside a container (5c): a row at the bottom of the ruler for the
+        container as a section: its writing type and time-feel, its nodes. */
+    static constexpr int sectionHeight = 24;
+    void paintSectionRow (juce::Graphics&, const LayerRow&);
+    bool sectionMouseDown (const LayerRow&, const juce::MouseEvent&);
+    void showSectionMenu (double t);
     std::vector<LayerRow> rulerRows() const;
     /** Where the tracks begin. */
     int rulerHeight() const;
@@ -262,7 +268,7 @@ private:
     juce::String selectedItemId, selectedNodeId;
     juce::ValueTree dragItem, dragNode, drawLayer, drawFolder;
     double dragFrom = 0.0, dragTo = 0.0, drawStart = 0.0, drawEnd = 0.0;
-    struct DrawnGeometry { float pointsTop = 0, pointsH = 0, rowsTop = 0, rowH = 0; int rows = 1; };
+    struct DrawnGeometry { float pointsTop = 0, pointsH = 0, rowsTop = 0, rowH = 0, bracketTop = 0; int rows = 1; bool brackets = false; };
     DrawnGeometry drawnGeometry (const LayerRow&, int rows) const;
     juce::Rectangle<float> spanRect (const DrawnGeometry&, const juce::ValueTree& span, int row) const;
     void paintDrawnLane (juce::Graphics&, const LayerRow&, const Framework::Lane&);

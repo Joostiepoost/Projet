@@ -1854,6 +1854,105 @@ void testLevels()
     line();
 }
 
+void testSections()
+{
+    line ("## 18. The framework on containers (stage 5c)");
+    line();
+    auto near = [] (double x, double y) { return std::abs (x - y) < 1.0e-9; };
+    auto fw = Framework::builtIn();
+    auto* writing = fw.findCategory ("vandegorne.writing");
+    auto* mixing = fw.findCategory ("vandegorne.mixing");
+    auto* type = fw.formulaCategory();
+    check (writing != nullptr && mixing != nullptr && type != nullptr && type->key() == "schaeffer.type" && type->formula && writing->forSections(),
+           "Schaeffer's type gives the formulas (marked in the package); the writing type is a section's field");
+    if (writing == nullptr || mixing == nullptr || type == nullptr) return;
+
+    Project p;
+    p.resetToDefault ("sections");
+    p.setFramework (&fw);
+    auto t1 = p.getTrack (0);
+    auto a = p.addTextBox (t1, 0.0, 10.0, "a");
+    auto b = p.addTextBox (t1, 9.0, 6.0, "b");                 // a hinged overlap with a
+    auto c = p.groupIntoContainer ({ a, b });
+
+    // == Section fields on containers
+    p.setFrameworkValue (c, *writing, "weaving");
+    check (p.frameworkValue (c, *writing).value == "weaving" && p.frameworkValue (c, *writing).isOwn() && p.frameworkValue (a, *writing).value.isEmpty(),
+           "a container carries a section's writing type (its boxes do not)");
+    p.setFocus (c);
+    {
+        const auto m = p.frameworkValue (b, *mixing);
+        check (m.value == "fusion" && m.isImplied() && m.fromContainer && m.source == "vandegorne.writing",
+               "the overlaps inside it take the mixing relation it implies (weaving: fusion)");
+    }
+    auto folder = p.addFolder ("Inner", -1);
+    auto voice = p.addTrack ("v", -1, folder[IDs::id].toString());
+    p.moveBox (a, voice, 0.0);
+    p.moveBox (b, voice, 9.0);
+    p.setFrameworkValue (folder, *writing, "complex");
+    check (p.frameworkValue (b, *mixing).value == "complementarity" && ! p.frameworkValue (b, *mixing).fromContainer,
+           "a folder inside the container decides first (complex drawing: complementarity)");
+    p.setFrameworkValue (folder, *writing, {});
+
+    // == Nodes of the whole container
+    auto n = p.addNode (c, 8.9, 0.2);
+    const auto check1 = Lanes::checkNode (p, fw.getNodeRules(), n);
+    check (p.nodesOf (c).size() == 1 && p.tracksIn (c).size() == 2 && check1.tracks == 1 && check1.still.isEmpty(),
+           "a node of the whole container: every track of it is a voice (the one with boxes changes there)");
+    p.setFocus ({});
+    {
+        auto dup = p.duplicateBox (c);
+        auto nodes = dup.getChildWithName (IDs::TIMELINE).getChildWithName (IDs::NODES);
+        check (nodes.getNumChildren() == 1 && nodes.getChild (0)[IDs::folderId].toString() == dup[IDs::id].toString(),
+               "a copy's nodes belong to the copy");
+        p.removeBox (dup);
+    }
+
+    // == Dynamic form spans attached to containers
+    auto span = p.addSpan ("thoresen.dynamic", Project::boxStart (c), Project::boxEnd (c), "forward");
+    auto loose = p.addSpan ("thoresen.dynamic", 0.0, 3.0, "presence");
+    check (span[IDs::attached].toString() == c[IDs::id].toString() && ! loose.hasProperty (IDs::attached),
+           "a span over a container's exact extent is attached to it; others are not");
+    p.moveBox (c, t1, 20.0);
+    p.trimEnd (c, 40.0);
+    check (near ((double) span[IDs::start], 20.0) && near ((double) span[IDs::end], 40.0) && near ((double) loose[IDs::start], 0.0),
+           "it follows the container when it moves and changes length");
+    span.removeProperty (IDs::attached, nullptr);             // as a drag does when it starts
+    span.setProperty (IDs::start, 22.0, nullptr);
+    p.attachSpan (span);                                     // and when it ends
+    check (! span.hasProperty (IDs::attached) && near ((double) span[IDs::start], 22.0), "moved off the container's edges, it is free again");
+    span.setProperty (IDs::start, 20.0, nullptr);
+    p.attachSpan (span);
+    check (span[IDs::attached].toString() == c[IDs::id].toString(), "and attached again when put back on them");
+
+    // == Typological formulas
+    Project q;
+    q.resetToDefault ("formula");
+    q.setFramework (&fw);
+    auto u1 = q.getTrack (0);
+    auto u2 = q.addTrack ("Track 2");
+    auto n1 = q.addTextBox (u1, 0.0, 2.0, "n1");
+    auto x = q.addTextBox (u1, 2.0, 2.0, "x");
+    auto n2 = q.addTextBox (u1, 3.8, 2.2, "n2");               // overlaps x by 0.2 s: still after it
+    auto y = q.addTextBox (u2, 2.0, 2.0, "y");
+    auto note = q.addTextBox (u2, 0.5, 1.0, "note");          // no type: a note, left out
+    q.setFrameworkValue (n1, *type, "N");
+    q.setFrameworkValue (x, *type, "X");
+    q.setFrameworkValue (y, *type, "Y");
+    q.setFrameworkValue (n2, *type, "N'");
+    auto box = q.groupIntoContainer ({ n1, x, n2, y, note });
+    check (q.typologyFormula (box) == juce::String::fromUTF8 ("(N + X.Y + N\xe2\x80\xb2)"),
+           "parts in succession joined by +, at once by a dot: " + q.typologyFormula (box));
+    q.setFrameworkValue (box, *type, "A");
+    check (q.typologyFormula (box) == juce::String::fromUTF8 ("A(N + X.Y + N\xe2\x80\xb2)"), "after the container's own type: " + q.typologyFormula (box));
+    q.setFrameworkValue (box, *type, "An");
+    check (q.typologyFormula (box).startsWith ("An("), "Schaeffer's brackets for an eccentric type are left out in a formula: " + q.typologyFormula (box));
+    q.setFrameworkValue (box, *type, {});
+    auto outer = q.groupIntoContainer ({ box });
+    check (q.typologyFormula (outer) == juce::String::fromUTF8 ("((N + X.Y + N\xe2\x80\xb2))"), "a container inside without a type gives its own formula: " + q.typologyFormula (outer));
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -1865,7 +1964,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -1899,6 +1998,7 @@ int main (int argc, char** argv)
     std::cout << "Dynamic form..." << std::endl;       testDynamicForm();
     std::cout << "Containers..." << std::endl;         testContainers();
     std::cout << "Levels..." << std::endl;             testLevels();
+    std::cout << "Sections..." << std::endl;           testSections();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

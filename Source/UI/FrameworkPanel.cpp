@@ -249,6 +249,13 @@ private:
     {
         auto& fw = owner.framework;
         heading (fw.text (c.name), fw.text (c.about), y, w);
+        // A container: the formula of its inside, beside its own type (5c).
+        if (&c == fw.formulaCategory() && owner.boxes.size() == 1 && Project::isContainer (owner.boxes.getFirst()))
+        {
+            const auto formula = owner.project.typologyFormula (owner.boxes.getFirst());
+            y = note (formula.isNotEmpty() ? "Its inside: " + formula + ". Its own type stays yours to choose."
+                                           : juce::String ("Its inside has no types yet."), y, w);
+        }
         switch (c.kind)
         {
             case Framework::Kind::choice:
@@ -265,7 +272,12 @@ private:
     /** "Only with": the category applies to at least one selected box. */
     bool appliesToAny (const Framework::Category& c) const
     {
-        if (! c.forBoxes()) return false;           // set on the folder (its right-click menu), or drawn in a lane
+        if (c.forSections())                        // a section's field: on containers (5c); folders have their menu
+        {
+            for (auto b : owner.boxes) if (Project::isContainer (b)) return true;
+            return false;
+        }
+        if (! c.forBoxes()) return false;           // drawn in a lane
         for (auto b : owner.boxes) if (owner.project.applies (b, c)) return true;
         return false;
     }
@@ -350,7 +362,8 @@ private:
         else if (v.isImplied())
         {
             auto* source = fw.findCategory (v.source);
-            line = fw.valueName (c, v.value) + " (from the folder's " + (source != nullptr ? fw.text (source->name).toLowerCase() : juce::String ("values"))
+            line = fw.valueName (c, v.value) + (v.fromContainer ? " (from the container's " : " (from the folder's ")
+                 + (source != nullptr ? fw.text (source->name).toLowerCase() : juce::String ("values"))
                  + "): " + fw.text (value->about);
         }
         if (line.isNotEmpty()) y = note (line, y, w);

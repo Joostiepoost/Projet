@@ -32,7 +32,8 @@ std::vector<TimelineView::LayerRow> TimelineView::rulerRows() const
         out.push_back ({ l, y, h, Project::isTimeLayer (l), Project::isLaneLayer (l) });
         y += h;
     }
-    if (out.empty()) out.push_back ({ {}, y, 16, false });    // every layer hidden: a thin strip to bring them back
+    if (out.empty()) { out.push_back ({ {}, y, 16, false }); y += 16; }   // every layer hidden: a thin strip to bring them back
+    if (! project.atPiece()) out.push_back ({ {}, y, sectionHeight, false, false, true });   // the container as a section (5c)
     return out;
 }
 
@@ -42,7 +43,7 @@ int TimelineView::rulerHeight() const
     for (auto l : project.getRulers())
         if ((bool) l.getProperty (IDs::visible, true))
             h += juce::jlimit (minLayerHeight, maxHeightFor (l), (int) l.getProperty (IDs::height, 24));
-    return h > 0 ? h : 16;
+    return (h > 0 ? h : 16) + (project.atPiece() ? 0 : sectionHeight);
 }
 
 TimelineView::LayerRow TimelineView::layerAt (int y) const
@@ -134,7 +135,8 @@ void TimelineView::paintRuler (juce::Graphics& g)
 {
     for (auto& r : rulerRows())
     {
-        if (! r.layer.isValid())
+        if (r.section) paintSectionRow (g, r);
+        else if (! r.layer.isValid())
         {
             g.setColour (layerBackground);
             g.fillRect (0, r.y, getWidth(), r.h);
@@ -402,6 +404,7 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
     if (e.y >= rulerBottom()) return false;
     const auto row = layerAt (e.y);
 
+    if (row.section) return sectionMouseDown (row, e);
     if (! row.layer.isValid())
     {
         if (onShowRulerPanel) onShowRulerPanel ({});
@@ -550,7 +553,7 @@ bool TimelineView::rulerDoubleClick (const juce::MouseEvent& e)
 {
     if (e.y >= rulerBottom()) return false;
     const auto row = layerAt (e.y);
-    if (! row.layer.isValid() || row.time) return true;
+    if (row.section || ! row.layer.isValid() || row.time) return true;
     if (row.lane)
     {
         if (e.x < headerWidth && onShowRulerPanel) onShowRulerPanel (row.layer[IDs::id].toString());

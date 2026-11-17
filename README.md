@@ -50,8 +50,8 @@ Other options:
 | 4d.1 | Folders from a category (the semiotic track template); writing type and time-feel on folders, a writing type's mixing relation; overview lanes: energies, typology, semiotic profile | done |
 | 4d.2 | The dynamic form lane (Thoresen: form-building functions, deltas, goals, accents), drawn by hand; nodes on folders, with their checks | done |
 | 5a | Containers: boxes holding a timeline of their own, stretch or window, grouping and ungrouping, nested playback, a miniature of the inside; opacity follows gain; swapping boxes | done |
-| 5b | Moving between levels: going inside containers, breadcrumbs and depth, the context strip, the outline panel; each level with its own rulers, marks and lanes | built, to test |
-| 5c | The framework on containers: section fields, the dynamic form attached, time-field brackets, typological formulas | |
+| 5b | Moving between levels: going inside containers, breadcrumbs and depth, the context strip, the outline panel; each level with its own rulers, marks and lanes | done |
+| 5c | The framework on containers: section fields (writing type, time-feel, nodes) on containers, the dynamic form attached to them, time-field brackets, typological formulas | built, to test |
 | 6 | Magnified inline expansion | |
 | 7 | Takes | |
 | 8 | Relations, materials, origin | |
@@ -60,7 +60,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 
-## Using Projet (stages 1–5b)
+## Using Projet (stages 1–5c)
 
 ### The project folder
 
@@ -317,6 +317,16 @@ Every container is a level of its own: its own tracks, folders and boxes, its ow
 - **Outline** (the panel on the left; the **Outline** button, *View > Show outline* or Cmd-Alt-O): the piece's containers and boxes as a tree in time order, indented by depth, with the depth number on the left and each box's start in its level's time. The level shown and the selected boxes are highlighted. Click a row to select the box (going to its level); double-click a container to go inside; the triangles fold containers; *Piece* goes back to the top.
 - Each level keeps its own zoom and scroll position while the project is open; the project saves the piece's.
 
+### The framework on containers (stage 5c)
+
+Containers are the sections folders stood in for in stage 4d.
+- **Section fields**: a container can have a writing type, a time felt and a time movement: in its Framework tab, its right-click menu, or, inside it, the **section row** (the bottom row of the ruler, with the container's name: click or right-click it). They show at the bottom left of the container and on the section row. A container's writing type gives its mixing relation to the overlaps inside it (weaving: fusion ...), as a folder's does; the nearest section decides: a folder inside the container first, then the container, then the folders around it.
+- **Nodes of the whole container**: inside it, drag on the section row (or right-click it > *Add a node here*). The node runs across every track and lane of the container, with its checks against all of its tracks; on the level above it shows as a band across the container with a diamond in its header.
+- **The dynamic form attached**: a span drawn over a container's exact extent (it snaps to its edges) is attached to it and follows it when it moves or changes length. Drag the span off the edges and it is free again; put it back on them and it is attached again. On the first visit a container gets the lanes of the level around (the dynamic form, the overviews), each holding that level's own content.
+- **Time-field brackets**: in the dynamic form lane, a bracket under each container of the level shown, with its name; brighter where a span is attached to it.
+- **Typological formula**: each container gets a formula in Schaeffer's notation, from the types of the boxes inside it and how they sit in time: parts in succession joined by +, parts at once by a dot, after its own type: A(N + X.Y + N). Parts count as at once when they overlap by at least half the shorter one; text boxes without a type are left out, other boxes without one show as ?, and a container inside without a type gives its own formula. It shows in the container's header (when there is room), on its section row, in the panel and in the Framework tab beside its own type, which stays yours to choose.
+- Framework packages: schaeffer v4 marks its type as the one that makes formulas (`"formula": true`); vandegorne v4 speaks of sections. *Framework > Frameworks...* to take them.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -348,6 +358,14 @@ Every container is a level of its own: its own tracks, folders and boxes, its ow
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 5c**:
+- First, *Framework > Frameworks...*: schaeffer v4 and vandegorne v4 — *Library: take Projet's*, then *Take the library's* (formulas work with v3 too).
+- Give boxes inside a container Schaeffer types (also two at once, and a crossfade between two in succession): the formula in its header, panel and Framework tab; give the container its own type; a container inside one without a type.
+- A container's writing type (Framework tab, right-click, or the section row inside it): the label at its bottom left; inside, a hinged overlap on one track takes the mixing relation (faint, *from the container's writing type*); a folder inside with another writing type decides first.
+- Inside a container: drag on the section row for a node; select it and read the panel; go up: the band across the container.
+- A dynamic form lane on the piece: draw a span snapping to a container's edges (the bracket under it brightens); move and stretch the container: the span follows; drag the span away and back. Go inside: the lane is there with the inner containers' brackets.
+- Save, quit, reopen.
 
 **Worth testing in stage 5b**:
 - Double-click a container: the breadcrumbs, depth and context strip appear; its ruler counts from its start. Add a track and boxes inside, move and trim them, split one at the playhead, copy and paste, give one an energy; undo it all. Play: what you do inside is heard at once.

@@ -675,8 +675,9 @@ void Inspector::refresh()
         if (texts > 0) parts.add (juce::String (texts) + " text");
         if (containers > 0) parts.add (juce::String (containers) + (containers == 1 ? " container" : " containers"));
         juce::String ci;
+        const int count = sounds + texts + containers;
         ci << tracks << (tracks == 1 ? " track" : " tracks") << " inside, "
-           << (parts.isEmpty() ? juce::String ("no boxes") : parts.joinIntoString (", ") + ((sounds + texts + containers) == 1 ? " box" : " boxes")) << ".\n";
+           << (count == 0 ? juce::String ("no boxes") : juce::String (count) + (count == 1 ? " box (" : " boxes (") + parts.joinIntoString (", ") + ")") << ".\n";
         const double k = Project::containerScale (box);
         if (Project::isStretch (box))
             ci << TimeFormat::format (Project::innerLength (box), 2) << " of the inside over " << TimeFormat::format (Project::boxLength (box), 2)
@@ -684,6 +685,8 @@ void Inspector::refresh()
         else
             ci << "The inside from " << TimeFormat::format (Project::innerOffset (box), 2) << " to "
                << TimeFormat::format (Project::innerOffset (box) + Project::boxLength (box), 2) << "; trim the left edge to move the window.";
+        const auto formula = project.typologyFormula (box);
+        if (formula.isNotEmpty()) ci << "\nFormula: " << formula;
         containerInfo.setText (ci, juce::dontSendNotification);
     }
 
@@ -786,7 +789,7 @@ void Inspector::resized()
         if (mode == Mode::container)
         {
             labelled (insideLabel, insideBox, 24);
-            containerInfo.setBounds (r.removeFromTop (60));
+            containerInfo.setBounds (r.removeFromTop (100));
             r.removeFromTop (4);
         }
         if (mode == Mode::text) labelled (opacityLabel, opacity, 22);

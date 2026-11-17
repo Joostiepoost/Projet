@@ -170,7 +170,7 @@ double TimelineView::snap (double t, const juce::ValueTree& exclude, bool enable
     // divisions shown at this zoom, and its series.
     for (auto& row : rulerRows())
     {
-        if (row.time || row.lane || ! (bool) row.layer.getProperty (IDs::snap, true)) continue;
+        if (row.time || row.lane || row.section || ! row.layer.isValid() || ! (bool) row.layer.getProperty (IDs::snap, true)) continue;
         const auto f = project.frameFor (project.layerFrame (row.layer));
         if (! f.isValid()) continue;
         consider (f.start);
@@ -976,7 +976,54 @@ void TimelineView::paintContainer (juce::Graphics& g, const juce::ValueTree& box
         if (text.getWidth() > modeWidth + 40) g.drawText (mode, text.removeFromRight (modeWidth), juce::Justification::centredRight, false);
         g.setColour (Theme::text.withAlpha (juce::jmax (0.6f, alpha)));
         g.setFont (Theme::font (12.0f, true));
+        const int nameWidth = juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), label) + 10;
         g.drawText (label, text, juce::Justification::centredLeft, true);
+
+        // Its typological formula (5c), after the name when there is room.
+        const auto formula = project.typologyFormula (box);
+        if (formula.isNotEmpty() && text.getWidth() > nameWidth + 30)
+        {
+            g.setFont (Theme::mono (10.5f));
+            g.setColour (Theme::textMuted.brighter (0.3f).withAlpha (juce::jmax (0.6f, alpha)));
+            g.drawText (formula, text.withTrimmedLeft (nameWidth), juce::Justification::centredLeft, true);
+        }
+
+        // Its section fields (writing type, time-feel: 5c), at the bottom left.
+        juce::StringArray labels;
+        for (auto& c : framework.getCategories())
+            if (c.forSections() && markFor (c) == Framework::Mark::label && box[c.property()].toString().isNotEmpty())
+                labels.add (framework.valueName (c, box[c.property()].toString()));
+        if (! labels.isEmpty() && r.getHeight() > 40.0f)
+        {
+            const auto words = labels.joinIntoString (juce::String::fromUTF8 (" \xc2\xb7 "));
+            const auto font = Theme::font (10.5f);
+            const float w = juce::jmin (r.getWidth() - 10.0f, (float) juce::GlyphArrangement::getStringWidthInt (font, words) + 12.0f);
+            const auto pill = juce::Rectangle<float> (r.getX() + 5.0f, r.getBottom() - 19.0f, w, 15.0f);
+            g.setColour (Theme::background.withAlpha (0.85f));
+            g.fillRoundedRectangle (pill, 7.5f);
+            g.setColour (Theme::textMuted.brighter (0.2f));
+            g.setFont (font);
+            g.drawText (words, pill.reduced (5.0f, 0.0f), juce::Justification::centred, true);
+        }
+
+        // The container's own nodes (5c): bands across it, a diamond in the header.
+        for (auto node : box.getChildWithName (IDs::TIMELINE).getChildWithName (IDs::NODES))
+        {
+            if (node[IDs::folderId].toString() != box[IDs::id].toString()) continue;
+            const double ns = node[IDs::start];
+            const float x0 = timeToX (Project::toOuter (box, ns));
+            const float x1 = juce::jmax (x0 + 2.0f, timeToX (Project::toOuter (box, ns + (double) node[IDs::length])));
+            g.setColour (Theme::nodes.withAlpha (0.16f));
+            g.fillRect (x0, header.getBottom(), x1 - x0, r.getBottom() - header.getBottom());
+            g.setColour (Theme::nodes.withAlpha (0.7f));
+            g.fillRect (x0, header.getBottom(), 1.0f, r.getBottom() - header.getBottom());
+            g.fillRect (x1 - 1.0f, header.getBottom(), 1.0f, r.getBottom() - header.getBottom());
+            juce::Path diamond;
+            const float cx = (x0 + x1) / 2.0f, cy = header.getBottom() - 1.0f;
+            diamond.addQuadrilateral (cx, cy - 4.0f, cx + 4.0f, cy, cx, cy + 4.0f, cx - 4.0f, cy);
+            g.setColour (Theme::nodes);
+            g.fillPath (diamond);
+        }
         paintFadeHandles (g, box, r);
     }
 
@@ -1309,7 +1356,7 @@ juce::String TimelineView::describeSource (const Project::FrameworkValue& v) con
     if (v.fromTiming()) return "from the timing";
     if (v.isImplied())
         if (auto* c = framework.findCategory (v.source))
-            return "from the folder's " + framework.text (c->name).toLowerCase();
+            return (v.fromContainer ? "from the container's " : "from the folder's ") + framework.text (c->name).toLowerCase();
     if (v.fromFolder()) return "from the folder";
     return {};
 }
@@ -1710,9 +1757,12 @@ void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce
                                       std::function<bool (const Framework::Category&)> only)
 {
     // Ids: boxMenuBase + category index * menuStride + 1 + value index (+0 = none).
+    // Containers also carry a section's fields (5c).
+    bool allContainers = ! boxes.isEmpty();
+    for (auto b : boxes) allContainers = allContainers && Project::isContainer (b);
     for (auto& c : framework.getCategories())
     {
-        if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || ! c.forBoxes()) continue;
+        if ((c.kind != Framework::Kind::choice && c.kind != Framework::Kind::tags) || ! (c.forBoxes() || (c.forSections() && allContainers))) continue;
         if (only && ! only (c)) continue;
         const auto& values = framework.valuesOf (c);
         if (values.isEmpty() || values.size() >= menuStride - 1) continue;
@@ -1742,7 +1792,7 @@ void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce
         if (c.kind == Framework::Kind::choice)
         {
             auto none = c.defaultValue.isNotEmpty() ? "None (the default, " + framework.valueLabel (c, c.defaultValue) + ")"
-                      : c.folders ? juce::String ("None (or the folder's)") : juce::String ("None");
+                      : c.folders && ! c.forSections() ? juce::String ("None (or the folder's)") : juce::String ("None");
             if (c.between || ! framework.implicationsFor (c).isEmpty())
             {
                 // Back to what is worked out: the timing, or the folder's other value (a writing type).
@@ -1750,6 +1800,7 @@ void TimelineView::addFrameworkMenus (juce::PopupMenu& m, const juce::Array<juce
                 if (boxes.size() == 1)
                 {
                     const auto derived = project.frameworkValue (boxes.getFirst(), c, true);
+                    if (derived.fromContainer) none = "From the container";
                     if (derived.value.isNotEmpty()) none << " (" << framework.valueName (c, derived.value) << ")";
                 }
             }

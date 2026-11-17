@@ -224,7 +224,7 @@ public:
     bool swapBoxes (juce::ValueTree a, juce::ValueTree b);
     /** New ids for everything inside a box (a container's tracks and boxes),
         for copies; references inside (folders, frames) follow. */
-    static void renewInnerIds (juce::ValueTree box);
+    static void renewInnerIds (juce::ValueTree box, const juce::String& formerId = {});
 
     //== Proportion frames (stage 3a) =========================================
     struct Frame
@@ -299,6 +299,11 @@ public:
     juce::Array<juce::ValueTree> drawnItems (const juce::String& laneKey);
     static bool isSpan (const juce::ValueTree& item)        { return item[IDs::kind].toString() != "point"; }
     juce::ValueTree addSpan (const juce::String& laneKey, double start, double end, const juce::String& kind);
+    /** A span over a container's exact extent is attached to it and follows
+        it when it moves or changes length; elsewhere it is not (5c). Undoable. */
+    void attachSpan (juce::ValueTree item);
+    /** The containers of the level shown. */
+    juce::Array<juce::ValueTree> levelContainers();
     juce::ValueTree addPoint (const juce::String& laneKey, double time, const juce::String& functions);
     juce::ValueTree findItem (const juce::String& itemId);
     void removeItem (juce::ValueTree item);
@@ -308,8 +313,19 @@ public:
     juce::ValueTree addNode (const juce::ValueTree& folder, double start, double length);
     juce::ValueTree findNode (const juce::String& nodeId);
     void removeNode (juce::ValueTree node);
-    /** Every track (not folder) inside a folder, at any depth. */
+    /** Every track (not folder) inside a folder, at any depth; for a
+        container (5c, the level shown) all its tracks. */
     juce::Array<juce::ValueTree> tracksIn (const juce::ValueTree& folder);
+
+    //== Typological formulas (stage 5c) ======================================
+    /** Schaeffer's notation for what a container holds, from its boxes' types
+        (the framework's formula category) and how they sit in time: parts in
+        succession joined by +, parts at once by a dot, inside brackets after
+        the container's own type: A(N + X.Y + N). Parts are at once when they
+        overlap by at least half the shorter one; text boxes without a type
+        are left out, other boxes without one are "?"; a container without a
+        type gives its own formula. Empty without a formula category or boxes. */
+    juce::String typologyFormula (const juce::ValueTree& container, int depth = 0);
     juce::ValueTree findMark (const juce::String& markId);
     juce::ValueTree findMarkByName (const juce::String& name);
     juce::String uniqueMarkName (const juce::String& prefix);
@@ -369,6 +385,7 @@ public:
         juce::String value;
         From from = From::none;
         juce::String source;                        // implied: the key of the folder's category that gave it
+        bool fromContainer = false;                 // implied: by the container around it, not a folder (5c)
         bool isOwn() const noexcept                 { return from == From::own; }
         bool fromFolder() const noexcept            { return from == From::folder; }
         bool isDefault() const noexcept             { return from == From::defaultValue; }
@@ -451,6 +468,7 @@ private:
     /** Marks, drawn lanes and nodes in a container's timeline. */
     static void ensureTimeline (juce::ValueTree timeline);
     void applyLevelProportions();
+    void applyLevelAttachments();
     juce::ValueTree focus;
     juce::Array<juce::ValueTree> focusTrail;        // the containers around the focus when it was set
     int markDepth = 0;

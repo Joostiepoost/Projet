@@ -391,7 +391,7 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
 
     auto right = box.createCopy();
     right.setProperty (IDs::id, newId(), nullptr);
-    renewInnerIds (right);
+    renewInnerIds (right, box[IDs::id].toString());
     right.setProperty (IDs::start, t, nullptr);
     right.setProperty (IDs::length, (end - t) * s, nullptr);
     if (box.hasProperty (IDs::offset))
@@ -479,7 +479,7 @@ juce::ValueTree Project::duplicateBox (juce::ValueTree box)
 {
     auto copy = box.createCopy();
     copy.setProperty (IDs::id, newId(), nullptr);
-    renewInnerIds (copy);
+    renewInnerIds (copy, box[IDs::id].toString());
     copy.setProperty (IDs::start, boxEnd (box), nullptr);
     refitProportions (copy);
     box.getParent().appendChild (copy, &undoManager);
@@ -742,6 +742,18 @@ void Project::ensureLevelRulers()
     rulers.appendChild (time, nullptr);
     auto prop = addLayer ("proportion");                         // framed by the container
     setActiveLayer (prop);
+
+    // The lanes of the level around carry on inside (5c): the dynamic form,
+    // the overviews, each with this level's own content.
+    auto around = containerOf (focus);
+    auto aroundRulers = (around.isValid() ? around.getChildWithName (IDs::TIMELINE) : state).getChildWithName (IDs::RULERS);
+    for (auto l : aroundRulers)
+        if (isLaneLayer (l))
+        {
+            auto copy = l.createCopy();
+            copy.setProperty (IDs::id, newId(), nullptr);
+            rulers.appendChild (copy, nullptr);
+        }
 }
 
 juce::ValueTree Project::makeContainer (double start, double length, const juce::String& name)
@@ -941,7 +953,7 @@ bool Project::swapBoxes (juce::ValueTree a, juce::ValueTree b)
     return true;
 }
 
-void Project::renewInnerIds (juce::ValueTree box)
+void Project::renewInnerIds (juce::ValueTree box, const juce::String& formerId)
 {
     auto timeline = box.getChildWithName (IDs::TIMELINE);
     if (! timeline.isValid()) return;
@@ -950,6 +962,7 @@ void Project::renewInnerIds (juce::ValueTree box)
     // items, nodes), and the references to them (folders, frames, the
     // active layer).
     std::map<juce::String, juce::String> ids;
+    if (formerId.isNotEmpty()) ids[formerId] = box[IDs::id].toString();     // the container's own nodes (5c)
     std::function<void (juce::ValueTree)> assign = [&] (juce::ValueTree node)
     {
         for (auto child : node)
@@ -1253,7 +1266,114 @@ juce::ValueTree Project::addSpan (const juce::String& laneKey, double start, dou
     s.setProperty (IDs::end, juce::jmax (start, end), nullptr);
     s.setProperty (IDs::value, kind, nullptr);
     getDrawn().appendChild (s, &undoManager);
+    attachSpan (s);
     return s;
+}
+
+juce::Array<juce::ValueTree> Project::levelContainers()
+{
+    juce::Array<juce::ValueTree> out;
+    for (auto t : getTracks())
+        for (auto b : t)
+            if (isContainer (b)) out.add (b);
+    return out;
+}
+
+void Project::attachSpan (juce::ValueTree item)
+{
+    if (! item.isValid() || ! isSpan (item)) return;
+    const double s = item[IDs::start], e = item[IDs::end];
+    juce::String id;
+    for (auto c : levelContainers())
+        if (std::abs (boxStart (c) - s) < 1.0e-4 && std::abs (boxEnd (c) - e) < 1.0e-4) { id = c[IDs::id].toString(); break; }
+    if (id == item[IDs::attached].toString()) return;
+    if (id.isEmpty()) item.removeProperty (IDs::attached, &undoManager);
+    else item.setProperty (IDs::attached, id, &undoManager);
+}
+
+void Project::applyLevelAttachments()
+{
+    for (auto item : levelNode().getChildWithName (IDs::DRAWN))
+    {
+        const auto id = item[IDs::attached].toString();
+        if (id.isEmpty() || ! isSpan (item)) continue;
+        auto box = findBox (id);
+        if (! box.isValid()) continue;                  // gone (or elsewhere): the span stays where it was
+        if (std::abs ((double) item[IDs::start] - boxStart (box)) > 1.0e-9) item.setProperty (IDs::start, boxStart (box), nullptr);
+        if (std::abs ((double) item[IDs::end] - boxEnd (box)) > 1.0e-9) item.setProperty (IDs::end, boxEnd (box), nullptr);
+    }
+}
+
+juce::String Project::typologyFormula (const juce::ValueTree& container, int depth)
+{
+    if (framework == nullptr || ! isContainer (container) || depth > 4) return {};
+    auto* c = framework->formulaCategory();
+    if (c == nullptr) return {};
+
+    auto symbolOf = [this, c, depth] (const juce::ValueTree& b) -> juce::String
+    {
+        const auto v = frameworkValue (b, *c);
+        if (v.value.isNotEmpty())
+        {
+            auto label = framework->valueLabel (*c, v.value).trim();
+            if (label.startsWithChar ('(') && label.endsWithChar (')')) label = label.substring (1, label.length() - 1);   // Schaeffer's brackets for the eccentric types
+            return label;
+        }
+        if (isContainer (b))
+        {
+            const auto inner = typologyFormula (b, depth + 1);
+            return inner.isNotEmpty() ? inner : juce::String ("?");
+        }
+        return isSound (b) ? juce::String ("?") : juce::String();
+    };
+
+    struct Part { double start, end; juce::String symbol; int track; };
+    std::vector<Part> parts;
+    int index = 0;
+    for (auto lane : innerTracks (container))
+    {
+        ++index;
+        if (isFolder (lane)) continue;
+        for (auto b : lane)
+        {
+            const auto symbol = symbolOf (b);
+            if (symbol.isNotEmpty()) parts.push_back ({ boxStart (b), boxEnd (b), symbol, index });
+        }
+    }
+    if (parts.empty()) return {};
+    std::sort (parts.begin(), parts.end(), [] (const Part& x, const Part& y)
+               { return std::abs (x.start - y.start) > 1.0e-9 ? x.start < y.start : x.track < y.track; });
+
+    // Parts at once: overlapping by at least half the shorter one.
+    std::vector<std::vector<Part>> groups;
+    for (auto& p : parts)
+    {
+        bool together = false;
+        if (! groups.empty())
+            for (auto& q : groups.back())
+            {
+                const double overlap = juce::jmin (p.end, q.end) - juce::jmax (p.start, q.start);
+                const double shorter = juce::jmin (p.end - p.start, q.end - q.start);
+                if (shorter > 0.0 && overlap >= 0.5 * shorter) { together = true; break; }
+            }
+        if (together) groups.back().push_back (p);
+        else groups.push_back ({ p });
+    }
+
+    juce::StringArray succession;
+    for (auto& group : groups)
+    {
+        std::stable_sort (group.begin(), group.end(), [] (const Part& x, const Part& y) { return x.track < y.track; });
+        juce::StringArray atOnce;
+        for (auto& p : group) atOnce.add (p.symbol);
+        succession.add (atOnce.joinIntoString ("."));
+    }
+    const auto inside = "(" + succession.joinIntoString (" + ") + ")";
+    const auto own = frameworkValue (container, *c);
+    if (own.value.isEmpty()) return inside;
+    auto label = framework->valueLabel (*c, own.value).trim();
+    if (label.startsWithChar ('(') && label.endsWithChar (')')) label = label.substring (1, label.length() - 1);
+    return label + inside;
 }
 
 juce::ValueTree Project::addPoint (const juce::String& laneKey, double time, const juce::String& functions)
@@ -1313,9 +1433,11 @@ juce::Array<juce::ValueTree> Project::tracksIn (const juce::ValueTree& folder)
 {
     juce::Array<juce::ValueTree> out;
     const auto id = folder[IDs::id].toString();
+    const bool section = folder.hasType (IDs::BOX);          // a container: the whole level (5c)
     for (auto t : getTracks())
     {
         if (isFolder (t)) continue;
+        if (section) { out.add (t); continue; }
         for (auto f = folderOf (t); f.isValid(); f = folderOf (f))
             if (f[IDs::id].toString() == id) { out.add (t); break; }
     }
@@ -1479,6 +1601,16 @@ juce::String Project::folderValue (const juce::ValueTree& track, const juce::Ide
 Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, const Framework::Category& c, bool ignoreOwn)
 {
     FrameworkValue v;
+    if (c.forSections())
+    {
+        // A section's field: containers carry their own (5c), boxes none.
+        if (isContainer (box) && box[c.property()].toString().isNotEmpty())
+        {
+            v.value = box[c.property()].toString();
+            v.from = FrameworkValue::From::own;
+        }
+        return v;
+    }
     if (! c.forBoxes() || ! applies (box, c)) return v;
     const auto& own = box[c.property()];
     if (! ignoreOwn && ! own.isVoid() && own.toString().isNotEmpty())
@@ -1508,18 +1640,35 @@ Project::FrameworkValue Project::frameworkValue (const juce::ValueTree& box, con
 
 Project::FrameworkValue Project::impliedValue (const juce::ValueTree& box, const Framework::Category& c)
 {
-    // A value the box's folders give through another category (stage 4d):
-    // the nearest folder with a value for that category decides.
+    // A value the box's section gives through another category (stage 4d):
+    // the nearest section with a value for that category decides: the
+    // folders around the box, then the container it is in (5c), then that
+    // container's folders, and so on outwards.
     FrameworkValue v;
     if (framework == nullptr || ! box.getParent().isValid()) return v;
     for (auto& imp : framework->implicationsFor (c))
     {
         auto& source = framework->getCategories().getReference (imp.source);
-        if (folderValue (box.getParent(), source.property()) != imp.value) continue;
+        juce::String found;
+        bool inContainer = false;
+        juce::ValueTree node = box;
+        for (int guard = 0; node.isValid() && found.isEmpty() && guard < 64; ++guard)
+        {
+            if (node.getParent().hasType (IDs::TRACK)) found = folderValue (node.getParent(), source.property());
+            if (found.isNotEmpty()) break;
+            node = containerOf (node);
+            if (node.isValid() && node[source.property()].toString().isNotEmpty())
+            {
+                found = node[source.property()].toString();
+                inContainer = true;
+            }
+        }
+        if (found != imp.value) continue;
         if (! valueApplies (box, c, imp.implied)) continue;
         v.value = imp.implied;
         v.from = FrameworkValue::From::implied;
         v.source = source.key();
+        v.fromContainer = inContainer;
         return v;
     }
     return v;
@@ -1800,10 +1949,12 @@ void Project::applyProportions()
     const auto shown = focus;
     focus = {};
     applyLevelProportions();
+    applyLevelAttachments();
     for (auto c : allContainers())
     {
         focus = c;
         applyLevelProportions();
+        applyLevelAttachments();              // drawn spans that follow a container (5c)
     }
     focus = shown;
 }

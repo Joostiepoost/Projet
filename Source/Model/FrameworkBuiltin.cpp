@@ -491,7 +491,7 @@ Glyphs::builtinSource()),
 R"PKG({
   "projet": "framework package",
   "id": "schaeffer",
-  "version": 3,
+  "version": 4,
   "order": 20,
   "name": {"fr": "Schaeffer", "en": "Schaeffer"},
   "about": {
@@ -509,6 +509,7 @@ R"PKG({
       "kind": "choice",
       "control": "chart",
       "mark": "badge",
+      "formula": true,
       "groups": {
         "name": {"fr": "zone", "en": "zone"},
         "list": [
@@ -821,6 +822,8 @@ R"HELP(# Schaeffer
 **Type.** The typology of the *Traité des objets musicaux* (summary table, fig. 34): the mass of the sound down (definite pitch, complex and fixed, slightly varying, unpredictable), its sustainment across (from unpredictable facture to unpredictable facture, through held, impulse and iterative). The balanced types sit in the middle, the redundant ones beside them, the eccentric ones at the edges.
 
 **Typology lane.** One row each for balanced, redundant and eccentric types, so the mix of object kinds across the piece shows at a glance (in the ruler panel: *Add lane*).
+
+**Typological formula.** Each container gets a formula in Schaeffer's notation, worked out from the types of the boxes inside it and how they sit in time: parts in succession joined by +, parts at once by a dot, after the container's own type: A(N + X.Y + N). Parts count as at once when they overlap by at least half the shorter one. Text boxes without a type are left out; other boxes without one show as ?; a container inside without a type gives its own formula. The container's own type stays yours to choose (a cloud of impulses inside can be one accumulation outside). The category marked `"formula": true` gives the symbols (its values' labels).
 
 Later stages may add the seven morphological criteria and his genres.
 )HELP"),
@@ -1385,7 +1388,7 @@ The signs are data: a span kind's `shape` (forward, backward, presence, neutral,
 R"PKG({
   "projet": "framework package",
   "id": "vandegorne",
-  "version": 3,
+  "version": 4,
   "order": 40,
   "name": {"fr": "Vande Gorne : écriture", "en": "Vande Gorne: writing"},
   "about": {
@@ -1453,8 +1456,8 @@ R"PKG({
       "id": "writing",
       "name": {"fr": "Type d'écriture", "en": "Writing type"},
       "about": {
-        "fr": "comment les voix du dossier se mêlent (Vande Gorne, ch. 3) ; certains impliquent une relation de mélange pour les chevauchements du dossier",
-        "en": "how the voices of the folder mix (Vande Gorne, chapter 3); some imply a mixing relation for the overlaps in the folder"
+        "fr": "comment les voix de la section (un dossier ou un conteneur) se mêlent (Vande Gorne, ch. 3) ; certains impliquent une relation de mélange pour ses chevauchements",
+        "en": "how the voices of the section (a folder or a container) mix (Vande Gorne, chapter 3); some imply a mixing relation for its overlaps"
       },
       "kind": "choice",
       "control": "menu",
@@ -1633,13 +1636,13 @@ Annette Vande Gorne's mixing relations and writing types (*Techniques d'écritur
 
 **Mixing relation.** Offered when the junction with the box before is hinged, overlapping or superimposed: fusion (a new sound arises from both), complementarity (each keeps its identity), rejection (one masks the other, or unmasks it as it goes). On a hinged overlap used as a crossfade, also relay of energy (one sound launches the next, without fusion) and indirect metamorphosis (through a point of balance, the same energy). Its sign sits beside the junction sign.
 
-**Writing type**, set on a folder (right-click its header): weaving or texture, stained glass or mosaic, complex drawing, diverging lines and converging nodes, rhythms and speeds, melismas on an ostinato, superposed images. Where she names the mixing relation a writing implies, the overlaps in the folder take it (weaving: fusion; complex drawing, rhythms and speeds: complementarity), drawn faint until you choose another; *From the folder* goes back. A value's `implies` field says which.
+**Writing type**, set on a folder (right-click its header) or a container (stage 5c: its Framework tab, its right-click menu, or the section row at the top of its inside): weaving or texture, stained glass or mosaic, complex drawing, diverging lines and converging nodes, rhythms and speeds, melismas on an ostinato, superposed images. Where she names the mixing relation a writing implies, the overlaps in the section take it (weaving: fusion; complex drawing, rhythms and speeds: complementarity), drawn faint until you choose another; *From the folder* goes back. The nearest section decides: a folder inside a container before the container, the container before the folders around it. A value's `implies` field says which.
 
-**Time felt** (long, short, suspended) and **time movement** (fixed; mobile: speeding up, slowing down, contrasts; intermodulated), also on folders, the sections of a piece until containers come (stage 5).
+**Time felt** (long, short, suspended) and **time movement** (fixed; mobile: speeding up, slowing down, contrasts; intermodulated), also on folders and containers, the sections of a piece.
 
-Folder values show on the folder's lane. Between boxes on different tracks, mixing relations come with the relations of stage 8.
+Folder values show on the folder's lane; a container's on its header and on its section row inside it. Between boxes on different tracks, mixing relations come with the relations of stage 8.
 
-**Nodes** (chapter 3): a sudden, synchronous change of every voice, a short resolution. Drag on a folder's lane to place one (right-click it to remove it). It is drawn as a narrow band across the folder's tracks and the lanes. Its length should balance what comes before it: too short and it goes unheard, too long and it becomes a line. So a node is flagged when shorter than 2% or longer than 25% of the stretch since the previous node (or the folder's first box), and the panel names the folder's tracks that do not change within it. The numbers are in `framework.json` (`nodes`: `short`, `long`, and `window`, how far outside the node a change still counts, in seconds).
+**Nodes** (chapter 3): a sudden, synchronous change of every voice, a short resolution. Drag on a folder's lane to place one (right-click it to remove it); inside a container, on its section row for a node of the whole container. It is drawn as a narrow band across the folder's tracks and the lanes. Its length should balance what comes before it: too short and it goes unheard, too long and it becomes a line. So a node is flagged when shorter than 2% or longer than 25% of the stretch since the previous node (or the folder's first box), and the panel names the folder's tracks that do not change within it. The numbers are in `framework.json` (`nodes`: `short`, `long`, and `window`, how far outside the node a change still counts, in seconds).
 )HELP")
     };
     return list;

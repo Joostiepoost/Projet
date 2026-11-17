@@ -189,6 +189,7 @@ namespace
         c.laneOnly = on == "lane" || on == "lanes";
         c.folders = c.foldersOnly || (folders.isBool() ? (bool) folders : folders.toString().trim().toLowerCase() == "true");
         c.showDefault = (bool) v.getProperty ("showDefault", true);
+        c.formula = (bool) v.getProperty ("formula", false);            // stage 5c
         c.defaultValue = cleanValueId (v["default"].toString());
         c.valuesFrom = v["valuesFrom"].toString().trim();
         if (c.valuesFrom.isNotEmpty() && ! c.valuesFrom.containsChar ('.')) c.valuesFrom = package + "." + cleanId (c.valuesFrom);
@@ -797,6 +798,13 @@ Framework::Mark Framework::markFromName (const juce::String& s, Mark fallback)
     if (n == "end") return Mark::end;
     if (n == "none") return Mark::none;
     return fallback;
+}
+
+const Framework::Category* Framework::formulaCategory() const
+{
+    for (auto& c : categories) if (c.formula && c.kind == Kind::choice) return &c;
+    auto* c = findCategory ("schaeffer.type");
+    return c != nullptr && c->kind == Kind::choice ? c : nullptr;
 }
 
 juce::Array<Framework::Mark> Framework::marksFor (const Category& c)

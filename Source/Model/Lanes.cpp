@@ -80,6 +80,8 @@ namespace Lanes
     {
         NodeCheck out;
         auto folder = project.findTrack (node[IDs::folderId].toString());
+        if (! folder.isValid() && project.getFocus()[IDs::id].toString() == node[IDs::folderId].toString())
+            folder = project.getFocus();              // the container shown is the section (5c)
         if (! folder.isValid()) return out;
         const double s = node[IDs::start], e = s + (double) node[IDs::length];
 
