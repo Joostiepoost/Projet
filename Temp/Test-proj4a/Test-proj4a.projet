@@ -7,7 +7,7 @@
   "vorbisQuality": 7,
   "viewStart": 0.0,
   "pixelsPerSecond": 27.593927672558483,
-  "playhead": 7.314104586129377,
+  "playhead": 18.898208333333333,
   "activeLayer": "002a4fc541114efb8217754d03f8b902",
   "fwLanguage": "en",
   "frameLength": 31.092351711340086,
@@ -50,7 +50,7 @@
           "id": "87ddecf701754f9d881146b9dc3aa5f9",
           "name": "Track 1",
           "colour": 0,
-          "height": 72,
+          "height": 147,
           "mute": false,
           "solo": false,
           "children": [
@@ -74,6 +74,8 @@
                 {
                   "type": "TIMELINE",
                   "activeLayer": "815ae800955d49e7bc9c108fada628f6",
+                  "spanStart": 2.2813656674432,
+                  "spanEnd": 5.61867045089276,
                   "children": [
                     {
                       "type": "TRACKS",
@@ -83,7 +85,7 @@
                           "id": "93781fb1659b43fcafc9bf53fe5a9b7f",
                           "name": "Track 1",
                           "colour": 5,
-                          "height": 72,
+                          "height": 140,
                           "mute": false,
                           "solo": false,
                           "children": [
@@ -127,261 +129,27 @@
                           "id": "b1d8eb3c4d1d435982e276f48e593680",
                           "name": "Track 2",
                           "colour": 1,
-                          "height": 72,
+                          "height": 357,
                           "mute": false,
                           "solo": false,
                           "children": [
                             {
                               "type": "BOX",
-                              "id": "ad583dda67e04b31b785b30d4a3b08f5",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 41.901738281249997,
-                              "length": 20.950869140624995,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 41.901738281249997,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "c6648e15cdfc4cacb99e892470c13676",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 62.852607421874993,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 62.852607421874993,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "93f37d3e308c400088610a58fe54cf74",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 83.803476562499995,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 83.803476562499995,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "8705cc54bdab490291393265934f8347",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 104.754345703124997,
-                              "length": 20.950869140624988,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 104.754345703124997,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "6e14e2838be54491ab314aa4e67553bd",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 125.705214843749985,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 125.705214843749985,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "d5f63dcbfc7d4ad8b0913ac3cb8e82c5",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 146.656083984374987,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 146.656083984374987,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "0b82507ef0ba498291ec758083bc9de2",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 167.60695312499999,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 167.60695312499999,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "48897e2b70c44123bb6d079862663944",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 188.557822265624992,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 188.557822265624992,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "19e4896f1d7e477cbe3781b1f6afc9e0",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 209.508691406249994,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 209.508691406249994,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "3b5ae14435db4186bf6f5fa9740f9ae8",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 230.459560546874997,
-                              "length": 20.950869140624974,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 230.459560546874997,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "1f3d25c4c3ba466b9b8d8652d7a35248",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 251.41042968749997,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 251.41042968749997,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "dd47f8eb773b417ea89725d665c9ca77",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 272.361298828124973,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 272.361298828124973,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "b24acaaa8dca4de1b808610e18165494",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 293.312167968749975,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 293.312167968749975,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
-                              "id": "9fcfeae14d834c06994f29cb2faf3c4c",
-                              "kind": "sound",
-                              "name": "Untitled capture 2026-11-07 130840",
-                              "start": 314.263037109374977,
-                              "length": 20.950869140625002,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 314.263037109374977,
-                              "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.01,
-                              "fadeInShape": 2,
-                              "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
-                            },
-                            {
-                              "type": "BOX",
                               "id": "25f1639ba64e43aab643691542c35485",
                               "name": "Start-idee",
                               "start": 0.8555121252912,
-                              "notes": "This has a few extra ideas for sound files",
-                              "activeTake": "0c92ba05cab44afa9e1cf6f4157fb760",
-                              "kind": "text",
+                              "notes": "Dit zijn de algemene notes\n",
+                              "activeTake": "d1ce2d2e0c894b5eacdae83255de7cb3",
+                              "kind": "sound",
                               "length": 2.389597091928442,
-                              "opacity": 1.0,
-                              "fadeIn": 0.0,
+                              "soundId": "637c395969e347f092c99b70d65f44fd",
+                              "offset": 20.950869140624999,
+                              "gainDb": -17.599999999999998,
+                              "fadeIn": 1.687137375474304,
                               "fadeOut": 0.005,
-                              "sharedNotes": "Dit zijn de algemene notes\n",
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
                               "children": [
                                 {
                                   "type": "TAKES",
@@ -390,17 +158,7 @@
                                       "type": "TAKE",
                                       "id": "d1ce2d2e0c894b5eacdae83255de7cb3",
                                       "name": "A",
-                                      "takeNote": "Untitled capture 2026-11-07 130840",
-                                      "kind": "sound",
-                                      "length": 2.389597091928442,
-                                      "soundId": "637c395969e347f092c99b70d65f44fd",
-                                      "offset": 20.950869140624999,
-                                      "gainDb": -17.599999999999998,
-                                      "fadeIn": 1.687137375474304,
-                                      "fadeOut": 0.005,
-                                      "fadeInShape": 2,
-                                      "fadeOutShape": 2,
-                                      "opacity": 1.0
+                                      "takeNote": "Untitled capture 2026-11-07 130840"
                                     },
                                     {
                                       "type": "TAKE",
@@ -435,7 +193,13 @@
                                     {
                                       "type": "TAKE",
                                       "id": "0c92ba05cab44afa9e1cf6f4157fb760",
-                                      "name": "D"
+                                      "name": "D",
+                                      "kind": "text",
+                                      "length": 2.389597091928442,
+                                      "opacity": 1.0,
+                                      "fadeIn": 0.0,
+                                      "fadeOut": 0.005,
+                                      "notes": "This has a few extra ideas for sound files"
                                     },
                                     {
                                       "type": "TAKE",
@@ -506,6 +270,20 @@
                                           ]
                                         }
                                       ]
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "a82299293b79470ba3c8c1076748e66b",
+                                      "name": "E",
+                                      "kind": "sound",
+                                      "soundId": "a92446ffd65549b3857468c9fb0a0ce4",
+                                      "offset": 0.561912821561067,
+                                      "length": 2.389597091928442,
+                                      "gainDb": 0.0,
+                                      "fadeIn": 0.01,
+                                      "fadeOut": 0.005,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2
                                     }
                                   ]
                                 }
@@ -517,72 +295,17 @@
                               "name": "Start-idee",
                               "start": 3.638220310195505,
                               "notes": "This has a few extra ideas for sound files",
-                              "activeTake": "87ad4c0533fa41efa6d9051f6a2d1f70",
-                              "kind": "container",
-                              "length": 3.068444053962706,
+                              "activeTake": "d1a8a80a4b574b4b841972b6190a74df",
+                              "kind": "sound",
+                              "soundId": "a92446ffd65549b3857468c9fb0a0ce4",
+                              "offset": 2.95150991348951,
+                              "length": 2.873179286097868,
                               "gainDb": 0.0,
                               "fadeIn": 0.005,
-                              "fadeOut": 0.676523219384126,
+                              "fadeOut": 0.01,
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
-                              "innerLength": 3.068444053962706,
-                              "innerOffset": 2.389597091928442,
                               "children": [
-                                {
-                                  "type": "TIMELINE",
-                                  "activeLayer": "c9f193bac76f4c76ab281ce0e6364c28",
-                                  "children": [
-                                    {
-                                      "type": "TRACKS",
-                                      "children": [
-                                        {
-                                          "type": "TRACK",
-                                          "id": "145134a358e74024978e98f914b29be2",
-                                          "name": "Track 1",
-                                          "colour": 0,
-                                          "height": 72,
-                                          "mute": false,
-                                          "solo": false
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "MARKS"
-                                    },
-                                    {
-                                      "type": "DRAWN"
-                                    },
-                                    {
-                                      "type": "NODES"
-                                    },
-                                    {
-                                      "type": "RULERS",
-                                      "children": [
-                                        {
-                                          "type": "LAYER",
-                                          "id": "9ab622090ef84bb6b650432c8e6ad18f",
-                                          "kind": "time",
-                                          "name": "Time",
-                                          "height": 30,
-                                          "visible": true,
-                                          "frame": "piece"
-                                        },
-                                        {
-                                          "type": "LAYER",
-                                          "id": "c9f193bac76f4c76ab281ce0e6364c28",
-                                          "kind": "proportion",
-                                          "name": "Proportion",
-                                          "height": 22,
-                                          "visible": true,
-                                          "snap": true,
-                                          "frame": "piece",
-                                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
-                                          "autoDivisions": true
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                },
                                 {
                                   "type": "TAKES",
                                   "children": [
@@ -606,16 +329,7 @@
                                       "type": "TAKE",
                                       "id": "d1a8a80a4b574b4b841972b6190a74df",
                                       "name": "B",
-                                      "takeNote": "Untitled capture 2026-11-07 143018",
-                                      "kind": "sound",
-                                      "soundId": "a92446ffd65549b3857468c9fb0a0ce4",
-                                      "offset": 2.95150991348951,
-                                      "length": 2.873179286097868,
-                                      "gainDb": 0.0,
-                                      "fadeIn": 0.005,
-                                      "fadeOut": 0.01,
-                                      "fadeInShape": 2,
-                                      "fadeOutShape": 2
+                                      "takeNote": "Untitled capture 2026-11-07 143018"
                                     },
                                     {
                                       "type": "TAKE",
@@ -646,7 +360,73 @@
                                     {
                                       "type": "TAKE",
                                       "id": "87ad4c0533fa41efa6d9051f6a2d1f70",
-                                      "name": "F"
+                                      "name": "F",
+                                      "kind": "container",
+                                      "length": 3.068444053962706,
+                                      "gainDb": 0.0,
+                                      "fadeIn": 0.005,
+                                      "fadeOut": 0.676523219384126,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2,
+                                      "innerLength": 3.068444053962706,
+                                      "innerOffset": 2.389597091928442,
+                                      "children": [
+                                        {
+                                          "type": "TIMELINE",
+                                          "activeLayer": "c9f193bac76f4c76ab281ce0e6364c28",
+                                          "children": [
+                                            {
+                                              "type": "TRACKS",
+                                              "children": [
+                                                {
+                                                  "type": "TRACK",
+                                                  "id": "145134a358e74024978e98f914b29be2",
+                                                  "name": "Track 1",
+                                                  "colour": 0,
+                                                  "height": 72,
+                                                  "mute": false,
+                                                  "solo": false
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "MARKS"
+                                            },
+                                            {
+                                              "type": "DRAWN"
+                                            },
+                                            {
+                                              "type": "NODES"
+                                            },
+                                            {
+                                              "type": "RULERS",
+                                              "children": [
+                                                {
+                                                  "type": "LAYER",
+                                                  "id": "9ab622090ef84bb6b650432c8e6ad18f",
+                                                  "kind": "time",
+                                                  "name": "Time",
+                                                  "height": 30,
+                                                  "visible": true,
+                                                  "frame": "piece"
+                                                },
+                                                {
+                                                  "type": "LAYER",
+                                                  "id": "c9f193bac76f4c76ab281ce0e6364c28",
+                                                  "kind": "proportion",
+                                                  "name": "Proportion",
+                                                  "height": 22,
+                                                  "visible": true,
+                                                  "snap": true,
+                                                  "frame": "piece",
+                                                  "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                                  "autoDivisions": true
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
                                     }
                                   ]
                                 }
@@ -659,26 +439,30 @@
                           "id": "bc394c17d04f4dc88086f48a6af72959",
                           "name": "Track 3",
                           "colour": 2,
-                          "height": 72,
+                          "height": 148,
                           "mute": false,
                           "solo": false,
                           "children": [
                             {
                               "type": "BOX",
-                              "id": "28f999471c52404cbdf0f042c5617f36",
+                              "id": "856945edf18641ff870ec621ac307efc",
                               "kind": "sound",
                               "name": "Untitled capture 2026-11-07 130840",
-                              "start": 7.749475959391564,
-                              "length": 15.492827994733851,
-                              "soundId": "637c395969e347f092c99b70d65f44fd",
-                              "offset": 26.408910286516146,
+                              "start": 2.2813656674432,
+                              "length": 3.33730478344956,
+                              "opacity": 1.0,
+                              "notes": "",
                               "gainDb": 0.0,
-                              "fadeIn": 0.005,
-                              "fadeOut": 0.005,
+                              "offset": 0.712869142837828,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.01,
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
-                              "opacity": 1.0,
-                              "notes": ""
+                              "soundId": "a92446ffd65549b3857468c9fb0a0ce4",
+                              "propStart": "0",
+                              "propLength": "1",
+                              "propFrame": "span",
+                              "propLock": true
                             }
                           ]
                         }
@@ -710,10 +494,10 @@
                           "id": "815ae800955d49e7bc9c108fada628f6",
                           "kind": "proportion",
                           "name": "Proportion",
-                          "height": 48,
+                          "height": 90,
                           "visible": true,
                           "snap": true,
-                          "frame": "piece",
+                          "frame": "span",
                           "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
                           "autoDivisions": true
                         }
@@ -1063,7 +847,7 @@
           "id": "6787a7cd19124155930d27aa39282a06",
           "kind": "proportion",
           "name": "Proportion",
-          "height": 71,
+          "height": 63,
           "visible": true,
           "snap": true,
           "frame": "9389583c79c744838dff3fd33e6cdfa4",
