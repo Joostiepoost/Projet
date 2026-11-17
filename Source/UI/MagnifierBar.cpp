@@ -50,7 +50,7 @@ void MagnifierBar::paint (juce::Graphics& g)
     int x = 12;
     g.setColour (Theme::magnifier);
     g.setFont (Theme::font (10.5f, true));
-    g.drawText ("MAGNIFIED", x, 0, 80, getHeight(), juce::Justification::centredLeft, false);
+    g.drawText (tag, x, 0, 80, getHeight(), juce::Justification::centredLeft, false);
     x += 76;
     g.setColour (Theme::text);
     g.setFont (Theme::font (12.5f, true));

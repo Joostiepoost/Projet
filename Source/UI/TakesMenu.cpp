@@ -7,7 +7,7 @@ namespace TakesMenu
 {
     namespace
     {
-        constexpr int switchFirst = 1, copyTake = 500, soundFile = 501, emptyText = 502, emptyContainer = 503,
+        constexpr int switchFirst = 1, copyTake = 500, soundFile = 501, emptyText = 502, emptyContainer = 503, emptyBoard = 504,
                       renameTake = 510, deleteTake = 511, showTakes = 520, soundFirst = 1000;
 
         juce::Array<juce::ValueTree> soundsByName (Project& project)
@@ -37,7 +37,7 @@ namespace TakesMenu
             for (int i = 0; i < takes.size() && i < 400; ++i)
             {
                 auto kind = Project::takeKind (box, takes[i]);
-                m.addItem (base + switchFirst + i, describe (takes[i]) + "   (" + (kind == "container" ? "container" : (kind == "text" ? "text" : "sound")) + ")",
+                m.addItem (base + switchFirst + i, describe (takes[i]) + "   (" + (kind == "container" ? "container" : (kind == "text" ? "text" : (kind == "board" ? "board" : "sound"))) + ")",
                            true, takes[i] == active);
             }
         }
@@ -52,6 +52,7 @@ namespace TakesMenu
         m.addItem (base + soundFile, "A sound file...");
         m.addItem (base + emptyText, "An empty text");
         m.addItem (base + emptyContainer, "An empty container");
+        m.addItem (base + emptyBoard, "An empty board");
         if (takes.size() > 1)
         {
             m.addSeparator();
@@ -83,6 +84,7 @@ namespace TakesMenu
         else if (r == copyTake)      { um.beginNewTransaction ("New take"); project.addTake (box, Project::NewTake::copy); }
         else if (r == emptyText)     { um.beginNewTransaction ("New take"); project.addTake (box, Project::NewTake::text); }
         else if (r == emptyContainer){ um.beginNewTransaction ("New take"); project.addTake (box, Project::NewTake::container); }
+        else if (r == emptyBoard)    { um.beginNewTransaction ("New take"); project.addTake (box, Project::NewTake::board); }
         else if (r == soundFile)     { if (actions.addSoundFiles) actions.addSoundFiles (box); }
         else if (r == showTakes)     { if (actions.toggleShowTakes) actions.toggleShowTakes(); }
         else if (r >= soundFirst)

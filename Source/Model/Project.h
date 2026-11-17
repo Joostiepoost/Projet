@@ -201,7 +201,7 @@ public:
     static juce::ValueTree takeView (const juce::ValueTree& box, const juce::ValueTree& take);
     /** Gives the box its TAKES (one take, A, the active one) if it has none. */
     void ensureTakes (juce::ValueTree box);
-    enum class NewTake { copy, text, container, sound };
+    enum class NewTake { copy, text, container, sound, board };
     /** A new take, made active: a copy of the active one, an empty text or
         container as long as the box, or a sound. Undoable. */
     juce::ValueTree addTake (juce::ValueTree box, NewTake how, const juce::String& soundId = {});
@@ -220,6 +220,16 @@ public:
     static juce::String nextTakeNameForTest (const juce::ValueTree& box)   { return nextTakeName (box); }
     /** A box anywhere in the piece (every level), by id. */
     juce::ValueTree findBoxInPiece (const juce::String& boxId);
+
+    //== Boards (stage 9) =====================================================
+    // A board box holds a free canvas (BOARD) of cards, arrows, shapes,
+    // strokes and images. It is silent, like a text box, and its board is
+    // its content: takes, copies, splits and undo carry it as they carry a
+    // container's inside.
+    static bool isBoard (const juce::ValueTree& b)                 { return kindOf (b) == "board"; }
+    static juce::ValueTree boardOf (const juce::ValueTree& box)    { return box.getChildWithName (IDs::BOARD); }
+    /** An empty board box. Undoable. */
+    juce::ValueTree addBoardBox (juce::ValueTree track, double start, double length, const juce::String& name = "Board");
 
     /** An empty container (one inner track), stretched. Undoable. */
     juce::ValueTree addContainer (juce::ValueTree track, double start, double length, const juce::String& name = "Container");

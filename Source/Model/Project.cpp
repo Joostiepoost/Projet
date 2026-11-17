@@ -344,6 +344,21 @@ juce::ValueTree Project::addTextBox (juce::ValueTree track, double start, double
     return b;
 }
 
+juce::ValueTree Project::addBoardBox (juce::ValueTree track, double start, double length, const juce::String& name)
+{
+    juce::ValueTree b (IDs::BOX);
+    b.setProperty (IDs::id, newId(), nullptr);
+    b.setProperty (IDs::kind, "board", nullptr);
+    b.setProperty (IDs::name, name, nullptr);
+    b.setProperty (IDs::start, juce::jmax (0.0, start), nullptr);
+    b.setProperty (IDs::length, juce::jmax (minBoxLength, length), nullptr);
+    b.setProperty (IDs::opacity, 1.0, nullptr);
+    b.setProperty (IDs::notes, juce::String(), nullptr);
+    b.appendChild (juce::ValueTree (IDs::BOARD), nullptr);
+    track.appendChild (b, &undoManager);
+    return b;
+}
+
 void Project::setKind (juce::ValueTree box, const juce::String& kind)
 {
     if (kindOf (box) == kind) return;
@@ -374,6 +389,12 @@ void Project::setKind (juce::ValueTree box, const juce::String& kind)
         if (! box.hasProperty (IDs::fadeOut))      box.setProperty (IDs::fadeOut, 0.01, &undoManager);
         if (! box.hasProperty (IDs::fadeInShape))  box.setProperty (IDs::fadeInShape, (int) FadeShape::sCurve, &undoManager);
         if (! box.hasProperty (IDs::fadeOutShape)) box.setProperty (IDs::fadeOutShape, (int) FadeShape::sCurve, &undoManager);
+    }
+    else if (kind == "board")
+    {
+        // A box that has never been a board gets an empty one (stage 9).
+        if (! box.getChildWithName (IDs::BOARD).isValid()) box.appendChild (juce::ValueTree (IDs::BOARD), &undoManager);
+        if (! box.hasProperty (IDs::opacity)) box.setProperty (IDs::opacity, 1.0, &undoManager);
     }
     else if (kind == "container")
     {
@@ -933,6 +954,12 @@ juce::ValueTree Project::addTake (juce::ValueTree box, NewTake how, const juce::
             take.setProperty (IDs::length, length, nullptr);
             take.setProperty (IDs::opacity, 1.0, nullptr);
             break;
+        case NewTake::board:
+            take.setProperty (IDs::kind, "board", nullptr);
+            take.setProperty (IDs::length, length, nullptr);
+            take.setProperty (IDs::opacity, 1.0, nullptr);
+            take.appendChild (juce::ValueTree (IDs::BOARD), nullptr);
+            break;
         case NewTake::container:
             take.setProperty (IDs::kind, "container", nullptr);
             take.setProperty (IDs::length, length, nullptr);
@@ -1325,7 +1352,7 @@ void Project::followIds (juce::ValueTree node, const std::map<juce::String, juce
 {
     for (auto child : node)
     {
-        for (auto* property : { &IDs::folderId, &IDs::propFrame, &IDs::frame, &IDs::activeLayer })
+        for (auto* property : { &IDs::folderId, &IDs::propFrame, &IDs::frame, &IDs::activeLayer, &IDs::fromItem, &IDs::toItem })
         {
             auto it = ids.find (child[*property].toString());
             if (it != ids.end()) child.setProperty (*property, it->second, nullptr);

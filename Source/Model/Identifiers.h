@@ -16,6 +16,8 @@
 //                  Folders can hold fw.* values too, given to the boxes inside.
 //         TIMELINE a container box's own timeline (stage 5a), kept when the box
 //                  changes kind
+//         BOARD    a board box's canvas (stage 9): CARD, ARROW, SHAPE, STROKE and
+//                  IMAGE items, back to front, in board units (pixels at 100%)
 //           TRACKS tracks, folders and boxes, as at the top (containers again)
 //
 // Times are in seconds (doubles); the engine turns them into samples at the
@@ -47,6 +49,12 @@ namespace IDs
     PROJET_ID (TIMELINE)              // a container's inner timeline (stage 5a)
     PROJET_ID (TAKES)                 // a box's takes (stage 7)
     PROJET_ID (TAKE)                  // a take put aside: its content (properties, inner timeline)
+    PROJET_ID (BOARD)                 // a board box's canvas (stage 9)
+    PROJET_ID (CARD)                  // a text card on a board: notes (Markdown), label
+    PROJET_ID (ARROW)                 // an arrow, its ends attached to items (fromItem, toItem) or free
+    PROJET_ID (SHAPE)                 // a rectangle, ellipse or line
+    PROJET_ID (STROKE)                // a freehand stroke: points relative to x, y
+    PROJET_ID (IMAGE)                 // an image copied into the project's Boards folder
 
     // Project
     PROJET_ID (formatVersion)
@@ -107,7 +115,7 @@ namespace IDs
     PROJET_ID (folded)                // a folder's tracks are hidden
 
     // Box
-    PROJET_ID (kind)                  // "sound", "text", "container" (5a); "board", ... later
+    PROJET_ID (kind)                  // "sound", "text", "container" (5a), "board" (9)
     PROJET_ID (start)                 // seconds on the timeline
     PROJET_ID (length)                // seconds
     PROJET_ID (soundId)
@@ -131,6 +139,30 @@ namespace IDs
     PROJET_ID (sharedNotes)           // a box whose active take is a text: its own notes meanwhile
     PROJET_ID (showTakes)             // view setting: takes drawn stacked in their boxes
     PROJET_ID (laneFactor)            // an overview lane showing one variation factor across the boxes (stage 8)
+
+    // Boards (stage 9)
+    PROJET_ID (x)                     // an item's left edge, board units
+    PROJET_ID (y)
+    PROJET_ID (w)
+    PROJET_ID (h)
+    PROJET_ID (fromItem)              // an arrow's start: the id of an item, or "" (then x1, y1)
+    PROJET_ID (toItem)
+    PROJET_ID (x1)
+    PROJET_ID (y1)
+    PROJET_ID (x2)
+    PROJET_ID (y2)
+    PROJET_ID (bend)                  // an arrow's curve: how far its middle lies off the straight line
+    PROJET_ID (dashed)
+    PROJET_ID (filled)
+    PROJET_ID (lineWidth)
+    PROJET_ID (label)                 // a card's label (Goal, Means ...), a shape's or arrow's words
+    PROJET_ID (shape)                 // "rect", "ellipse" or "line" (a line runs from x, y to x + w, y + h)
+    PROJET_ID (points)                // a stroke: "dx,dy dx,dy ..." from x, y
+    PROJET_ID (caption)
+    PROJET_ID (showX)                 // the part of the board shown on its box (showW > 0)
+    PROJET_ID (showY)
+    PROJET_ID (showW)
+    PROJET_ID (showH)
     // Framework values: fw.<package>.<category> (Framework::Category::property()),
     // never "type", which names the node in the project file.
 

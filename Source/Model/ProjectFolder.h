@@ -3,7 +3,7 @@
 //   <name>/
 //     <name>.projet   the piece (JSON)
 //     Sounds/         placeholder copies of every imported sound
-//     Boards/         images placed on boards (later stages)
+//     Boards/         images placed on boards (stage 9)
 //     Exports/        Reaper exports (later stages)
 //     Backups/        the previous versions of <name>.projet, one per save
 //
@@ -29,6 +29,10 @@ public:
     juce::File getProjectFile() const               { return projectFile; }
     juce::File getSoundsFolder() const              { return getFolder().getChildFile ("Sounds"); }
     juce::File getBackupsFolder() const             { return getFolder().getChildFile ("Backups"); }
+    juce::File getBoardsFolder() const              { return getFolder().getChildFile ("Boards"); }
+    /** Copies an image into Boards (the same file already there is used
+        again) and returns the path to store; "" if it could not be copied. */
+    juce::String copyIntoBoards (const juce::File& image) const;
 
     /** Makes `folder` (which must not exist yet, or be empty) with its subfolders,
         resets the project to an empty one named after the folder, and saves it. */

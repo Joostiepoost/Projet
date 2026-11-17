@@ -27,6 +27,8 @@ MainComponent::MainComponent()
     addAndMakeVisible (timeline);
     addChildComponent (magnifier);
     addChildComponent (magnifierBar);
+    addChildComponent (board);
+    addChildComponent (boardBar);
     wireView (timeline);
     wireView (magnifier);
     addAndMakeVisible (inspector);
@@ -75,6 +77,44 @@ MainComponent::MainComponent()
         resized();
     };
     magnifierBar.onDragEnd = [this] { properties.getUserSettings()->setValue ("magnifierShare", magnifierShare); };
+
+    // The board (stage 9): its bar is the divider too.
+    boardShare = juce::jlimit (0.2, 0.85, settings->getDoubleValue ("boardShare", 0.55));
+    boardFilled = settings->getBoolValue ("boardFilled", false);
+    boardBar.setHeading ("BOARD");
+    boardBar.setCloseTip ("Close the board");
+    boardBar.onClose = [this] { closeBoard(); };
+    boardBar.onGoInside = [this] { setBoardFilled (! boardFilled); };
+    boardBar.onDragStart = [this] { boardShareAtDragStart = boardShare; };
+    boardBar.onDrag = [this] (int dy)
+    {
+        if (boardFilled) return;
+        const int h = juce::jmax (1, viewsArea.getHeight());
+        boardShare = juce::jlimit (0.15, 0.9, boardShareAtDragStart - (double) dy / h);
+        resized();
+    };
+    boardBar.onDragEnd = [this] { properties.getUserSettings()->setValue ("boardShare", boardShare); };
+    board.onActivate = [this] { activateBoard(); };
+    board.onSelectionChanged = [this]
+    {
+        if (boardActive) selectionChanged();
+        commandManager.commandStatusChanged();
+    };
+    board.onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
+    {
+        auto& bp = inspector.getBoardPanel();
+        bp.onShowOnBox = [this] { board.showOnBox(); };
+        bp.onClearShown = [this] { board.clearShownPart(); };
+        bp.onFit = [this] { board.zoomToFit(); };
+        bp.onAddImages = [this] { board.chooseImages(); };
+        bp.onFront = [this] { board.bringToFront(); };
+        bp.onBack = [this] { board.sendToBack(); };
+        bp.onDelete = [this] { board.deleteSelection(); };
+        bp.onClose = [this] { closeBoard(); };
+        bp.onFill = [this] { setBoardFilled (! boardFilled); };
+        bp.isFilled = [this] { return boardFilled; };
+    }
+    inspector.onOpenBoard = [this] (juce::ValueTree box) { openBoard (box); };
     outline.onDiveIn = [this] (juce::ValueTree c) { goTo (c); };
     outline.onHide = [this] { setOutlineShown (false); };
     transport.onToggleOutline = [this] { setOutlineShown (! outlineShown); };
@@ -86,9 +126,9 @@ MainComponent::MainComponent()
 
     transport.onPlayStop = [this] { playStop(); };
     transport.onToStart = [this] { locate (0.0); };
-    transport.onZoomIn = [this] { view().zoomBy (1.5, playheadInLevel()); };
-    transport.onZoomOut = [this] { view().zoomBy (1.0 / 1.5, playheadInLevel()); };
-    transport.onZoomFit = [this] { view().zoomToFit(); };
+    transport.onZoomIn = [this] { if (boardActive) board.zoomBy (1.25f); else view().zoomBy (1.5, playheadInLevel()); };
+    transport.onZoomOut = [this] { if (boardActive) board.zoomBy (0.8f); else view().zoomBy (1.0 / 1.5, playheadInLevel()); };
+    transport.onZoomFit = [this] { if (boardActive) board.zoomToFit(); else view().zoomToFit(); };
     transport.onImport = [this] { importDialog(); };
     transport.onToggleAudio = [this] { setAudioOn (! audioOn); };
 
@@ -260,6 +300,7 @@ void MainComponent::wireView (TimelineView& v)
 {
     v.onActivate = [this, &v] { activate (v); };
     v.onDiveIn = [this] (juce::ValueTree c) { goTo (c); };
+    v.onOpenBoard = [this] (juce::ValueTree box) { openBoard (box); };
     v.onMagnify = [this, &v] (juce::ValueTree c) { magnify (v, c); };
     v.onLocate = [this] (double t) { locate (t); };
     v.onSelectionChanged = [this, &v]
@@ -306,10 +347,16 @@ void MainComponent::wireView (TimelineView& v)
 void MainComponent::activate (TimelineView& v)
 {
     if (&v == &magnifier && ! magnifierShown) return;
-    const bool changed = &v != active;
+    const bool fromBoard = boardActive;
+    if (fromBoard)
+    {
+        boardActive = false;
+        board.setActivePane (false);
+    }
+    const bool changed = &v != active || fromBoard;
     if (changed) inspector.commitNotes();
     active = &v;
-    timeline.setActivePane (magnifierShown && active == &timeline);
+    timeline.setActivePane ((magnifierShown || boardShown) && active == &timeline);
     magnifier.setActivePane (magnifierShown && active == &magnifier);
     if (project.getFocus() != v.getLevel())
     {
@@ -328,6 +375,7 @@ void MainComponent::openMagnifier (juce::ValueTree c)
 {
     if (! Project::isContainer (c) || ! project.isInPiece (c) || Project::containerOf (c) != timeline.getLevel()) return;
     inspector.commitNotes();
+    closeBoard();                                  // one of the two below at a time (stage 9)
     project.prepareLevel (c);                      // its own rulers, on a first visit
     if (active == &magnifier) activate (timeline);
     magnifierShown = true;
@@ -403,6 +451,98 @@ void MainComponent::updateMagnifierBar()
     magnifierBar.setInfo (name, about);
 }
 
+//== The board (stage 9) =======================================================
+
+void MainComponent::openBoard (juce::ValueTree box)
+{
+    if (! Project::isBoard (box) || ! project.isInPiece (box)) return;
+    inspector.commitNotes();
+    closeMagnifier();
+    const bool wasShown = boardShown;
+    boardShown = true;
+    resized();                                     // laid out first, so it can be fitted
+    board.setBox (box);
+    timeline.setOpenBoard (box);
+    activateBoard();
+    board.grabKeyboardFocus();
+    updateBoardBar();
+    if (! wasShown) transport.setStatus ("The board of " + box[IDs::name].toString() + ": double-click to write a card; the tools are on the left. "
+                                         + "Click the timeline to work there again.");
+    commandManager.commandStatusChanged();
+}
+
+void MainComponent::closeBoard()
+{
+    if (! boardShown) return;
+    board.commitEdit();
+    inspector.getBoardPanel().commitNotes();
+    if (boardActive) activate (timeline);          // the panel and commands go back to the timeline
+    boardShown = false;
+    boardActive = false;
+    board.setActivePane (false);
+    board.setBox ({});
+    timeline.setOpenBoard ({});
+    timeline.setActivePane (magnifierShown && active == &timeline);
+    resized();
+    commandManager.commandStatusChanged();
+}
+
+void MainComponent::activateBoard()
+{
+    if (! boardShown) return;
+    if (! boardActive) inspector.commitNotes();
+    boardActive = true;
+    timeline.setActivePane (false);
+    magnifier.setActivePane (false);
+    board.setActivePane (true);
+    selectionChanged();
+    commandManager.commandStatusChanged();
+}
+
+void MainComponent::setBoardFilled (bool filled)
+{
+    boardFilled = filled;
+    properties.getUserSettings()->setValue ("boardFilled", filled);
+    resized();
+    if (filled) activateBoard();                    // the timeline is hidden: the board is worked on
+    updateBoardBar();
+    inspector.refresh();
+}
+
+void MainComponent::updateBoardBar()
+{
+    if (! boardShown) return;
+    const auto box = board.getBox();
+    juce::String name = box[IDs::name].toString();
+    if (name.isEmpty()) name = "Board";
+    if (Project::numTakes (box) > 1) name << juce::String::fromUTF8 (" \xc2\xb7 take ") << Project::activeTakeName (box);
+    const auto b = Project::boardOf (box);
+    const auto dot = juce::String::fromUTF8 ("   \xc2\xb7   ");
+    juce::String about = Board::summary (b);
+    about << dot << (Board::shownPart (b).isEmpty() ? "the box shows its name" : "the box shows a part of it");
+    double from = 0.0;
+    {
+        const Project::ScopedFocus around (project, Project::containerOf (box));
+        from = project.levelToPiece (Project::boxStart (box));
+    }
+    about << dot << "at " << TimeFormat::format (from, 1) << " in the piece";
+    boardBar.setInfo (name, about);
+    boardBar.setButton (boardFilled ? "Share" : "Fill", boardFilled ? "Give the timeline its room back above the board" : "Let the board fill the area (the timeline hides until Share)");
+}
+
+bool MainComponent::boardTakes (juce::CommandID id) const
+{
+    if (! boardActive || ! boardShown) return false;
+    switch (id)
+    {
+        case cmdDelete: case cmdDuplicate: case cmdCopy: case cmdCut: case cmdPaste: case cmdSelectAll: case cmdDeselect:
+        case cmdZoomIn: case cmdZoomOut: case cmdZoomFit:
+            return true;
+        default:
+            return false;
+    }
+}
+
 TimelineView* MainComponent::viewFor (const juce::ValueTree& node)
 {
     const auto level = Project::containerOf (node);
@@ -436,6 +576,25 @@ void MainComponent::resized()
     levelBar.setVisible (hasProject() && timeline.getLevel().isValid());
     if (levelBar.isVisible()) levelBar.setBounds (r.removeFromTop (LevelBar::preferredHeight));
     viewsArea = r;
+    // The board below (stage 9), or filling the area.
+    const bool showBoard = boardShown && hasProject();
+    board.setVisible (showBoard);
+    boardBar.setVisible (showBoard);
+    timeline.setVisible (! (showBoard && boardFilled));
+    if (showBoard)
+    {
+        if (boardFilled)
+        {
+            boardBar.setBounds (r.removeFromTop (MagnifierBar::preferredHeight));
+            board.setBounds (r);
+        }
+        else
+        {
+            const int below = juce::jlimit (120, juce::jmax (120, r.getHeight() - 100), (int) std::round (r.getHeight() * boardShare));
+            board.setBounds (r.removeFromBottom (below));
+            boardBar.setBounds (r.removeFromBottom (MagnifierBar::preferredHeight));
+        }
+    }
     // The magnifier below, half the height at first (decision 5); its bar is the divider.
     const bool showMagnifier = magnifierShown && hasProject();
     magnifier.setVisible (showMagnifier);
@@ -505,6 +664,12 @@ void MainComponent::afterProjectLoaded()
     startPanel.setVisible (false);
     pool.clear();
     magnifierShown = false;
+    boardShown = boardActive = false;               // stage 9
+    board.setActivePane (false);
+    board.setBox ({});
+    timeline.setOpenBoard ({});
+    timeline.setProjectFolder (folder.getFolder());
+    magnifier.setProjectFolder (folder.getFolder());
     active = &timeline;
     magnifier.resetLevels();
     timeline.setMagnified ({});
@@ -562,6 +727,7 @@ void MainComponent::markClean()
 
 void MainComponent::saveProject()
 {
+    board.commitEdit();
     inspector.commitNotes();
     if (notesWindow != nullptr) notesWindow->setBox (notesWindow->isVisible() ? view().getSelectedBox() : juce::ValueTree());
     {
@@ -680,6 +846,9 @@ void MainComponent::modelChanged()
     if (magnifierShown && (gone (magnifier.getLevel()) || Project::containerOf (magnifier.getLevel()) != timeline.getLevel()))
         closeMagnifier();
     if (gone (timeline.getLevel())) goTo (gone (project.getFocus()) ? juce::ValueTree() : project.getFocus());
+    // The open board's box may have gone, or stopped being a board (stage 9).
+    if (boardShown && (! project.isInPiece (board.getBox()) || ! Project::isBoard (board.getBox()))) closeBoard();
+    if (boardShown) { board.modelChanged(); updateBoardBar(); }
     // A container's take with an inside never shown yet gets its rulers.
     if (magnifierShown) project.prepareLevel (magnifier.getLevel());
     if (timeline.getLevel().isValid()) project.prepareLevel (timeline.getLevel());
@@ -870,6 +1039,11 @@ void MainComponent::placeReady (std::shared_ptr<ImportBatch> batch)
 
 void MainComponent::selectionChanged()
 {
+    if (boardActive && boardShown)
+    {
+        inspector.showBoardItems (board.getBox(), board.getSelectedItems());
+        return;
+    }
     inspector.setSelection (view().getSelectedBoxes());
     juce::StringArray ids;
     for (auto b : view().getSelectedBoxes()) ids.add (b[IDs::id].toString());
@@ -897,6 +1071,17 @@ void MainComponent::addContainer (juce::ValueTree track, double start)
     // About 240 pixels long at the current zoom, at least 4 s.
     auto box = project.addContainer (track, start, juce::jmax (4.0, 240.0 / view().getPixelsPerSecond()));
     view().selectBox (box);
+}
+
+void MainComponent::addBoard (juce::ValueTree track, double start)
+{
+    if (! track.isValid() || Project::isFolder (track)) track = view().getSelectedLaneTrack();
+    if (! track.isValid()) return;
+    project.getUndoManager().beginNewTransaction ("New board");
+    // About 200 pixels long at the current zoom, at least 4 s.
+    auto box = project.addBoardBox (track, start, juce::jmax (4.0, 200.0 / view().getPixelsPerSecond()));
+    view().selectBox (box);
+    openBoard (box);
 }
 
 void MainComponent::editNotes (juce::ValueTree box)
@@ -1143,7 +1328,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& c)
                   cmdAddTrack, cmdAudioSettings, cmdAudioEngine, cmdShortcuts,
                   cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel,
                   cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, cmdDiveIn, cmdLevelUp, cmdToggleOutline, cmdMagnify,
-                  cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes });
+                  cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes, cmdNewBoard });
 }
 
 void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommandInfo& info)
@@ -1264,7 +1449,24 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             info.setActive (hasProject());
             break;
         case cmdSwap:          info.setInfo ("Swap the two boxes", "The two selected boxes change places, each keeping its length", "Edit", 0); info.setActive (hasProject() && view().getSelectedBoxes().size() == 2); break;
+        case cmdNewBoard:      info.setInfo ("New board", "An empty board box on the selected track at the playhead, opened below", "Edit", 0); info.addDefaultKeypress ('b', cmd | juce::ModifierKeys::altModifier); info.setActive (open); break;
         default: break;
+    }
+    // While the board is worked on, the editing commands are its own (stage 9).
+    if (boardTakes (id))
+    {
+        const bool any = board.hasSelection();
+        switch (id)
+        {
+            case cmdDelete:    info.shortName = "Delete"; info.setActive (any); break;
+            case cmdDuplicate: info.setActive (any); break;
+            case cmdCopy:      info.shortName = "Copy"; info.setActive (any); break;
+            case cmdCut:       info.shortName = "Cut"; info.setActive (any); break;
+            case cmdPaste:     info.shortName = "Paste"; info.setActive (BoardView::canPaste()); break;
+            case cmdSelectAll: info.shortName = "Select all on the board"; info.setActive (true); break;
+            case cmdZoomFit:   info.shortName = "Fit the board"; info.setActive (true); break;
+            default: info.setActive (true); break;
+        }
     }
 }
 
@@ -1273,6 +1475,25 @@ bool MainComponent::perform (const InvocationInfo& info)
     if (! hasProject() && info.commandID != cmdNewProject && info.commandID != cmdOpenProject
         && info.commandID != cmdAudioSettings && info.commandID != cmdAudioEngine && info.commandID != cmdShortcuts && info.commandID != cmdTogglePanel && info.commandID != cmdToggleOutline)
         return true;
+
+    if (boardTakes (info.commandID))
+    {
+        switch (info.commandID)
+        {
+            case cmdDelete:    board.deleteSelection(); break;
+            case cmdDuplicate: board.duplicateSelection(); break;
+            case cmdCopy:      board.copySelection(); break;
+            case cmdCut:       board.cutSelection(); break;
+            case cmdPaste:     board.paste(); break;
+            case cmdSelectAll: board.selectAll(); break;
+            case cmdDeselect:  board.deselect(); break;
+            case cmdZoomIn:    board.zoomBy (1.25f); break;
+            case cmdZoomOut:   board.zoomBy (0.8f); break;
+            case cmdZoomFit:   board.zoomToFit(); break;
+            default: break;
+        }
+        return true;
+    }
 
     switch (info.commandID)
     {
@@ -1303,6 +1524,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case cmdSelectAll:    view().selectAll(); break;
         case cmdNotesWindow:  openNotesWindow(); break;
         case cmdNewContainer: addContainer (view().getSelectedLaneTrack(), playheadInLevel()); break;
+        case cmdNewBoard:     addBoard (view().getSelectedLaneTrack(), playheadInLevel()); break;
         case cmdDiveIn:
         {
             auto box = view().getSelectedBox();
@@ -1425,7 +1647,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             break;
         }
         case 1: add ({ cmdUndo, cmdRedo, 0, cmdCut, cmdCopy, cmdPaste, cmdDuplicate, cmdDelete, 0, cmdSplit, cmdNewTextBox, cmdNotesWindow,
-                       0, cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, 0, cmdNewTake, cmdNextTake, cmdPreviousTake, 0, cmdSelectAll, cmdDeselect }); break;
+                       0, cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, 0, cmdNewBoard, 0, cmdNewTake, cmdNextTake, cmdPreviousTake, 0, cmdSelectAll, cmdDeselect }); break;
         case 2:
         {
             add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit, 0, cmdDiveIn, cmdLevelUp, cmdMagnify, 0, cmdShowTakes, 0, cmdTogglePanel, cmdToggleOutline });

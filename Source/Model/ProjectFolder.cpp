@@ -113,6 +113,22 @@ juce::File ProjectFolder::resolve (const juce::String& relativePath) const
     return getFolder().getChildFile (relativePath);
 }
 
+juce::String ProjectFolder::copyIntoBoards (const juce::File& image) const
+{
+    if (! isValid() || ! image.existsAsFile()) return {};
+    auto boards = getBoardsFolder();
+    boards.createDirectory();
+    if (image.isAChildOf (boards)) return relativePathOf (image);
+    // The same file (same size and contents) already copied: use it again.
+    auto target = boards.getChildFile (image.getFileName());
+    for (int n = 2; target.exists(); ++n)
+    {
+        if (target.getSize() == image.getSize() && target.hasIdenticalContentTo (image)) return relativePathOf (target);
+        target = boards.getChildFile (image.getFileNameWithoutExtension() + " " + juce::String (n) + image.getFileExtension());
+    }
+    return image.copyFileTo (target) ? relativePathOf (target) : juce::String();
+}
+
 juce::String ProjectFolder::relativePathOf (const juce::File& f) const
 {
     return f.getRelativePathFrom (getFolder()).replaceCharacter ('\\', '/');

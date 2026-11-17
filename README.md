@@ -54,14 +54,16 @@ Other options:
 | 5c | The framework on containers: section fields (writing type, time-feel, nodes) on containers, the dynamic form attached to them, time-field brackets, typological formulas | done |
 | 6 | Magnified inline expansion: a container of the level shown opened in a second timeline below, with full editing, following the selection | done |
 | 7 | Takes: alternatives of a box's content (sounds, texts, containers), one active; new takes from a copy, the project's sounds or files; switching on the box, in the panel or with Cmd-] and Cmd-[; takes shown stacked in their boxes | built, to test |
-| 8 | Framework, layer 4: variation factors as curves along a box (in its Framework tab or drawn over the box), reshaping its glyph; one factor across the boxes in the energies lane | built, to test |
-| 9 | Board box | |
+| 8 | Framework, layer 4: variation factors as curves along a box (in its Framework tab or drawn over the box), reshaping its glyph; one factor across the boxes in the energies lane | done |
+| 9a | Board box: a free canvas in a box, opened below the timeline (or filling the area): text cards, arrows between them, shapes, the pen, images; a chosen part of it shown on the box | built, to test |
+| 9b | Board box: sound cards, temporal outs, timeline links | |
+| 9c | Board box: morphogram regions and energy gestures | |
 | 10 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 | 11 | Relations, materials, origin; the operations of the structuring language (once the research is ready) | |
 | 12 | Strata view | |
 | 13 | A framework package template, for packages of your own | |
 
-## Using Projet (stages 1–8)
+## Using Projet (stages 1–9a)
 
 ### The project folder
 
@@ -367,6 +369,19 @@ An energy has its **variation factors** (Vande Gorne's, with dynamics for every 
 - **In the energies lane**: right-click the lane's header > *Show a variation factor* > speed (or any other): the lane shows that factor across the boxes of the level, each box's curve over its own time (the second energy fainter, a box without a curve dotted at its neutral value). *Off* shows the energies again.
 - The factors come from the composition package, **version 6**: take it first (*Framework > Frameworks...*: *Library: take Projet's*, then *Take the library's*). A package of your own can list factors for its categories (its help says how); `glyphs.js` reads them as `f ("speed", t)`.
 
+### Board boxes (stage 9a)
+
+A **board box** holds a free canvas for working out the logic of a section: cards with words, arrows between them, shapes, drawings and images. It is silent, like a text box, and has a name, notes, framework values and takes like any box.
+- **Making one**: *Edit > New board* (**Alt-Cmd-B**) on the selected track at the playhead (it opens at once), or turn any box into one (right-click > *Change to > Board*, or the panel's Kind). As a take: *New take > An empty board*, so the idea on a board can be take A and its sounds take B.
+- **Opening it**: double-click the box (or right-click > *Open the board*, or the panel's *Open the board*). It opens **below the timeline**, where the magnifier opens (one of the two at a time), with its bar as the divider: drag the bar to share the height; **Fill** lets the board fill the area (the timeline hides until **Share**); × closes it. The box whose board is open is outlined in blue.
+- **Working in it**: click the board to work there (a blue line along its top; the panel shows what is selected on it, and Delete, Cmd-C, Cmd-X, Cmd-V, Cmd-D, Cmd-A and the zoom buttons work on it); click the timeline to go back. Undo (Cmd-Z) covers everything on the board.
+- **Tools**, on the strip at the left or by their keys: **V** select and move; **T** text card (click for a card, or drag its size); **A** arrow (drag from a card to another: its ends stay attached to the cards when they move; drag from anywhere for a free end); **S** shape (S again: ellipse, then line; or right-click the tool); **P** pen (draw freely; Esc or V stops it); **I** image (a file chooser: PNG, JPEG or GIF; or drop images from the Finder onto the board). Images are copied into the project's *Boards* folder, so the project stays whole.
+- **Writing**: double-click a card to write in it (*bold*, *italic*, lists, headings and links as in the notes; Esc or a click outside when done; the card grows to fit). Double-click the empty board for a new card there. Double-click a shape or an arrow for its label, an image for its caption. Return writes in the selected item.
+- **Moving around**: scroll to move, Cmd-scroll or pinch to zoom, Cmd-0 to fit (also Alt-drag or middle-drag on the empty board). Items snap to a 10-unit grid unless Cmd is held. Drag a corner to resize (Shift keeps the proportions; images keep theirs unless Shift is held); drag an arrow's or line's ends; drag the dot in the middle of an arrow to bend it. Arrow keys nudge (Shift: by 10). Drag across the empty board to select several.
+- **The panel**: a card's label (Goal, Means, Open, Question ...: type your own, the ones used before are offered), colour, semiotic level (with its fill, as on boxes) and text; a shape's, arrow's or drawing's colour, line width, dashes, fill and label; an image's caption; *To front*, *To back*, *Delete*. Right-click an item for the same, and *Duplicate*, *Copy*.
+- **On the timeline**: the box shows its name and what the board holds. To show a part of the board there instead: select the items to show and *Show it (them) on the box*, or with nothing selected *Show what is in view on the box* (the panel, or right-click the empty board). The part is outlined in blue on the board; *Show nothing on the box* goes back. A taller track shows it larger.
+- **Copies, takes, splits**: copying, pasting and duplicating a board box copy its board; each take has its own board; splitting a board box gives both parts a copy of it.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -398,6 +413,19 @@ An energy has its **variation factors** (Vande Gorne's, with dynamics for every 
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 9a**:
+- Alt-Cmd-B on a track: a board box, and its board opens below. Double-click the board: write a card (try **bold** and a list); Esc. Make a second card with T (click, then drag one), and an arrow from the first to the second with A.
+- Move a card: the arrow follows. Drag the arrow's middle dot to bend it; double-click it for a label. Resize a card by a corner. Give the first card a label and a colour in the panel, and a semiotic level.
+- S for a rectangle, S S for an ellipse, S S S for a line; the pen (P), then Esc. Right-click items: colour, dashed, filled, line width, front and back.
+- Images: I (or *Add images...*), and drop an image from the Finder onto the board. Look in the project's Boards folder.
+- Select several (drag across the empty board, or Shift-click): Cmd-C, Cmd-V, Cmd-D, Delete, Cmd-Z.
+- *Show them on the box* with some items selected; look at the box on the timeline (make the track taller); *Show nothing on the box*.
+- Fill and Share; drag the bar; ×. Click the timeline and the board in turn: the panel follows.
+- Turn a text box into a board and back (its notes and its board both stay); a new take *An empty board*; switch takes with the board open.
+- Duplicate a board box, split one at the playhead, copy and paste one: each has its own board.
+- Save, quit, reopen: the boards, the part shown on each box.
+- Whatever feels awkward on the board (the keys, the snapping, how arrows attach, the panel): tell me before 9b.
 
 **Worth testing in stage 8**:
 - First, *Framework > Frameworks...*: composition v6, *Library: take Projet's*, then *Take the library's*.

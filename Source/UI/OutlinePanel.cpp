@@ -175,6 +175,13 @@ void OutlinePanel::Rows::paint (juce::Graphics& g)
             g.setColour (row.colour.withAlpha (Project::gainOpacity (row.box.getProperty (IDs::gainDb, 0.0))));
             g.fillRect (icon.reduced (1.0f));
         }
+        else if (Project::isBoard (row.box))       // stage 9: a small board
+        {
+            g.setColour (juce::Colour (0xff8aa6d6));
+            g.drawRect (icon.reduced (0.5f), 1.0f);
+            g.fillRect (icon.getX() + 2.0f, icon.getY() + 2.0f, 3.0f, 2.5f);
+            g.fillRect (icon.getRight() - 4.5f, icon.getBottom() - 4.0f, 2.5f, 2.0f);
+        }
         else
         {
             g.setColour (juce::Colour (0xff9a8f78));
@@ -183,7 +190,7 @@ void OutlinePanel::Rows::paint (juce::Graphics& g)
         x += 16;
 
         juce::String name = row.box.isValid() ? row.box[IDs::name].toString() : juce::String ("Piece");
-        if (name.isEmpty()) name = row.container ? "Container" : (Project::isSound (row.box) ? "Sound" : "Text");
+        if (name.isEmpty()) name = row.container ? "Container" : (Project::isSound (row.box) ? "Sound" : (Project::isBoard (row.box) ? "Board" : "Text"));
         if (row.box.isValid() && Project::numTakes (row.box) > 1) name << juce::String::fromUTF8 (" \xc2\xb7 ") << Project::activeTakeName (row.box);   // its take (stage 7)
         const juce::String time = row.box.isValid() ? TimeFormat::format (Project::boxStart (row.box), 1) : juce::String();
         g.setFont (Theme::mono (10.0f));

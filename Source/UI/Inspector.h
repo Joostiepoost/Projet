@@ -19,6 +19,7 @@
 #include "FrameworkPanel.h"
 #include "DisplayPanel.h"
 #include "PackagesPanel.h"
+#include "BoardPanel.h"
 
 class Inspector : public juce::Component
 {
@@ -44,7 +45,7 @@ public:
     /** Re-reads the model (after any change). */
     void refresh();
     /** Saves notes being typed. */
-    void commitNotes()                              { notes.commit(); }
+    void commitNotes()                              { notes.commit(); boardPanel.commitNotes(); }
     void focusNotes()                               { notes.setWriting (true); notes.focusEditor(); }
 
     void paint (juce::Graphics&) override;
@@ -61,10 +62,15 @@ public:
     /** Stage 8: a factor's curve to draw over the box on the timeline ("" "": stop). */
     std::function<void (const juce::String& categoryKey, const juce::String& factorId)> onDrawFactor;
     void stopDrawingFactor()                        { frameworkPanel.setDrawingFactor ({}, {}); }
+    /** Stage 9: what is selected on the open board (while the board is worked in). */
+    void showBoardItems (const juce::ValueTree& boardBox, const juce::Array<juce::ValueTree>& items);
+    bool isShowingBoard() const                     { return mode == Mode::boardItems; }
+    BoardPanel& getBoardPanel()                     { return boardPanel; }
+    std::function<void (juce::ValueTree box)> onOpenBoard;
 
 private:
-    enum class Mode { project, sound, text, container, several, ruler, display, packages };
-    bool isSidePanel() const                        { return mode == Mode::ruler || mode == Mode::display || mode == Mode::packages; }
+    enum class Mode { project, sound, text, container, board, several, ruler, display, packages, boardItems };
+    bool isSidePanel() const                        { return mode == Mode::ruler || mode == Mode::display || mode == Mode::packages || mode == Mode::boardItems; }
     juce::String ratioReport();
     juce::Array<juce::ValueTree> selection;
     void setMode (Mode);
@@ -91,7 +97,11 @@ private:
     juce::TextButton boxTab { "Box" }, frameworkTab { "Framework" };
     juce::TextButton hideButton { juce::String::fromUTF8 ("\xc2\xbb") };   // the panel goes, the timeline widens
     bool showFramework = false;
-    bool isBoxMode() const                          { return (mode == Mode::sound || mode == Mode::text || mode == Mode::container || mode == Mode::several) && selectionSize > 0; }
+    bool isBoxMode() const                          { return (mode == Mode::sound || mode == Mode::text || mode == Mode::container || mode == Mode::board || mode == Mode::several) && selectionSize > 0; }
+    // Boards (stage 9)
+    BoardPanel boardPanel { project, framework };
+    juce::TextButton openBoardButton { "Open the board" };
+    juce::Label boardInfo;
 
     juce::Label title;
     juce::Label nameLabel { {}, "Name" }, kindLabel { {}, "Kind" }, soundLabel { {}, "Sound" };

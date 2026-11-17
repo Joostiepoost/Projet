@@ -128,6 +128,12 @@ public:
     std::function<void (juce::ValueTree box)> onEditNotes, onSplitAtPlayhead, onOpenNotesWindow;
     /** Go inside a container (stage 5b). */
     std::function<void (juce::ValueTree container)> onDiveIn;
+    /** Open a board box's board below (stage 9). */
+    std::function<void (juce::ValueTree box)> onOpenBoard;
+    /** The project folder, for the images on boards shown on their boxes. */
+    void setProjectFolder (const juce::File& f)     { projectFolderRoot = f; }
+    /** The board box whose board is open below, marked like the magnified container. */
+    void setOpenBoard (const juce::ValueTree& b)    { if (b != openBoard) { openBoard = b; repaint(); } }
     std::function<void (const juce::String& message, bool warning)> onStatus;
     /** Show the ruler layers in the panel (a layer id, or "" for the active one). */
     std::function<void (const juce::String& layerId)> onShowRulerPanel;
@@ -273,6 +279,11 @@ private:
     void setFactorFromEdit();
     void paintFades (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>);
     void paintFadeHandles (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>);
+    /** A board box (stage 9): its name, and the part of its board chosen to show, or what it holds. */
+    void paintBoardBox (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>, float alpha,
+                        juce::Colour base, bool selected, bool emphasis);
+    juce::File projectFolderRoot;
+    juce::ValueTree openBoard;
     /** A container (stage 5a): header, miniature of the inside, fades, double edge. */
     void paintContainer (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>, float alpha,
                          juce::Colour base, bool selected, bool emphasis);

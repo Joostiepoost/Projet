@@ -22,6 +22,7 @@
 #include "UI/LevelBar.h"
 #include "UI/OutlinePanel.h"
 #include "UI/MagnifierBar.h"
+#include "UI/BoardView.h"
 #include "UI/TransportBar.h"
 #include "UI/ImportPanel.h"
 #include "UI/StartPanel.h"
@@ -52,7 +53,8 @@ public:
         cmdAudioEngine,
         cmdDiveIn, cmdLevelUp, cmdToggleOutline,                 // stage 5b
         cmdMagnify,                                              // stage 6
-        cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes   // stage 7
+        cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes,  // stage 7
+        cmdNewBoard                                              // stage 9
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -154,6 +156,7 @@ private:
     //== Editing ================================================================
     void addTextBox (juce::ValueTree track, double start);
     void addContainer (juce::ValueTree track, double start);
+    void addBoard (juce::ValueTree track, double start);
     void editNotes (juce::ValueTree box);
     void openNotesWindow();
     void splitAtPlayhead (juce::Array<juce::ValueTree> boxes);
@@ -230,6 +233,22 @@ private:
     void selectInView (const juce::ValueTree& box);
     void repaintViews()                             { timeline.repaint(); magnifier.repaint(); }
     void levelsChanged();
+    //== The board (stage 9) ====================================================
+    // A board box's board, open below the timeline where the magnifier opens
+    // (one of the two at a time), or filling the area. Clicked, it is the one
+    // worked on: the panel shows what is selected on it, and the editing
+    // commands (delete, copy, paste, select all, zoom) go to it.
+    BoardView board { project, framework, folder };
+    MagnifierBar boardBar;
+    bool boardShown = false, boardFilled = false, boardActive = false;
+    double boardShare = 0.55, boardShareAtDragStart = 0.55;
+    void openBoard (juce::ValueTree box);
+    void closeBoard();
+    void activateBoard();
+    void updateBoardBar();
+    void setBoardFilled (bool);
+    /** The editing commands the board takes while it is worked on. */
+    bool boardTakes (juce::CommandID) const;
     ImportPanel importPanel;
     std::unique_ptr<NotesWindow> notesWindow;
     StartPanel startPanel;

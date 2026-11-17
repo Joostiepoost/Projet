@@ -96,15 +96,14 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     kindBox.addItem ("Text", kindText);
     kindBox.addSeparator();
     kindBox.addItem ("Container", kindContainer);
-    kindBox.addItem ("Board (stage 11)", kindBoard);
+    kindBox.addItem ("Board", kindBoard);
     kindBox.addItem ("Codebox (later)", kindCodebox);
-    kindBox.setItemEnabled (kindBoard, false);
     kindBox.setItemEnabled (kindCodebox, false);
     kindBox.onChange = [this]
     {
         if (updating || ! box.isValid()) return;
         const int id = kindBox.getSelectedId();
-        const auto kind = id == kindText ? "text" : (id == kindContainer ? "container" : "sound");
+        const auto kind = id == kindText ? "text" : (id == kindContainer ? "container" : (id == kindBoard ? "board" : "sound"));
         project.getUndoManager().beginNewTransaction ("Change kind");
         project.setKind (box, kind);
     };
@@ -273,6 +272,13 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     };
     addChildComponent (displayPanel);
     addChildComponent (packagesPanel);
+    addChildComponent (boardPanel);                 // stage 9
+    openBoardButton.setTooltip ("Open the board below the timeline (double-click the box)");
+    openBoardButton.onClick = [this] { if (onOpenBoard && box.isValid()) onOpenBoard (box); };
+    addChildComponent (openBoardButton);
+    styleLabel (boardInfo, 12.0f, Theme::text.withAlpha (0.8f));
+    boardInfo.setJustificationType (juce::Justification::topLeft);
+    addChildComponent (boardInfo);
     displayPanel.onDone = packagesPanel.onDone = [this]
     {
         mode = Mode::project;     // leave the panel
@@ -306,9 +312,20 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     setMode (Mode::project);
 }
 
+void Inspector::showBoardItems (const juce::ValueTree& boardBox, const juce::Array<juce::ValueTree>& items)
+{
+    if (nameEditor.hasKeyboardFocus (true)) commitName();
+    if (mode != Mode::boardItems) notes.commit();
+    setMode (Mode::boardItems);
+    title.setText ({}, juce::dontSendNotification);
+    boardPanel.setItems (boardBox, items);
+    resized();
+}
+
 void Inspector::setSelection (const juce::Array<juce::ValueTree>& boxes)
 {
     if (nameEditor.hasKeyboardFocus (true)) commitName();
+    if (mode == Mode::boardItems) { boardPanel.commitNotes(); mode = Mode::project; }   // the timeline again (stage 9)
     selectionSize = boxes.size();
     selection = boxes;
     box = boxes.size() == 1 ? boxes.getFirst() : juce::ValueTree();
@@ -578,7 +595,7 @@ void Inspector::refreshProportions()
 void Inspector::setMode (Mode m)
 {
     mode = m;
-    const bool anyBox = m == Mode::sound || m == Mode::text || m == Mode::container;
+    const bool anyBox = m == Mode::sound || m == Mode::text || m == Mode::container || m == Mode::board;
     const bool sound = m == Mode::sound;
     const bool container = m == Mode::container;
 
@@ -597,8 +614,11 @@ void Inspector::setMode (Mode m)
         c->setVisible (sound || container);
     for (juce::Component* c : std::initializer_list<juce::Component*> { &insideLabel, &insideBox, &containerInfo })
         c->setVisible (container);
-    opacityLabel.setVisible (m == Mode::text);
-    opacity.setVisible (m == Mode::text);
+    opacityLabel.setVisible (m == Mode::text || m == Mode::board);
+    opacity.setVisible (m == Mode::text || m == Mode::board);
+    openBoardButton.setVisible (m == Mode::board);
+    boardInfo.setVisible (m == Mode::board);
+    boardPanel.setVisible (m == Mode::boardItems);
 
     const bool proj = m == Mode::project;
     projectInfo.setVisible (proj || m == Mode::several);
@@ -686,6 +706,7 @@ void Inspector::refresh()
     if (mode == Mode::ruler) { rulerPanel.refresh(); return; }
     if (mode == Mode::display) { displayPanel.refresh(); return; }
     if (mode == Mode::packages) return;     // MainComponent gives it its entries
+    if (mode == Mode::boardItems) { boardPanel.refresh(); return; }
     const juce::ScopedValueSetter<bool> svs (updating, true);
     frameworkPanel.refresh();
 
@@ -731,8 +752,16 @@ void Inspector::refresh()
 
     const bool sound = Project::isSound (box);
     const bool container = Project::isContainer (box);
-    setMode (sound ? Mode::sound : (container ? Mode::container : Mode::text));
-    title.setText (sound ? "SOUND BOX" : (container ? "CONTAINER" : "TEXT BOX"), juce::dontSendNotification);
+    const bool board = Project::isBoard (box);
+    setMode (sound ? Mode::sound : (container ? Mode::container : (board ? Mode::board : Mode::text)));
+    title.setText (sound ? "SOUND BOX" : (container ? "CONTAINER" : (board ? "BOARD BOX" : "TEXT BOX")), juce::dontSendNotification);
+    if (board)
+    {
+        const auto shown = Board::shownPart (Project::boardOf (box));
+        boardInfo.setText ("The board: " + Board::summary (Project::boardOf (box)) + "."
+                           + (shown.isEmpty() ? juce::String() : juce::String ("\nThe box shows a part of it.")),
+                           juce::dontSendNotification);
+    }
     if (! nameEditor.hasKeyboardFocus (true))
         nameEditor.setText (box[IDs::name].toString(), false);
 
@@ -749,7 +778,7 @@ void Inspector::refresh()
         notesLabel.setText (n > 1 ? (textTake ? "Text of take " + active[IDs::name].toString() + " (its own)" : juce::String ("Notes (shared by the takes)"))
                                   : juce::String ("Notes (kept whatever the kind)"), juce::dontSendNotification);
     }
-    kindBox.setSelectedId (sound ? kindSound : (container ? kindContainer : kindText), juce::dontSendNotification);
+    kindBox.setSelectedId (sound ? kindSound : (container ? kindContainer : (board ? kindBoard : kindText)), juce::dontSendNotification);
     opacity.setValue (box.getProperty (IDs::opacity, 1.0), juce::dontSendNotification);
 
     juce::String t;
@@ -863,7 +892,7 @@ void Inspector::resized()
         r.removeFromTop (7);
     };
 
-    if (mode == Mode::sound || mode == Mode::text || mode == Mode::container)
+    if (mode == Mode::sound || mode == Mode::text || mode == Mode::container || mode == Mode::board)
     {
         labelled (nameLabel, nameEditor, 26);
 
@@ -916,7 +945,14 @@ void Inspector::resized()
             containerInfo.setBounds (r.removeFromTop (100));
             r.removeFromTop (4);
         }
-        if (mode == Mode::text) labelled (opacityLabel, opacity, 22);
+        if (mode == Mode::text || mode == Mode::board) labelled (opacityLabel, opacity, 22);
+        if (mode == Mode::board)
+        {
+            openBoardButton.setBounds (r.removeFromTop (26).removeFromLeft (150));
+            r.removeFromTop (4);
+            boardInfo.setBounds (r.removeFromTop (32));
+            r.removeFromTop (6);
+        }
         times.setBounds (r.removeFromTop (mode == Mode::sound ? 46 : 32));
         r.removeFromTop (4);
 
@@ -965,6 +1001,10 @@ void Inspector::resized()
     else if (mode == Mode::packages)
     {
         packagesPanel.setBounds (getLocalBounds().reduced (14, 12).withTrimmedRight (-8));
+    }
+    else if (mode == Mode::boardItems)
+    {
+        boardPanel.setBounds (getLocalBounds().withTrimmedLeft (1));
     }
     else
     {

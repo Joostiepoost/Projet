@@ -48,6 +48,7 @@ set(PROJET_CORE_SOURCES
     Source/Model/FrameworkLegacy.cpp
     Source/Model/Glyphs.cpp
     Source/Model/Factors.cpp
+    Source/Model/Board.cpp
     Source/Model/GlyphsBuiltin.cpp
     Source/Model/ProjectFolder.cpp)
 
@@ -82,6 +83,9 @@ target_sources(Projet PRIVATE
     Source/UI/MagnifierBar.cpp
     Source/UI/TakesMenu.cpp
     Source/UI/FactorCurves.cpp
+    Source/UI/BoardPainter.cpp
+    Source/UI/BoardView.cpp
+    Source/UI/BoardPanel.cpp
     Source/UI/OutlinePanel.cpp
     Source/UI/RulerPanel.cpp
     Source/UI/FrameworkPanel.cpp
@@ -129,6 +133,7 @@ if(PROJET_BUILD_TESTS)
             juce::juce_audio_devices
             juce::juce_audio_formats
             juce::juce_data_structures
+            juce::juce_graphics
             juce::juce_cryptography
             juce::juce_javascript
         PUBLIC

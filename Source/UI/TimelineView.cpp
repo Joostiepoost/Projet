@@ -7,6 +7,7 @@
 #include "TimeFormat.h"
 #include "../Engine/Arrangement.h"
 #include "Markdown.h"
+#include "BoardPainter.h"
 #include <limits>
 
 namespace
@@ -869,6 +870,11 @@ void TimelineView::paintBoxIn (juce::Graphics& g, const juce::ValueTree& box, co
         paintContainer (g, box, r, alpha, base, selected, wm.emphasis);
         return;
     }
+    if (Project::isBoard (box))
+    {
+        paintBoardBox (g, box, r, alpha, base, selected, wm.emphasis);
+        return;
+    }
 
     if (! sound)
     {
@@ -946,6 +952,76 @@ void TimelineView::paintBoxIn (juce::Graphics& g, const juce::ValueTree& box, co
     paintFrameworkMarks (g, box, r, alpha);
     g.setColour (selected ? Theme::accent : (wm.emphasis ? base.brighter (0.25f) : base).withAlpha (alpha));
     g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : (wm.emphasis ? 1.8f : 1.0f));
+}
+
+//== Board boxes (stage 9) =====================================================
+
+void TimelineView::paintBoardBox (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r, float alpha,
+                                  juce::Colour base, bool selected, bool emphasis)
+{
+    const bool colourMode = project.getState().getProperty (IDs::colourMode, "own").toString() != "own";
+    const auto board = Project::boardOf (box);
+    const auto edge = juce::Colour (0xff5d82bd);
+    g.setColour (juce::Colour (0xff1d2230).withAlpha (alpha));
+    g.fillRoundedRectangle (r, 4.0f);
+    paintFrameworkFill (g, box, r, alpha);
+    {
+        juce::Graphics::ScopedSaveState s (g);
+        g.reduceClipRegion (r.toNearestInt());
+        auto inner = r.reduced (6.0f, 3.0f);
+        auto head = inner.removeFromTop (16.0f);
+        // A small board sign, then the name.
+        {
+            const auto i = head.removeFromLeft (14.0f).withSizeKeepingCentre (11.0f, 10.0f);
+            g.setColour (edge.brighter (0.4f).withAlpha (juce::jmax (0.6f, alpha)));
+            g.drawRect (i, 1.0f);
+            g.fillRect (i.getX() + 2.0f, i.getY() + 2.0f, 3.5f, 2.5f);
+            g.fillRect (i.getRight() - 4.5f, i.getBottom() - 4.0f, 2.5f, 2.0f);
+            head.removeFromLeft (3.0f);
+        }
+        g.setColour (Theme::text.withAlpha (juce::jmax (0.6f, alpha)));
+        g.setFont (Theme::font (12.0f, true));
+        g.drawText (box[IDs::name].toString(), head, juce::Justification::centredLeft, true);
+
+        const auto part = Board::shownPart (board);
+        inner = inner.reduced (0.0f, 1.0f);
+        if (! part.isEmpty() && inner.getHeight() > 8.0f && inner.getWidth() > 12.0f)
+        {
+            // The chosen part, fitted (and centred) in the box below its name.
+            const float k = juce::jmin (inner.getWidth() / part.getWidth(), inner.getHeight() / part.getHeight());
+            const float w = part.getWidth() * k, h = part.getHeight() * k;
+            const float x = inner.getX(), y = inner.getY() + (inner.getHeight() - h) * 0.5f;
+            juce::Graphics::ScopedSaveState s2 (g);
+            g.reduceClipRegion (juce::Rectangle<float> (x, y, w, h).getIntersection (inner).toNearestInt());
+            g.addTransform (juce::AffineTransform::translation (-part.getX(), -part.getY()).scaled (k).translated (x, y));
+            BoardPainter::Context ctx;
+            ctx.framework = &framework;
+            ctx.projectFolder = projectFolderRoot;
+            ctx.fills = project.getState()[IDs::fwFills].toString() != "off";
+            ctx.alpha = juce::jmax (0.35f, alpha);
+            BoardPainter::paint (g, board, ctx);
+        }
+        else if (inner.getHeight() > 11.0f)
+        {
+            g.setColour (Theme::textMuted.withAlpha (0.85f * juce::jmax (0.6f, alpha)));
+            g.setFont (Theme::font (11.0f));
+            g.drawText ("Board: " + Board::summary (board) + juce::String::fromUTF8 (" \xc2\xb7 double-click to open"),
+                        inner.withHeight (juce::jmin (inner.getHeight(), 15.0f)), juce::Justification::topLeft, true);
+        }
+    }
+    if (colourMode)
+    {
+        juce::Graphics::ScopedSaveState s (g);
+        juce::Path clip;
+        clip.addRoundedRectangle (r, 4.0f);
+        g.reduceClipRegion (clip);
+        g.setColour (base.withAlpha (alpha));
+        g.fillRect (r.withWidth (5.0f));
+    }
+    paintFrameworkMarks (g, box, r, alpha);
+    const bool open = box == openBoard;
+    g.setColour (selected ? Theme::accent : (open ? Theme::magnifier : (colourMode ? base : edge).withAlpha (alpha)));
+    g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected || open ? 2.0f : (emphasis ? 1.8f : 1.0f));
 }
 
 //== Factor curves over a box (stage 8) ========================================
@@ -2655,6 +2731,7 @@ void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
     if (box.isValid())
     {
         if (Project::isContainer (box)) { if (onDiveIn) onDiveIn (box); }     // stage 5b
+        else if (Project::isBoard (box)) { if (onOpenBoard) onOpenBoard (box); }   // stage 9
         else if (onEditNotes) onEditNotes (box);
         return;
     }
@@ -2822,6 +2899,11 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
     m.addItem (6, "Notes in a large window");
     m.addSeparator();
     m.addItem (7, "Split at the playhead", Project::boxStart (box) < playhead && playhead < Project::boxEnd (box));
+    if (Project::isBoard (box) && ! several)
+    {
+        m.addItem (27, "Open the board (double-click)");
+        m.addSeparator();
+    }
     if (Project::isContainer (box) && ! several)
     {
         m.addItem (25, "Go inside (double-click, Cmd-Down)");
@@ -2842,6 +2924,7 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
         kinds.addItem (41, "Sound box", ! several, kind == "sound");
         kinds.addItem (42, "Text box", ! several, kind == "text");
         kinds.addItem (43, "Container", ! several, kind == "container");
+        kinds.addItem (44, "Board", ! several, kind == "board");
         m.addSubMenu ("Change to", kinds);
     }
     if (sound) m.addItem (3, "Show original sound in Finder");
@@ -2915,10 +2998,14 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
         {
             if (safe->onMagnify) safe->onMagnify (box);
         }
-        else if (r >= 41 && r <= 43)
+        else if (r == 27)
+        {
+            if (safe->onOpenBoard) safe->onOpenBoard (box);
+        }
+        else if (r >= 41 && r <= 44)
         {
             p.getUndoManager().beginNewTransaction ("Change kind");
-            p.setKind (box, r == 41 ? "sound" : (r == 42 ? "text" : "container"));
+            p.setKind (box, r == 41 ? "sound" : (r == 42 ? "text" : (r == 43 ? "container" : "board")));
         }
         else if (r == 20)
         {

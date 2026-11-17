@@ -28,6 +28,8 @@
 #include "../Source/Model/Framework.h"
 #include "../Source/Model/Glyphs.h"
 #include "../Source/Model/Lanes.h"
+#include "../Source/Model/Board.h"
+#include "../Source/Model/ProjectFolder.h"
 
 #include <random>
 #include <thread>
@@ -2257,6 +2259,149 @@ void testFactors()
     line();
 }
 
+void testBoards()
+{
+    line ("## 22. Board boxes (stage 9a)");
+    line();
+    auto near = [] (double x, double y, double tol = 1.0e-3) { return std::abs (x - y) < tol; };
+    Project p;
+    p.resetToDefault ("Boards", 48000.0);
+    auto track = p.getTrack (0);
+    auto& um = p.getUndoManager();
+
+    um.beginNewTransaction ("New board");
+    auto box = p.addBoardBox (track, 2.0, 6.0);
+    check (Project::isBoard (box) && Project::boardOf (box).isValid() && ! Project::isAudible (box), "a board box: silent, with an empty board");
+    auto board = Project::boardOf (box);
+
+    // == Items and arrows
+    um.beginNewTransaction ("Cards");
+    auto c1 = Board::makeCard ({ 0.0f, 0.0f, 200.0f, 100.0f }, 0);
+    auto c2 = Board::makeCard ({ 400.0f, 0.0f, 200.0f, 100.0f }, 0);
+    c1.setProperty (IDs::label, "Goal", nullptr);
+    board.appendChild (c1, &um);
+    board.appendChild (c2, &um);
+    auto arrow = Board::makeArrow ({ 100.0f, 50.0f }, { 500.0f, 50.0f }, c1[IDs::id].toString(), c2[IDs::id].toString(), 0);
+    board.appendChild (arrow, &um);
+    auto ap = Board::arrowPath (board, arrow);
+    check (near (ap.a.x, 205.0) && near (ap.b.x, 395.0) && near (ap.a.y, 50.0), "an arrow starts and ends just outside its cards");
+    check (Board::itemAt (board, { 50.0f, 50.0f }, 2.0f) == c1 && Board::itemAt (board, { 300.0f, 51.0f }, 2.0f) == arrow
+           && ! Board::itemAt (board, { 300.0f, 300.0f }, 2.0f).isValid(), "hit: a card, the arrow, nothing");
+    Board::moveBy (c2, { 0.0f, 200.0f }, &um);
+    ap = Board::arrowPath (board, arrow);
+    check (ap.b.y > 150.0f && ap.a.y > 50.0f, "moving a card, the arrow follows it");
+    arrow.setProperty (IDs::bend, 40.0, &um);
+    ap = Board::arrowPath (board, arrow);
+    const auto straightMid = (Board::bounds (board, c1).getCentre() + Board::bounds (board, c2).getCentre()) * 0.5f;
+    check (ap.middle().getDistanceFrom (straightMid) > 30.0f, "a bent arrow's middle lies off the straight line");
+
+    auto rect = Board::makeShape ("rect", { 0.0f, 300.0f, 200.0f, 100.0f }, 0);
+    auto ell = Board::makeShape ("ellipse", { 300.0f, 300.0f, 200.0f, 100.0f }, 0);
+    board.appendChild (rect, &um);
+    board.appendChild (ell, &um);
+    check (! Board::hits (board, rect, { 100.0f, 350.0f }, 3.0f) && Board::hits (board, rect, { 1.0f, 350.0f }, 3.0f), "an unfilled rectangle is hit near its outline only");
+    check (! Board::hits (board, ell, { 400.0f, 350.0f }, 3.0f) && Board::hits (board, ell, { 400.0f, 301.0f }, 3.0f), "an unfilled ellipse too");
+    rect.setProperty (IDs::filled, true, nullptr);
+    check (Board::hits (board, rect, { 100.0f, 350.0f }, 3.0f), "a filled one inside as well");
+
+    juce::Array<juce::Point<float>> pts;
+    pts.add ({ 10.0f, 500.0f });
+    pts.add ({ 30.0f, 520.0f });
+    pts.add ({ 50.0f, 505.0f });
+    auto stroke = Board::makeStroke (pts, 0, 2.0f);
+    board.appendChild (stroke, &um);
+    check (Board::rect (stroke) == juce::Rectangle<float> (10.0f, 500.0f, 40.0f, 20.0f) && Board::strokePoints (stroke)[1] == juce::Point<float> (30.0f, 520.0f),
+           "a stroke keeps its points from its corner: " + Board::rect (stroke).toString() + " " + Board::strokePoints (stroke)[1].toString());
+    Board::setRect (stroke, { 10.0f, 500.0f, 80.0f, 20.0f }, &um);
+    check (near (Board::strokePoints (stroke)[2].x, 90.0), "resizing a stroke scales its points");
+    check (Board::summary (board) == "2 cards, 1 arrow, 2 shapes, 1 drawing", "summary: " + Board::summary (board));
+
+    // == Copies
+    auto copies = Board::copyItems (board, { c1, arrow });
+    check (copies.size() == 2 && copies[0][IDs::id] != c1[IDs::id] && copies[1][IDs::fromItem] == copies[0][IDs::id]
+           && copies[1][IDs::toItem].toString().isEmpty() && near ((double) copies[1][IDs::x2], (double) Board::arrowPath (board, arrow).b.x),
+           "copied with the arrow: it follows the copied card, its other end comes free where it was");
+    um.beginNewTransaction ("Detach");
+    Board::detachArrowsFrom (board, c2[IDs::id].toString(), &um);
+    check (arrow[IDs::toItem].toString().isEmpty() && near ((double) arrow[IDs::x2], (double) ap.b.x), "an arrow loses an item that goes, keeping its end");
+    um.undo();
+    check (arrow[IDs::toItem] == c2[IDs::id], "undone");
+
+    // == The part shown on the box
+    um.beginNewTransaction ("Show");
+    Board::setShownPart (board, { 0.0f, 0.0f, 600.0f, 300.0f }, &um);
+    check (Board::shownPart (board) == juce::Rectangle<float> (0.0f, 0.0f, 600.0f, 300.0f), "the part shown on the box");
+    um.beginNewTransaction ("Clear");
+    Board::setShownPart (board, {}, &um);
+    check (Board::shownPart (board).isEmpty(), "and none");
+    check (Board::labelsIn (p.getState())[0] == "Goal" && Board::labelsIn (p.getState()).contains ("Means"), "labels: those used, then common ones");
+
+    // == Saving, copies of the box, takes, splits
+    juce::String error;
+    Project q;
+    check (q.fromJson (p.toJson(), error), "saved and read back");
+    auto qbox = q.getTrack (0).getChild (0);
+    auto qboard = Project::boardOf (qbox);
+    check (Project::isBoard (qbox) && qboard.getNumChildren() == board.getNumChildren()
+           && Board::findItem (qboard, arrow[IDs::id].toString())[IDs::toItem] == c2[IDs::id], "with every item and attachment");
+
+    um.beginNewTransaction ("Duplicate");
+    auto dup = p.duplicateBox (box);
+    auto dupBoard = Project::boardOf (dup);
+    auto dupArrow = dupBoard.getChild (2);
+    check (dupBoard.getChild (0)[IDs::id] != c1[IDs::id] && dupArrow[IDs::fromItem] == dupBoard.getChild (0)[IDs::id]
+           && dupArrow[IDs::toItem] == dupBoard.getChild (1)[IDs::id], "a duplicated box: new ids, its arrows attached to its own cards");
+    um.undo();
+
+    um.beginNewTransaction ("Take");
+    p.addTake (box, Project::NewTake::board);
+    check (Project::isBoard (box) && Project::boardOf (box).getNumChildren() == 0 && Project::numTakes (box) == 2, "a new take: an empty board");
+    um.beginNewTransaction ("Back");
+    p.setActiveTake (box, Project::takesOf (box)[0]);
+    check (Project::boardOf (box).getNumChildren() == 6 && Board::findItem (Project::boardOf (box), c1[IDs::id].toString()).isValid(), "the first take's board comes back");
+    um.undo();
+    um.undo();
+
+    um.beginNewTransaction ("Split");
+    auto right = p.splitBox (box, 5.0);
+    auto rightBoard = Project::boardOf (right);
+    check (right.isValid() && rightBoard.getNumChildren() == 6 && rightBoard.getChild (0)[IDs::id] != c1[IDs::id]
+           && rightBoard.getChild (2)[IDs::fromItem] == rightBoard.getChild (0)[IDs::id], "split: each part keeps a board of its own");
+    um.undo();
+
+    um.beginNewTransaction ("Kind");
+    auto text = p.addTextBox (track, 20.0, 4.0);
+    p.setKind (text, "board");
+    check (Project::boardOf (text).isValid(), "a text box made a board gets an empty board");
+    p.setKind (text, "text");
+    check (Project::boardOf (text).isValid(), "and keeps it when it changes back");
+
+    // == Images in the project folder
+    auto work = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetBoardTest");
+    work.deleteRecursively();
+    ProjectFolder folder;
+    check (folder.create (work.getChildFile ("Piece"), p, 48000.0).wasOk(), "a project folder");
+    juce::Image img (juce::Image::RGB, 8, 6, true);
+    img.setPixelAt (1, 1, juce::Colours::red);
+    auto png = work.getChildFile ("sketch.png");
+    {
+        juce::FileOutputStream out (png);
+        juce::PNGImageFormat().writeImageToStream (img, out);
+    }
+    const auto first = folder.copyIntoBoards (png), again = folder.copyIntoBoards (png);
+    img.setPixelAt (2, 2, juce::Colours::blue);
+    png.deleteFile();
+    {
+        juce::FileOutputStream out (png);
+        juce::PNGImageFormat().writeImageToStream (img, out);
+    }
+    const auto other = folder.copyIntoBoards (png);
+    check (first == "Boards/sketch.png" && again == first && other == "Boards/sketch 2.png" && folder.resolve (other).existsAsFile(),
+           "images copied into Boards: the same file once, another under a new name (" + other + ")");
+    work.deleteRecursively();
+    line();
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
@@ -2266,7 +2411,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -2304,6 +2449,7 @@ int main (int argc, char** argv)
     std::cout << "Magnifier..." << std::endl;          testMagnifier();
     std::cout << "Takes..." << std::endl;              testTakes();
     std::cout << "Factors..." << std::endl;            testFactors();
+    std::cout << "Boards..." << std::endl;             testBoards();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

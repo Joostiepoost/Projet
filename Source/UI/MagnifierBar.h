@@ -14,6 +14,11 @@ public:
 
     /** The container's name, and the rest of the line (depth, place, scale). */
     void setInfo (const juce::String& name, const juce::String& about);
+    /** The bar of an open board (stage 9): its heading, and the button's words and tips. */
+    void setHeading (const juce::String& heading)  { tag = heading; repaint(); }
+    void setButton (const juce::String& text, const juce::String& tip)
+                                                    { goInsideButton.setButtonText (text); goInsideButton.setTooltip (tip); }
+    void setCloseTip (const juce::String& tip)      { closeButton.setTooltip (tip); }
 
     std::function<void()> onGoInside, onClose;
     /** Dragging the bar: the distance from where the drag began (pixels, down positive). */
@@ -29,7 +34,7 @@ public:
     void mouseUp (const juce::MouseEvent&) override;
 
 private:
-    juce::String name, about;
+    juce::String name, about, tag { "MAGNIFIED" };
     juce::TextButton goInsideButton { "Go inside" };
     juce::TextButton closeButton { juce::String::fromUTF8 ("\xc3\x97") };
 };
