@@ -66,7 +66,7 @@ namespace
                 c.sound = sound;
                 c.start = samples (level.a + level.b * Project::boxStart (box));
                 c.offset = juce::jlimit ((int64_t) 0, sound->length(), samples ((double) box[IDs::offset]));
-                c.length = juce::jmin (samples (Project::boxLength (box)), sound->length() - c.offset);
+                c.length = juce::jmin (samples ((double) box[IDs::length]), sound->length() - c.offset);   // real seconds, at any depth
                 if (c.length <= 0) continue;
 
                 c.gain = level.gain * (float) boxGain;
@@ -112,7 +112,7 @@ std::shared_ptr<const Arrangement> Arrangement::build (Project& project, const L
 {
     auto a = std::make_shared<Arrangement>();
     a->sampleRate = project.getSampleRate();
-    addTimeline (project.getTracks(), Level(), project, lookup, *a);
+    addTimeline (project.getRootTracks(), Level(), project, lookup, *a);
     std::sort (a->clips.begin(), a->clips.end(), [] (const Clip& x, const Clip& y) { return x.playFrom < y.playFrom; });
     return a;
 }

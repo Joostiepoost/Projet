@@ -159,22 +159,28 @@ void TimelineView::paintTimeLayer (juce::Graphics& g, const LayerRow& row)
     g.setColour (Theme::line);
     g.fillRect (0, y0 + h - 1, getWidth(), 1);
 
-    // Counted from the start of the piece (0:00), a span or a box.
+    // Counted from the start of the piece (0:00), a span or a box. Inside a
+    // container (5b) "piece" is its start, and "absolute" the piece's time.
     const auto ref = row.layer.getProperty (IDs::frame, "piece").toString();
-    const auto from = project.frameFor (ref);
-    const bool local = ref != "piece" && from.isValid();
-    const double origin = local ? from.start : 0.0;
+    const bool absolute = ref == "absolute" && ! project.atPiece();
+    const auto from = project.frameFor (ref == "absolute" ? juce::String ("piece") : ref);
+    const bool local = ref != "piece" && ref != "absolute" && from.isValid();
+    const double origin = (local || ! project.atPiece()) && from.isValid() ? from.start : 0.0;
+    // What is shown at time t: a + b t.
+    const double a = absolute ? project.levelToPiece (0.0) : -origin;
+    const double b = absolute ? project.levelToPiece (1.0) - a : 1.0;
 
     g.setColour (Theme::textMuted);
     g.setFont (Theme::font (h < 16 ? 9.5f : 11.0f));
     juce::String label = row.layer[IDs::name].toString();
     if (local) label << " from " << project.frameName (ref);
+    else if (absolute) label << " in the piece";
     g.drawText (label + juce::String::fromUTF8 (" \xe2\x96\xbe"), 12, y0, headerWidth - 16, h, juce::Justification::centredLeft, true);
 
     // A step that leaves at least 70 px between labels.
     static const double steps[] = { 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200 };
     double step = steps[std::size (steps) - 1];
-    for (double s : steps) if (s * pps >= 70.0) { step = s; break; }
+    for (double s : steps) if (s / b * pps >= 70.0) { step = s; break; }
     const int decimals = step < 0.1 ? 2 : (step < 1.0 ? 1 : 0);
 
     juce::Graphics::ScopedSaveState ss (g);
@@ -182,15 +188,16 @@ void TimelineView::paintTimeLayer (juce::Graphics& g, const LayerRow& row)
 
     const bool roomForLabels = h >= 20;
     const double end = xToTime ((float) getWidth());
-    const double first = origin + std::floor ((viewStart - origin) / step) * step;
     if (local)
     {
         // Where its count starts
         g.setColour (Theme::accent.withAlpha (0.6f));
         g.fillRect (timeToX (origin) - 1.0f, (float) y0, 2.0f, (float) h - 1.0f);
     }
-    for (double t = first; t <= end; t += step)
+    for (double shown = std::floor ((a + b * viewStart) / step) * step; ; shown += step)
     {
+        const double t = (shown - a) / b;
+        if (t > end) break;
         const float x = timeToX (t);
         g.setColour (Theme::lineStrong);
         const float top = roomForLabels ? (float) y0 + (float) h * 0.4f : (float) y0 + 2.0f;
@@ -199,15 +206,15 @@ void TimelineView::paintTimeLayer (juce::Graphics& g, const LayerRow& row)
         {
             g.setColour (Theme::text);
             g.setFont (Theme::mono (11.0f));
-            const double shown = std::abs (t - origin) < step * 1.0e-6 ? 0.0 : t - origin;
-            g.drawText (TimeFormat::format (shown, decimals), (int) x + 4, y0 + 2, 80, juce::jmin (16, h - 6), juce::Justification::centredLeft);
+            g.drawText (TimeFormat::format (std::abs (shown) < step * 1.0e-6 ? 0.0 : shown, decimals), (int) x + 4, y0 + 2, 80,
+                        juce::jmin (16, h - 6), juce::Justification::centredLeft);
         }
 
         // Minor ticks
         g.setColour (Theme::line);
         for (int k = 1; k < 5; ++k)
         {
-            const float mx = timeToX (t + step * k / 5.0);
+            const float mx = timeToX (t + step / b * k / 5.0);
             g.fillRect (mx, (float) (y0 + h) - 6.0f, 1.0f, 5.0f);
         }
     }
@@ -226,7 +233,7 @@ void TimelineView::paintProportionLayer (juce::Graphics& g, const LayerRow& row)
     const auto frame = project.frameFor (ref);
     const auto layerName = row.layer[IDs::name].toString();
     juce::String label = layerName.equalsIgnoreCase (project.frameName (ref)) ? layerName : layerName + ": " + project.frameName (ref);
-    if (ref == "piece") label << " " << TimeFormat::format (frame.length, 0) << (project.hasSetPieceLength() ? "" : " (auto)");
+    if (ref == "piece") label << " " << TimeFormat::format (frame.length, 0) << (project.hasSetPieceLength() || ! project.atPiece() ? "" : " (auto)");
     if (active)
     {
         g.setColour (Theme::accent);
@@ -423,7 +430,7 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
     {
         if (e.mods.isPopupMenu()) { showLayerMenu (row.layer); return true; }
         dragMode = DragMode::locate;
-        if (onLocate) onLocate (juce::jmax (0.0, xToTime (e.position.x)));
+        if (onLocate) onLocate (juce::jmax (0.0, project.levelToPiece (xToTime (e.position.x))));
         return true;
     }
 
@@ -451,7 +458,7 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
     const bool nearEnd = frame.isValid() && std::abs (e.position.x - timeToX (frame.end())) <= 5.0f;
     dragLayer = row.layer;
 
-    if (nearEnd && (ref == "span" || ref == "piece"))
+    if (nearEnd && (ref == "span" || (ref == "piece" && project.atPiece())))     // a container's window: change the container
     {
         dragMode = DragMode::frameEnd;
         project.getUndoManager().beginNewTransaction (ref == "piece" ? "Piece length" : "Span");
@@ -614,7 +621,14 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
     {
         const auto from = layer.getProperty (IDs::frame, "piece").toString();
         juce::PopupMenu count;
-        count.addItem (30, "The start of the piece (0:00)", true, from == "piece" || ! project.frameFor (from).isValid());
+        if (project.atPiece())
+            count.addItem (30, "The start of the piece (0:00)", true, from == "piece" || ! project.frameFor (from).isValid());
+        else
+        {
+            // Inside a container (5b): its own time, or the piece's.
+            count.addItem (30, "The start of " + project.frameName ("piece"), true, from == "piece" || (from != "absolute" && ! project.frameFor (from).isValid()));
+            count.addItem (33, "The piece's time (0:00 at the start of the piece)", true, from == "absolute");
+        }
         count.addItem (31, "The start of the span", project.hasSpan(), from == "span");
         if (selected.isValid())
             count.addItem (32, "The start of the selected box: " + selected[IDs::name].toString(), true, from == selected[IDs::id].toString());
@@ -699,8 +713,8 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
 
         m.addSectionHeader (layer[IDs::name].toString());
         m.addSubMenu ("Frame: " + project.frameName (ref), frame);
-        m.addItem (13, "Set the piece length...");
-        m.addItem (14, "Follow the piece's current length", project.hasSetPieceLength());
+        m.addItem (13, "Set the piece length...", project.atPiece());
+        m.addItem (14, "Follow the piece's current length", project.atPiece() && project.hasSetPieceLength());
         m.addItem (15, "Remove the span", project.hasSpan());
         m.addSeparator();
         m.addSubMenu ("Divisions", divisions);
@@ -751,6 +765,7 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         else if (r == 8) p.removeLayer (layer);
         else if (r == 9) p.addLayer ("time", p.getRulers().indexOf (layer) + 1);
         else if (r == 30) layer.setProperty (IDs::frame, "piece", nullptr);
+        else if (r == 33) layer.setProperty (IDs::frame, "absolute", nullptr);
         else if (r == 31) layer.setProperty (IDs::frame, "span", nullptr);
         else if (r == 32 && selected.isValid()) layer.setProperty (IDs::frame, selected[IDs::id].toString(), nullptr);
         else if (r == 10) p.setLayerFrame (layer, "piece");

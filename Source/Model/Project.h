@@ -49,7 +49,10 @@ public:
     double soundSeconds (const juce::String& soundId) const;
 
     //== Tracks ===============================================================
-    juce::ValueTree getTracks()                     { return state.getChildWithName (IDs::TRACKS); }
+    /** The tracks of the level shown (the piece's, or the focused container's, 5b). */
+    juce::ValueTree getTracks()                     { return levelNode().getChildWithName (IDs::TRACKS); }
+    /** The piece's own tracks, whatever level is shown (playback, saving). */
+    juce::ValueTree getRootTracks()                 { return state.getChildWithName (IDs::TRACKS); }
     int getNumTracks()                              { return getTracks().getNumChildren(); }
     juce::ValueTree getTrack (int index)            { return getTracks().getChild (index); }
     juce::ValueTree addTrack (const juce::String& name = {}, int index = -1, const juce::String& folderId = {});
@@ -117,8 +120,14 @@ public:
     juce::ValueTree trackOf (const juce::ValueTree& box) const     { return box.getParent(); }
 
     static double boxStart (const juce::ValueTree& b)              { return (double) b[IDs::start]; }
-    static double boxLength (const juce::ValueTree& b)             { return (double) b[IDs::length]; }
+    /** How long the box lasts in its level's time. A sound keeps its real
+        length (no varispeed), so inside a stretched container (5b) it is
+        stored in seconds and lasts length / scale in the container's time. */
+    static double boxLength (const juce::ValueTree& b)             { return (double) b[IDs::length] / soundScale (b); }
     static double boxEnd (const juce::ValueTree& b)                { return boxStart (b) + boxLength (b); }
+    /** Real seconds per second of the box's level for its length and fades:
+        the scale of the containers around a sound; 1 for other boxes. */
+    static double soundScale (const juce::ValueTree& b)            { return isSound (b) ? levelScaleOf (b) : 1.0; }
 
     /** Moves the box's left edge to `newStart` (the sound stays in place under it). */
     void trimStart (juce::ValueTree box, double newStart);
@@ -164,6 +173,39 @@ public:
 
     /** An empty container (one inner track), stretched. Undoable. */
     juce::ValueTree addContainer (juce::ValueTree track, double start, double length, const juce::String& name = "Container");
+    /** The container a box or track lies in (invalid at the piece). */
+    static juce::ValueTree containerOf (const juce::ValueTree& node);
+    /** Piece seconds per second of a box's or track's level: the scales of
+        the containers around it multiplied. */
+    static double levelScaleOf (const juce::ValueTree& node);
+
+    //== Levels (stage 5b) ====================================================
+    // The piece and every container are levels; one is shown at a time, the
+    // focus. Tracks, ruler layers, marks, drawn lanes, nodes, the span and
+    // the active layer belong to a level: getTracks() and the rest give the
+    // focus' own, and times are the focus' inner times. The "piece" frame of
+    // a container's level is the part of its inside it shows (its window).
+    juce::ValueTree getFocus() const                { return focus; }
+    bool atPiece() const                            { return ! focus.isValid(); }
+    /** The node holding the level's tracks, rulers ...: the project, or the
+        focused container's TIMELINE. */
+    juce::ValueTree levelNode() const               { return focus.isValid() ? focus.getChildWithName (IDs::TIMELINE) : state; }
+    /** Shows a container's level (invalid: the piece). Gives a container its
+        ruler layers on the first visit. */
+    void setFocus (juce::ValueTree container);
+    /** The containers from the outermost to the focus. */
+    juce::Array<juce::ValueTree> focusPath() const;
+    int focusDepth() const                          { return focusPath().size(); }
+    double levelToPiece (double levelTime) const;
+    double pieceToLevel (double pieceTime) const;
+    /** Piece seconds per second of the focus' time. */
+    double levelScale() const                       { return focus.isValid() ? containerScale (focus) * levelScaleOf (focus) : 1.0; }
+    /** If the focus has left the project (undo, delete), the nearest
+        container around it still there, or the piece; true if it changed. */
+    bool checkFocus();
+    std::function<void()> onFocusChanged;
+    /** Every container in the project, outer ones before those inside them. */
+    juce::Array<juce::ValueTree> allContainers();
     /** Puts the boxes (all on tracks of the same timeline) into a new
         container that spans them, on the first of their tracks. Inside,
         tracks mirror the ones they came from (with their folders), each box
@@ -197,6 +239,8 @@ public:
     /** The piece as a frame: its set length, or its current length. */
     double getPieceLength();
     bool hasSetPieceLength() const                  { return (double) state.getProperty (IDs::frameLength, 0.0) > 0.0; }
+    /** The end of the last box of a list of tracks (0 if none). */
+    static double contentEnd (const juce::ValueTree& tracks);
     /** 0 follows the piece's current length. Undoable. */
     void setPieceLength (double seconds);
 
@@ -224,7 +268,7 @@ public:
     void removeLayer (juce::ValueTree layer);
     /** The proportion layer the menus and "the ruler's frame" refer to. */
     juce::ValueTree getActiveLayer();
-    void setActiveLayer (const juce::ValueTree& layer)              { state.setProperty (IDs::activeLayer, layer[IDs::id].toString(), nullptr); }
+    void setActiveLayer (const juce::ValueTree& layer)              { levelNode().setProperty (IDs::activeLayer, layer[IDs::id].toString(), nullptr); }
     /** A layer's frame (a removed box falls back to the piece). */
     juce::String layerFrame (const juce::ValueTree& layer);
     void setLayerFrame (juce::ValueTree layer, const juce::String& ref) { layer.setProperty (IDs::frame, ref, nullptr); }
@@ -401,6 +445,14 @@ private:
     static juce::ValueTree createState (const juce::String& name, double rate);
     void changed();
     void ensureRulers();
+    /** A container's level on its first visit: a time layer counting from
+        its start and a proportion layer framed by it. */
+    void ensureLevelRulers();
+    /** Marks, drawn lanes and nodes in a container's timeline. */
+    static void ensureTimeline (juce::ValueTree timeline);
+    void applyLevelProportions();
+    juce::ValueTree focus;
+    juce::Array<juce::ValueTree> focusTrail;        // the containers around the focus when it was set
     int markDepth = 0;
     /** For a locked, bound box: its proportions become these times. */
     void rewriteProportions (juce::ValueTree box, double newStart, double newLength, juce::UndoManager* undo);

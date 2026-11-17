@@ -49,8 +49,8 @@ Other options:
 | 4c | Junctions (from the timing or chosen), endings and mixing relations, with Thoresen's signs; the profile's peak; hiding and widening the panel | done |
 | 4d.1 | Folders from a category (the semiotic track template); writing type and time-feel on folders, a writing type's mixing relation; overview lanes: energies, typology, semiotic profile | done |
 | 4d.2 | The dynamic form lane (Thoresen: form-building functions, deltas, goals, accents), drawn by hand; nodes on folders, with their checks | done |
-| 5a | Containers: boxes holding a timeline of their own, stretch or window, grouping and ungrouping, nested playback, a miniature of the inside; opacity follows gain; swapping boxes | built, to test |
-| 5b | Moving between levels: dive-in, context strip, breadcrumbs, outline panel | |
+| 5a | Containers: boxes holding a timeline of their own, stretch or window, grouping and ungrouping, nested playback, a miniature of the inside; opacity follows gain; swapping boxes | done |
+| 5b | Moving between levels: going inside containers, breadcrumbs and depth, the context strip, the outline panel; each level with its own rulers, marks and lanes | built, to test |
 | 5c | The framework on containers: section fields, the dynamic form attached, time-field brackets, typological formulas | |
 | 6 | Magnified inline expansion | |
 | 7 | Takes | |
@@ -60,7 +60,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 
-## Using Projet (stages 1–5a)
+## Using Projet (stages 1–5b)
 
 ### The project folder
 
@@ -305,6 +305,18 @@ A **container** is a box whose content is a timeline of its own: tracks, folders
 - Split (Cmd-T) a container and each part shows its own stretch of a copy of the inside, at the same scale. Duplicate, copy and paste copy the inside too. Junctions, signs, marks and framework values work on containers as on any box.
 - **Swap** two selected boxes (*Edit > Swap the two boxes*, or right-click): the later one starts where the earlier one started, the earlier one ends where the later one ended, each keeping its length (and taking the other's track).
 
+### Inside containers (stage 5b)
+
+Every container is a level of its own: its own tracks, folders and boxes, its own ruler layers, marks, span, lanes and nodes.
+- **Go inside**: double-click a container (or select it and **Cmd-Down**, or right-click > *Go inside*). Its timeline fills the window; everything works there as on the piece: adding, moving, trimming, splitting, copying and pasting boxes, tracks and folders, framework values, undo.
+- **Up**: **Cmd-Up** goes one level up (the container you were in is selected); the **breadcrumbs** above the timeline (Piece › Section A › Phrase) go to any level above. Beside them: the **depth**, and the container's scale (stretch ×0.60) or *window*.
+- **Context strip**, under the breadcrumbs: the level around, with the container you are in highlighted, the part the timeline shows (a bracket) and the playhead. Click another container there to go into it, or a box to go up and select it.
+- **The ruler inside**: on the first visit a container gets a time layer counting from its start and a proportion layer framed by it ("piece" inside a container means the part of its inside it shows). Right-click the time layer > *Count from* > *The piece's time* to count in the piece's time instead. Add layers, marks and lanes as on the piece: they belong to this level. What lies outside the part the container shows is dimmed (it does not sound).
+- **Time inside a stretched container** is the container's own: at ×2, an inner second lasts two seconds of the piece. Sounds keep their real length (no varispeed), so they are drawn as long as they really sound: a 2 s sound covers 1 s of a ×2 container's time; trimming and splitting it work in real seconds. Text boxes and containers inside take the scale.
+- The **playhead** and Play work in the piece's time wherever you are; inside a container the playhead is drawn where it falls (off to the side when it is outside).
+- **Outline** (the panel on the left; the **Outline** button, *View > Show outline* or Cmd-Alt-O): the piece's containers and boxes as a tree in time order, indented by depth, with the depth number on the left and each box's start in its level's time. The level shown and the selected boxes are highlighted. Click a row to select the box (going to its level); double-click a container to go inside; the triangles fold containers; *Piece* goes back to the top.
+- Each level keeps its own zoom and scroll position while the project is open; the project saves the piece's.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -336,6 +348,15 @@ A **container** is a box whose content is a timeline of its own: tracks, folders
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 5b**:
+- Double-click a container: the breadcrumbs, depth and context strip appear; its ruler counts from its start. Add a track and boxes inside, move and trim them, split one at the playhead, copy and paste, give one an energy; undo it all. Play: what you do inside is heard at once.
+- A container inside a container (group a container with another box, or go inside and group boxes there): go two levels down; Cmd-Up twice; the breadcrumbs; click containers and boxes in the context strip.
+- A stretched container (stretch it on the piece first): inside, sounds are drawn as long as they sound; trim and split one and listen. Change the time layer to *The piece's time* and back.
+- Window containers: inside, the part the window shows is clear and the rest dimmed; move a box into the dimmed part (it goes silent).
+- Proportions inside: give a box proportions of the container ("piece" there); go up and change the container's length (window mode: the box follows; stretch: everything scales anyway). Marks and ratio splits inside stay inside.
+- The outline: click rows (the timeline goes to their level and selects them), double-click containers, fold them, *Piece*; hide and show it (Cmd-Alt-O). Undo a grouping while inside the container: the view goes up.
+- Save, quit, reopen: it opens on the piece, the inner rulers and marks kept.
 
 **Worth testing after 5a**:
 - Right-click a box > *Split by a ratio...* > *Marks in the box*: a new proportion layer framed by the box shows the marks (with the dashed lines through the tracks). Do it again on the same box: the marks join that layer. Hide the layer, split again: it comes back.

@@ -1728,6 +1728,132 @@ void testContainers()
     line();
 }
 
+void testLevels()
+{
+    line ("## 17. Levels: working inside containers (stage 5b)");
+    line();
+    auto near = [] (double x, double y) { return std::abs (x - y) < 1.0e-9; };
+    const double rate = 48000.0;
+    Project p;
+    p.resetToDefault ("Levels", rate);
+    juce::ValueTree rec (IDs::SOUND);
+    rec.setProperty (IDs::id, "s1", nullptr);
+    rec.setProperty (IDs::name, "tone", nullptr);
+    rec.setProperty (IDs::lengthSamples, (juce::int64) (2.0 * rate), nullptr);
+    p.addSound (rec);
+    auto tone = constantSound (rate, 2.0, 0.5f);
+    const Arrangement::Lookup lookup = [&tone] (const juce::String& id) { return id == "s1" ? tone : std::shared_ptr<const SoundData>(); };
+    auto firstClip = [&] { auto arr = Arrangement::build (p, lookup); return arr->clips.empty() ? Clip() : arr->clips[0]; };
+
+    auto t1 = p.getTrack (0);
+    auto t2 = p.addTrack ("Track 2");
+    auto a = p.addSoundBox (t1, 1.0, "s1");
+    auto txt = p.addTextBox (t2, 3.0, 2.0);
+    p.setFades (a, 0.0, 0.0);
+    auto c = p.groupIntoContainer ({ a, txt });                 // 1 s to 5 s; inside: a at 0, txt at 2
+    int focusCalls = 0;
+    p.onFocusChanged = [&focusCalls] { ++focusCalls; };
+
+    // == Into the container
+    p.setFocus (c);
+    check (! p.atPiece() && p.focusDepth() == 1 && focusCalls == 1 && p.getTracks() == Project::innerTracks (c) && p.allBoxes().size() == 2
+           && p.findBox (a[IDs::id].toString()) == a && ! p.findBox (c[IDs::id].toString()).isValid(),
+           "focus on a container: its tracks and boxes are the ones worked on (the container itself is a level up)");
+    {
+        auto rulers = p.getRulers();
+        check (rulers.getNumChildren() == 2 && Project::isTimeLayer (rulers.getChild (0)) && rulers.getChild (0)[IDs::frame].toString() == "piece"
+               && Project::isProportionLayer (rulers.getChild (1)) && p.getActiveLayer() == rulers.getChild (1)
+               && rulers.getParent() == c.getChildWithName (IDs::TIMELINE),
+               "on the first visit it gets ruler layers of its own: a time layer counting from its start, a proportion layer framed by it");
+    }
+    check (near (p.frameFor ("piece").start, 0.0) && near (p.frameFor ("piece").length, 4.0) && p.frameName ("piece") == "Container",
+           "inside, \"piece\" is the container's window (0 to 4 s of its inside), named after it");
+    check (near (p.levelToPiece (2.0), 3.0) && near (p.pieceToLevel (3.0), 2.0) && near (p.levelScale(), 1.0), "inner 2 s is piece 3 s, and back");
+
+    // == Editing inside
+    p.getUndoManager().beginNewTransaction ("Move inside");
+    p.moveBox (a, Project::innerLanes (c)[0], 1.0);
+    check (firstClip().start == 96000, "moving a sound inside moves where it sounds (2 s)");
+    auto note = p.addTextBox (Project::innerLanes (c)[1], 0.5, 1.0);
+    check (note.getParent() == Project::innerLanes (c)[1] && p.allBoxes().size() == 3, "a new box inside goes on the inner track");
+    auto inner3 = p.addTrack ("Inside 3");
+    check (inner3.getParent() == Project::innerTracks (c) && p.getRootTracks().getNumChildren() == 2, "a new track inside belongs to the container");
+    p.getUndoManager().undo();
+    check (near (Project::boxStart (a), 0.0) && ! note.getParent().isValid() && ! inner3.getParent().isValid(), "undo works inside as on the piece");
+
+    // == Sounds in a stretched container keep their real length
+    p.trimEnd (c, 9.0);                                           // 8 s long: scale 2
+    check (near (p.levelScale(), 2.0) && near (Project::boxLength (a), 1.0) && near ((double) a[IDs::length], 2.0)
+           && near (p.levelToPiece (1.0), 3.0) && firstClip().length == 96000,
+           "scale 2: the 2 s sound lasts 1 s of the container's time (and still 2 s when played)");
+    p.trimEnd (a, 0.75);
+    check (near ((double) a[IDs::length], 1.5) && near (Project::boxLength (a), 0.75) && firstClip().length == 72000,
+           "trimming its end inside: 0.75 s of the container's time is 1.5 s of sound");
+    p.trimStart (a, 0.25);
+    check (near ((double) a[IDs::offset], 0.5) && near ((double) a[IDs::length], 1.0) && firstClip().start == 72000 && firstClip().offset == 24000,
+           "trimming its start: 0.25 s inside moves 0.5 s into the sound; it starts at 1.5 s");
+    {
+        auto b = p.addSoundBox (Project::innerLanes (c)[1], 3.0, "s1");          // lasts 1 s here
+        auto right = p.splitBox (b, 3.5);
+        check (right.isValid() && near ((double) b[IDs::length], 1.0) && near ((double) right[IDs::length], 1.0) && near ((double) right[IDs::offset], 1.0),
+               "a split inside cuts the sound in real seconds (1 s and 1 s)");
+        p.removeBox (b);
+        p.removeBox (right);
+    }
+
+    // == Proportions inside follow the container's window, from any level
+    p.trimStart (a, 0.0);
+    p.bindBox (txt, "piece");
+    p.setFocus ({});
+    p.setStretch (c, false);                                      // bakes scale 2: txt 4 s to 8 s of 8
+    p.trimEnd (c, Project::boxStart (c) + 4.0);                   // a 4 s window
+    check (p.atPiece() && ! p.hasSetPieceLength() && near (Project::boxStart (txt), 2.0) && near (Project::boxLength (txt), 2.0),
+           "a box bound to the container's window follows it when the container changes, also from the piece's level");
+
+    // == Marks of a level
+    p.setFocus (c);
+    p.splitFrameByRatio ("piece", { 1.0, 1.0 }, "m");
+    check (p.getMarks().getNumChildren() == 1 && near (p.markTime (p.getMarks().getChild (0)), 2.0), "marks in a container belong to its level");
+    p.setFocus ({});
+    check (p.getMarks().getNumChildren() == 0, "the piece's marks are its own");
+
+    // == Copies and saving
+    {
+        auto dup = p.duplicateBox (c);
+        auto marksOf = [] (const juce::ValueTree& x) { return x.getChildWithName (IDs::TIMELINE).getChildWithName (IDs::MARKS); };
+        check (marksOf (dup).getNumChildren() == 1 && marksOf (dup).getChild (0)[IDs::id] != marksOf (c).getChild (0)[IDs::id]
+               && dup.getChildWithName (IDs::TIMELINE).getChildWithName (IDs::RULERS).getChild (1)[IDs::id]
+                  != c.getChildWithName (IDs::TIMELINE).getChildWithName (IDs::RULERS).getChild (1)[IDs::id],
+               "a copy's marks and layers get new ids");
+        juce::String error;
+        Project r;
+        check (r.fromJson (p.toJson(), error) && r.atPiece()
+               && r.findBox (c[IDs::id].toString()).getChildWithName (IDs::TIMELINE).getChildWithName (IDs::MARKS).getNumChildren() == 1,
+               "saved and read back, at the piece's level");
+    }
+
+    // == Nested levels and losing the focus
+    {
+        Project q;
+        q.resetToDefault ("Nested levels", rate);
+        auto box = q.addTextBox (q.getTrack (0), 2.0, 2.0);
+        auto inner = q.groupIntoContainer ({ box });
+        auto outer = q.groupIntoContainer ({ inner });
+        q.trimEnd (outer, 6.0);                                  // outer: 2 s to 6 s, scale 2
+        q.setFocus (inner);
+        check (q.focusDepth() == 2 && q.focusPath()[0] == outer && near (q.levelScale(), 2.0) && near (q.levelToPiece (1.0), 4.0)
+               && near (q.pieceToLevel (q.levelToPiece (1.234)), 1.234), "two levels down: the scales and offsets compose");
+        q.getUndoManager().beginNewTransaction ("Remove");
+        q.removeBox (inner);
+        check (q.checkFocus() && q.getFocus() == outer, "when the focused container goes, the focus moves to the one around it");
+        q.getUndoManager().undo();
+        q.setFocus (inner);
+        q.getUndoManager().undo();                               // everything before "Remove"
+        check (q.checkFocus() && q.atPiece(), "and to the piece when none is left");
+    }
+    line();
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -1739,7 +1865,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -1772,6 +1898,7 @@ int main (int argc, char** argv)
     std::cout << "Overview..." << std::endl;           testOverview();
     std::cout << "Dynamic form..." << std::endl;       testDynamicForm();
     std::cout << "Containers..." << std::endl;         testContainers();
+    std::cout << "Levels..." << std::endl;             testLevels();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

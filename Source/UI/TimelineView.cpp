@@ -133,8 +133,9 @@ juce::ValueTree TimelineView::boxAt (juce::Point<float> p, Zone& zone)
         auto r = boxBounds (box, row);
         if (! r.expanded (edgeGrab, 0.0f).contains (p)) continue;
 
-        const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn]);
-        const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut]);
+        const double fs = Project::soundScale (box);         // a sound's fades are real seconds (5b)
+        const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn] / fs);
+        const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut] / fs);
         const float top = r.getY();
 
         if (Project::isAudible (box) && r.getWidth() > 24.0f && p.y < top + handleSize + 4.0f)
@@ -161,7 +162,7 @@ double TimelineView::snap (double t, const juce::ValueTree& exclude, bool enable
     auto consider = [&] (double c) { const double d = std::abs (c - t); if (d < bestD) { bestD = d; best = c; snappedMark.clear(); } };
     consider (playhead);
     consider (0.0);
-    for (auto tr : project.getState().getChildWithName (IDs::TRACKS))
+    for (auto tr : project.getTracks())
         for (auto b : tr)
             if (b != exclude) { consider (Project::boxStart (b)); consider (Project::boxEnd (b)); }
 
@@ -360,13 +361,52 @@ void TimelineView::zoomBy (double factor, double around)
 
 void TimelineView::zoomToFit()
 {
-    const double end = juce::jmax (10.0, project.getContentEnd() * 1.05);
     const double width = juce::jmax (100, getWidth() - headerWidth - 20);
+    if (! project.atPiece())
+    {
+        // A container: its window, and whatever lies outside it.
+        const auto w = project.frameFor ("piece");
+        const double first = juce::jmax (0.0, w.start), last = juce::jmax (w.start + w.length, project.getContentEnd());
+        const double span = juce::jmax (0.05, last - first);
+        setView (juce::jmax (0.0, first - span * 0.02), width / (span * 1.05));
+        return;
+    }
+    const double end = juce::jmax (10.0, project.getContentEnd() * 1.05);
     setView (0.0, width / end);
 }
 
-void TimelineView::followPlayhead (double seconds)
+void TimelineView::levelChanged()
 {
+    levelViews[levelId] = { viewStart, pps };
+    const auto came = project.findBox (levelId);           // going up: the container we were in
+    levelId = project.atPiece() ? juce::String() : project.getFocus()[IDs::id].toString();
+    scrollY = 0;
+    playhead = project.pieceToLevel (playheadPiece);
+    auto it = levelViews.find (levelId);
+    if (it != levelViews.end()) setView (it->second.first, it->second.second);
+    else zoomToFit();
+    if (came.isValid()) selectBox (came);
+    else selectBox ({});
+    repaint();
+}
+
+double TimelineView::getPieceViewStart() const
+{
+    if (levelId.isEmpty()) return viewStart;
+    auto it = levelViews.find ({});
+    return it != levelViews.end() ? it->second.first : 0.0;
+}
+
+double TimelineView::getPiecePixelsPerSecond() const
+{
+    if (levelId.isEmpty()) return pps;
+    auto it = levelViews.find ({});
+    return it != levelViews.end() ? it->second.second : 20.0;
+}
+
+void TimelineView::followPlayhead (double pieceSeconds)
+{
+    const double seconds = project.pieceToLevel (pieceSeconds);
     const double visible = (double) (getWidth() - headerWidth) / pps;
     if (seconds > viewStart + visible * 0.92 || seconds < viewStart)
     {
@@ -375,8 +415,10 @@ void TimelineView::followPlayhead (double seconds)
     }
 }
 
-void TimelineView::setPlayhead (double seconds)
+void TimelineView::setPlayhead (double pieceSeconds)
 {
+    playheadPiece = pieceSeconds;
+    const double seconds = project.pieceToLevel (pieceSeconds);
     if (std::abs (seconds - playhead) * pps < 0.25) return;
     const float oldX = timeToX (playhead), newX = timeToX (seconds);
     playhead = seconds;
@@ -583,6 +625,8 @@ void TimelineView::paint (juce::Graphics& g)
             g.fillPath (dashed);
         }
     }
+
+    paintWindowEdges (g);
 
     // The proportion of the edge being moved
     if (readout.isNotEmpty())
@@ -822,11 +866,37 @@ void TimelineView::paintBox (juce::Graphics& g, const juce::ValueTree& box, cons
     g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : (wm.emphasis ? 1.8f : 1.0f));
 }
 
+void TimelineView::paintWindowEdges (juce::Graphics& g)
+{
+    // Inside a container (5b): what lies outside the part it shows is dimmed
+    // (it does not sound).
+    if (project.atPiece()) return;
+    const auto w = project.frameFor ("piece");
+    if (! w.isValid()) return;
+    juce::Graphics::ScopedSaveState s (g);
+    const int top = tracksTop();
+    g.reduceClipRegion (headerWidth, top, getWidth() - headerWidth, getHeight() - top);
+    const float x0 = timeToX (w.start), x1 = timeToX (w.end());
+    const float y0 = (float) top, h = (float) (getHeight() - top);
+    g.setColour (juce::Colours::black.withAlpha (0.38f));
+    if (x0 > (float) headerWidth) g.fillRect ((float) headerWidth, y0, x0 - (float) headerWidth, h);
+    if (x1 < (float) getWidth()) g.fillRect (x1, y0, (float) getWidth() - x1, h);
+    g.setColour (Theme::textMuted.withAlpha (0.7f));
+    g.fillRect (x0 - 0.75f, y0, 1.5f, h);
+    g.fillRect (x1 - 0.75f, y0, 1.5f, h);
+    g.setFont (Theme::font (10.5f).italicised());
+    if ((float) getWidth() - x1 > 120.0f)
+        g.drawText ("outside: silent", juce::Rectangle<float> (x1 + 8.0f, y0 + 4.0f, 110.0f, 14.0f), juce::Justification::centredLeft, false);
+    if (x0 - (float) headerWidth > 120.0f)
+        g.drawText ("outside: silent", juce::Rectangle<float> (x0 - 118.0f, y0 + 4.0f, 110.0f, 14.0f), juce::Justification::centredRight, false);
+}
+
 void TimelineView::paintFades (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r)
 {
     // Shade the faded part and draw the curve.
-    const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn]);
-    const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut]);
+    const double fs = Project::soundScale (box);
+    const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn] / fs);
+    const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut] / fs);
     auto drawFade = [&] (float x0, float x1, FadeShape shape, bool rising)
     {
         if (x1 - x0 < 1.0f) return;
@@ -856,8 +926,9 @@ void TimelineView::paintFades (juce::Graphics& g, const juce::ValueTree& box, ju
 void TimelineView::paintFadeHandles (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r)
 {
     if (r.getWidth() <= 24.0f) return;
-    const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn]);
-    const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut]);
+    const double fs = Project::soundScale (box);
+    const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn] / fs);
+    const float foX = timeToX (Project::boxEnd (box) - (double) box[IDs::fadeOut] / fs);
     g.setColour (Theme::text);
     g.fillRect (juce::Rectangle<float> (handleSize, handleSize).withCentre ({ juce::jlimit (r.getX() + 4.0f, r.getRight() - 4.0f, fiX), r.getY() + 4.0f }));
     g.fillRect (juce::Rectangle<float> (handleSize, handleSize).withCentre ({ juce::jlimit (r.getX() + 4.0f, r.getRight() - 4.0f, foX), r.getY() + 4.0f }));
@@ -1935,7 +2006,7 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
     switch (dragMode)
     {
         case DragMode::locate:
-            if (onLocate) onLocate (juce::jmax (0.0, t));
+            if (onLocate) onLocate (juce::jmax (0.0, project.levelToPiece (t)));
             break;
 
         case DragMode::move:
@@ -2065,11 +2136,11 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
             break;
 
         case DragMode::fadeIn:
-            project.setFades (dragBox, juce::jmax (0.0, t - Project::boxStart (dragBox)), dragBox[IDs::fadeOut]);
+            project.setFades (dragBox, juce::jmax (0.0, t - Project::boxStart (dragBox)) * Project::soundScale (dragBox), dragBox[IDs::fadeOut]);
             break;
 
         case DragMode::fadeOut:
-            project.setFades (dragBox, dragBox[IDs::fadeIn], juce::jmax (0.0, Project::boxEnd (dragBox) - t));
+            project.setFades (dragBox, dragBox[IDs::fadeIn], juce::jmax (0.0, Project::boxEnd (dragBox) - t) * Project::soundScale (dragBox));
             break;
 
         case DragMode::span:
@@ -2158,7 +2229,8 @@ void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
     auto box = boxAt (e.position, zone);
     if (box.isValid())
     {
-        if (onEditNotes) onEditNotes (box);
+        if (Project::isContainer (box)) { if (onDiveIn) onDiveIn (box); }     // stage 5b
+        else if (onEditNotes) onEditNotes (box);
         return;
     }
 
@@ -2322,6 +2394,11 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
     m.addItem (6, "Notes in a large window");
     m.addSeparator();
     m.addItem (7, "Split at the playhead", Project::boxStart (box) < playhead && playhead < Project::boxEnd (box));
+    if (Project::isContainer (box) && ! several)
+    {
+        m.addItem (25, "Go inside (double-click, Cmd-Down)");
+        m.addSeparator();
+    }
     m.addItem (1, several ? "Duplicate boxes" : "Duplicate");
     m.addItem (2, several ? "Delete boxes" : "Delete");
     m.addSeparator();
@@ -2394,6 +2471,10 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
             safe->selectBox ({});
         }
         else if (r == 3 && safe->onRevealOriginal) safe->onRevealOriginal (box);
+        else if (r == 25)
+        {
+            if (safe->onDiveIn) safe->onDiveIn (box);
+        }
         else if (r >= 41 && r <= 43)
         {
             p.getUndoManager().beginNewTransaction ("Change kind");

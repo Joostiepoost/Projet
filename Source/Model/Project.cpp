@@ -47,6 +47,8 @@ void Project::resetToDefault (const juce::String& name, double sampleRate)
 {
     {
         const juce::ScopedValueSetter<bool> svs (loading, true);
+        focus = {};
+        focusTrail.clear();
         state.copyPropertiesAndChildrenFrom (createState (name, sampleRate), nullptr);
         addTrack ("Track 1");
         ensureRulers();
@@ -385,14 +387,15 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
 {
     const double start = boxStart (box), end = boxEnd (box);
     if (t <= start + minBoxLength || t >= end - minBoxLength) return {};
+    const double s = soundScale (box);      // a sound's real seconds per second here (5b)
 
     auto right = box.createCopy();
     right.setProperty (IDs::id, newId(), nullptr);
     renewInnerIds (right);
     right.setProperty (IDs::start, t, nullptr);
-    right.setProperty (IDs::length, end - t, nullptr);
+    right.setProperty (IDs::length, (end - t) * s, nullptr);
     if (box.hasProperty (IDs::offset))
-        right.setProperty (IDs::offset, (double) box[IDs::offset] + (t - start), nullptr);
+        right.setProperty (IDs::offset, (double) box[IDs::offset] + (t - start) * s, nullptr);
 
     // A container: each part shows its own stretch of the same inner
     // timeline (a copy), at the same scale.
@@ -408,7 +411,7 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
     constexpr double cutFade = 0.005;
     const double fadeIn = box.getProperty (IDs::fadeIn, 0.0), fadeOut = box.getProperty (IDs::fadeOut, 0.0);
     right.setProperty (IDs::fadeIn, cutFade, nullptr);
-    right.setProperty (IDs::fadeOut, juce::jmin (fadeOut, end - t), nullptr);
+    right.setProperty (IDs::fadeOut, juce::jmin (fadeOut, (end - t) * s), nullptr);
 
     // Changes along the box (stage 4a, 4b) are proportions of it: each part
     // keeps its own. Every fw.<package>.<category>.along field, whatever the
@@ -447,8 +450,8 @@ juce::ValueTree Project::splitBox (juce::ValueTree box, double t)
 
     rewriteProportions (right, t, end - t, nullptr);
     rewriteProportions (box, start, t - start, &undoManager);
-    box.setProperty (IDs::length, t - start, &undoManager);
-    box.setProperty (IDs::fadeIn, juce::jmin (fadeIn, t - start), &undoManager);
+    box.setProperty (IDs::length, (t - start) * s, &undoManager);
+    box.setProperty (IDs::fadeIn, juce::jmin (fadeIn, (t - start) * s), &undoManager);
     box.setProperty (IDs::fadeOut, cutFade, &undoManager);
 
     auto track = box.getParent();
@@ -512,33 +515,36 @@ void Project::trimStart (juce::ValueTree box, double newStart)
 {
     const double end = boxEnd (box);
     const double offset = box.getProperty (IDs::offset, 0.0);
+    const double s = soundScale (box);      // real seconds of the sound per second here (5b)
     // A sound may not start before its first sample; the box keeps a minimum length.
-    const double earliest = isSound (box) ? juce::jmax (0.0, boxStart (box) - offset) : 0.0;
+    const double earliest = isSound (box) ? juce::jmax (0.0, boxStart (box) - offset / s) : 0.0;
     newStart = juce::jlimit (earliest, end - minBoxLength, newStart);
     const double delta = newStart - boxStart (box);
 
-    if (isSound (box)) box.setProperty (IDs::offset, offset + delta, &undoManager);
+    if (isSound (box)) box.setProperty (IDs::offset, offset + delta * s, &undoManager);
     // A window moves over the inner timeline; a stretched container scales its inside.
     if (isContainer (box) && ! isStretch (box)) box.setProperty (IDs::innerOffset, innerOffset (box) + delta, &undoManager);
     rewriteProportions (box, newStart, end - newStart, &undoManager);
     box.setProperty (IDs::start, newStart, &undoManager);
-    box.setProperty (IDs::length, end - newStart, &undoManager);
+    box.setProperty (IDs::length, (end - newStart) * s, &undoManager);
     setFades (box, box[IDs::fadeIn], box[IDs::fadeOut]);
 }
 
 void Project::trimEnd (juce::ValueTree box, double newEnd)
 {
     // Text boxes can be any length; sound boxes end with their sound.
-    const double available = isSound (box) ? soundSeconds (box[IDs::soundId]) - (double) box[IDs::offset] : 1.0e7;
+    const double s = soundScale (box);
+    const double available = isSound (box) ? (soundSeconds (box[IDs::soundId]) - (double) box[IDs::offset]) / s : 1.0e7;
     const double length = juce::jlimit (minBoxLength, juce::jmax (minBoxLength, available), newEnd - boxStart (box));
     rewriteProportions (box, boxStart (box), length, &undoManager);
-    box.setProperty (IDs::length, length, &undoManager);
+    box.setProperty (IDs::length, length * s, &undoManager);
     setFades (box, box[IDs::fadeIn], box[IDs::fadeOut]);
 }
 
 void Project::setFades (juce::ValueTree box, double fadeIn, double fadeOut)
 {
-    const double len = boxLength (box);
+    // As stored: a sound's fades and length in real seconds (5b).
+    const double len = box[IDs::length];
     fadeIn = juce::jlimit (0.0, len, fadeIn);
     fadeOut = juce::jlimit (0.0, len, fadeOut);
     if (fadeIn + fadeOut > len)
@@ -560,8 +566,13 @@ float Project::gainOpacity (double gainDb) noexcept
 
 double Project::getContentEnd()
 {
+    return contentEnd (getTracks());
+}
+
+double Project::contentEnd (const juce::ValueTree& tracks)
+{
     double end = 0.0;
-    for (auto t : getTracks())
+    for (auto t : tracks)
         for (auto b : t)
             end = juce::jmax (end, boxEnd (b));
     return end;
@@ -583,7 +594,10 @@ double Project::containerScale (const juce::ValueTree& b)
 
 double Project::outerLength (const juce::ValueTree& container, const juce::ValueTree& inner)
 {
-    return isSound (inner) ? boxLength (inner) : boxLength (inner) * containerScale (container);
+    // In the container's own level's time; a sound's boxLength is already
+    // in the inner time (its real length over the scale), so this gives its
+    // real length over the outer level's scale.
+    return boxLength (inner) * containerScale (container);
 }
 
 juce::Array<juce::ValueTree> Project::innerLanes (const juce::ValueTree& container)
@@ -612,7 +626,122 @@ juce::ValueTree Project::makeTimeline (bool withTrack)
     juce::ValueTree tracks (IDs::TRACKS);
     if (withTrack) tracks.appendChild (makeTrack ("Track 1", 0), nullptr);
     timeline.appendChild (tracks, nullptr);
+    ensureTimeline (timeline);
     return timeline;
+}
+
+void Project::ensureTimeline (juce::ValueTree timeline)
+{
+    timeline.getOrCreateChildWithName (IDs::TRACKS, nullptr);
+    timeline.getOrCreateChildWithName (IDs::MARKS, nullptr);
+    timeline.getOrCreateChildWithName (IDs::DRAWN, nullptr);
+    timeline.getOrCreateChildWithName (IDs::NODES, nullptr);
+}
+
+juce::ValueTree Project::containerOf (const juce::ValueTree& node)
+{
+    for (auto p = node.getParent(); p.isValid(); p = p.getParent())
+        if (p.hasType (IDs::BOX)) return p;
+    return {};
+}
+
+double Project::levelScaleOf (const juce::ValueTree& node)
+{
+    double scale = 1.0;
+    int guard = 0;
+    for (auto c = containerOf (node); c.isValid() && guard < 64; c = containerOf (c), ++guard)
+        scale *= containerScale (c);
+    return scale;
+}
+
+//== Levels (stage 5b) =========================================================
+
+juce::Array<juce::ValueTree> Project::focusPath() const
+{
+    juce::Array<juce::ValueTree> path;
+    int guard = 0;
+    for (auto c = focus; c.isValid() && guard < 64; c = containerOf (c), ++guard)
+        path.insert (0, c);
+    return path;
+}
+
+double Project::levelToPiece (double t) const
+{
+    int guard = 0;
+    for (auto c = focus; c.isValid() && guard < 64; c = containerOf (c), ++guard)
+        t = toOuter (c, t);
+    return t;
+}
+
+double Project::pieceToLevel (double t) const
+{
+    for (auto& c : focusPath()) t = toInner (c, t);
+    return t;
+}
+
+void Project::setFocus (juce::ValueTree c)
+{
+    if (c.isValid() && (! isContainer (c) || ! c.isAChildOf (state))) c = {};
+    if (c == focus) return;
+    focus = c;
+    focusTrail = focusPath();
+    if (focus.isValid())
+    {
+        ensureTimeline (focus.getChildWithName (IDs::TIMELINE));
+        ensureLevelRulers();
+    }
+    joinsValid = false;
+    ++changeCount;
+    if (onFocusChanged) onFocusChanged();
+}
+
+bool Project::checkFocus()
+{
+    if (! focus.isValid() || focus.isAChildOf (state)) return false;
+    // The nearest container around it that is still in the project (from
+    // the trail: a removed container no longer knows its parent).
+    juce::ValueTree to;
+    for (int i = focusTrail.size() - 1; i >= 0; --i)
+        if (focusTrail[i] != focus && focusTrail[i].isAChildOf (state)) { to = focusTrail[i]; break; }
+    focus = {};                       // so setFocus sees a change
+    setFocus (to);
+    if (! to.isValid())
+    {
+        joinsValid = false;
+        ++changeCount;
+        if (onFocusChanged) onFocusChanged();
+    }
+    return true;
+}
+
+juce::Array<juce::ValueTree> Project::allContainers()
+{
+    juce::Array<juce::ValueTree> out;
+    std::function<void (const juce::ValueTree&)> walk = [&] (const juce::ValueTree& tracks)
+    {
+        for (auto t : tracks)
+            for (auto b : t)
+                if (isContainer (b)) out.add (b);
+    };
+    walk (getRootTracks());
+    for (int i = 0; i < out.size() && i < 100000; ++i) walk (innerTracks (out[i]));
+    return out;
+}
+
+void Project::ensureLevelRulers()
+{
+    auto rulers = getRulers();
+    if (rulers.getNumChildren() > 0) return;
+    juce::ValueTree time (IDs::LAYER);
+    time.setProperty (IDs::id, newId(), nullptr);
+    time.setProperty (IDs::kind, "time", nullptr);
+    time.setProperty (IDs::name, "Time", nullptr);
+    time.setProperty (IDs::height, 30, nullptr);
+    time.setProperty (IDs::visible, true, nullptr);
+    time.setProperty (IDs::frame, "piece", nullptr);           // counts from the container's start
+    rulers.appendChild (time, nullptr);
+    auto prop = addLayer ("proportion");                         // framed by the container
+    setActiveLayer (prop);
 }
 
 juce::ValueTree Project::makeContainer (double start, double length, const juce::String& name)
@@ -742,9 +871,9 @@ juce::Array<juce::ValueTree> Project::ungroupContainer (juce::ValueTree containe
             const double outerStart = juce::jmax (0.0, base + boxStart (b) * k);
             lane.removeChild (b, &undoManager);
             scaleBox (b, k);
-            rewriteProportions (b, outerStart, boxLength (b), &undoManager);
             b.setProperty (IDs::start, outerStart, &undoManager);
             destination.appendChild (b, &undoManager);
+            rewriteProportions (b, outerStart, boxLength (b), &undoManager);     // in the level it is in now
             moved.add (b);
         }
     }
@@ -817,12 +946,15 @@ void Project::renewInnerIds (juce::ValueTree box)
     auto timeline = box.getChildWithName (IDs::TIMELINE);
     if (! timeline.isValid()) return;
 
+    // Everything with an id inside (tracks, boxes, layers, marks, drawn
+    // items, nodes), and the references to them (folders, frames, the
+    // active layer).
     std::map<juce::String, juce::String> ids;
     std::function<void (juce::ValueTree)> assign = [&] (juce::ValueTree node)
     {
         for (auto child : node)
         {
-            if ((child.hasType (IDs::TRACK) || child.hasType (IDs::BOX)) && child.hasProperty (IDs::id))
+            if (child.hasProperty (IDs::id))
             {
                 const auto fresh = newId();
                 ids[child[IDs::id].toString()] = fresh;
@@ -835,7 +967,7 @@ void Project::renewInnerIds (juce::ValueTree box)
     {
         for (auto child : node)
         {
-            for (auto* property : { &IDs::folderId, &IDs::propFrame })
+            for (auto* property : { &IDs::folderId, &IDs::propFrame, &IDs::frame, &IDs::activeLayer })
             {
                 auto it = ids.find (child[*property].toString());
                 if (it != ids.end()) child.setProperty (*property, it->second, nullptr);
@@ -845,6 +977,8 @@ void Project::renewInnerIds (juce::ValueTree box)
     };
     assign (timeline);
     follow (timeline);
+    auto it = ids.find (timeline[IDs::activeLayer].toString());
+    if (it != ids.end()) timeline.setProperty (IDs::activeLayer, it->second, nullptr);
 }
 
 //== Proportion frames =========================================================
@@ -852,7 +986,7 @@ void Project::renewInnerIds (juce::ValueTree box)
 double Project::getPieceLength()
 {
     if (hasSetPieceLength()) return (double) state[IDs::frameLength];
-    return juce::jmax (1.0, getContentEnd());
+    return juce::jmax (1.0, contentEnd (getRootTracks()));
 }
 
 void Project::setPieceLength (double seconds)
@@ -862,7 +996,8 @@ void Project::setPieceLength (double seconds)
 
 bool Project::hasSpan() const
 {
-    return (double) state.getProperty (IDs::spanEnd, 0.0) - (double) state.getProperty (IDs::spanStart, 0.0) > 1.0e-6;
+    const auto level = levelNode();
+    return (double) level.getProperty (IDs::spanEnd, 0.0) - (double) level.getProperty (IDs::spanStart, 0.0) > 1.0e-6;
 }
 
 void Project::setSpan (double a, double b)
@@ -870,17 +1005,19 @@ void Project::setSpan (double a, double b)
     if (a > b) std::swap (a, b);
     a = juce::jmax (0.0, a);
     b = juce::jmax (0.0, b);
-    state.setProperty (IDs::spanStart, a, &undoManager);
-    state.setProperty (IDs::spanEnd, b, &undoManager);
+    levelNode().setProperty (IDs::spanStart, a, &undoManager);
+    levelNode().setProperty (IDs::spanEnd, b, &undoManager);
 }
 
 Project::Frame Project::frameFor (const juce::String& ref)
 {
-    if (ref == "piece") return { 0.0, getPieceLength() };
+    // In a container, "piece" is the part of its inside it shows.
+    if (ref == "piece") return focus.isValid() ? Frame { innerOffset (focus), boxLength (focus) / containerScale (focus) } : Frame { 0.0, getPieceLength() };
     if (ref == "span")
     {
         if (! hasSpan()) return {};
-        const double a = state[IDs::spanStart], b = state[IDs::spanEnd];
+        const auto level = levelNode();
+        const double a = level[IDs::spanStart], b = level[IDs::spanEnd];
         return { a, b - a };
     }
     if (ref.isEmpty()) return {};
@@ -891,7 +1028,7 @@ Project::Frame Project::frameFor (const juce::String& ref)
 
 juce::String Project::frameName (const juce::String& ref)
 {
-    if (ref == "piece") return "piece";
+    if (ref == "piece") return focus.isValid() ? focus[IDs::name].toString() : juce::String ("piece");
     if (ref == "span") return "span";
     auto b = findBox (ref);
     return b.isValid() ? b[IDs::name].toString() : juce::String ("(removed box)");
@@ -942,7 +1079,7 @@ void Project::ensureRulers()
 
 juce::ValueTree Project::getRulers()
 {
-    return state.getOrCreateChildWithName (IDs::RULERS, nullptr);
+    return levelNode().getOrCreateChildWithName (IDs::RULERS, nullptr);
 }
 
 juce::ValueTree Project::findLayer (const juce::String& layerId)
@@ -997,7 +1134,7 @@ void Project::removeLayer (juce::ValueTree layer)
 
 juce::ValueTree Project::getActiveLayer()
 {
-    auto l = findLayer (state[IDs::activeLayer].toString());
+    auto l = findLayer (levelNode()[IDs::activeLayer].toString());
     if (isProportionLayer (l)) return l;
     for (auto c : getRulers()) if (isProportionLayer (c) && (bool) c.getProperty (IDs::visible, true)) return c;
     for (auto c : getRulers()) if (isProportionLayer (c)) return c;
@@ -1091,13 +1228,13 @@ void Project::setAutoDivisions (bool on)
 
 juce::ValueTree Project::getMarks()
 {
-    return state.getOrCreateChildWithName (IDs::MARKS, nullptr);
+    return levelNode().getOrCreateChildWithName (IDs::MARKS, nullptr);
 }
 
 //== Drawn lanes and nodes (stage 4d.2) =======================================
 
-juce::ValueTree Project::getDrawn()                 { return state.getOrCreateChildWithName (IDs::DRAWN, nullptr); }
-juce::ValueTree Project::getNodes()                 { return state.getOrCreateChildWithName (IDs::NODES, nullptr); }
+juce::ValueTree Project::getDrawn()                 { return levelNode().getOrCreateChildWithName (IDs::DRAWN, nullptr); }
+juce::ValueTree Project::getNodes()                 { return levelNode().getOrCreateChildWithName (IDs::NODES, nullptr); }
 
 juce::Array<juce::ValueTree> Project::drawnItems (const juce::String& laneKey)
 {
@@ -1568,7 +1705,8 @@ bool Project::canUseAsFrame (const juce::ValueTree& box, const juce::String& ref
 void Project::freezePieceLengthFor (const juce::String& ref)
 {
     // A box bound to the piece would otherwise change the length it is measured against.
-    if (ref == "piece" && ! hasSetPieceLength())
+    // (In a container "piece" is its window, which does not depend on what is inside.)
+    if (ref == "piece" && ! hasSetPieceLength() && atPiece())
         setPieceLength (juce::jmax (1.0, getContentEnd()));
 }
 
@@ -1607,7 +1745,7 @@ bool Project::setProportion (juce::ValueTree box, bool start, const juce::String
     {
         // Unlocked boxes take the new times once.
         if (start) box.setProperty (IDs::start, f.at (r.value), &undoManager);
-        else box.setProperty (IDs::length, r.value * f.length, &undoManager);
+        else box.setProperty (IDs::length, r.value * f.length * soundScale (box), &undoManager);
     }
     return true;
 }
@@ -1657,6 +1795,21 @@ void Project::applyProportions()
 {
     const juce::ScopedValueSetter<bool> svs (applying, true);
 
+    // Every level, each with its own frames (5b): the piece, then each
+    // container, outer ones first (an inner level's frame is its window).
+    const auto shown = focus;
+    focus = {};
+    applyLevelProportions();
+    for (auto c : allContainers())
+    {
+        focus = c;
+        applyLevelProportions();
+    }
+    focus = shown;
+}
+
+void Project::applyLevelProportions()
+{
     // Several passes, so boxes measured against boxes that just moved follow too.
     for (int pass = 0; pass < 8; ++pass)
     {
@@ -1674,14 +1827,15 @@ void Project::applyProportions()
 
                 const double start = juce::jmax (0.0, f.at (ps.value));
                 double length = juce::jmax (minBoxLength, pl.value * f.length);
+                const double s = soundScale (b);
                 if (isSound (b))
                 {
-                    const double available = soundSeconds (b[IDs::soundId]) - (double) b.getProperty (IDs::offset, 0.0);
+                    const double available = (soundSeconds (b[IDs::soundId]) - (double) b.getProperty (IDs::offset, 0.0)) / s;
                     if (available > minBoxLength) length = juce::jmin (length, available);
                 }
 
                 if (std::abs (start - boxStart (b)) > 1.0e-9)   { b.setProperty (IDs::start, start, nullptr); any = true; }
-                if (std::abs (length - boxLength (b)) > 1.0e-9) { b.setProperty (IDs::length, length, nullptr); any = true; }
+                if (std::abs (length - boxLength (b)) > 1.0e-9) { b.setProperty (IDs::length, length * s, nullptr); any = true; }
             }
         if (! any) break;
     }
@@ -1765,8 +1919,20 @@ bool Project::fromJson (const juce::String& text, juce::String& error)
 
     {
         const juce::ScopedValueSetter<bool> svs (loading, true);
+        focus = {};
+        focusTrail.clear();
         state.copyPropertiesAndChildrenFrom (tree, nullptr);
         ensureRulers();
+        // Containers from 5a: marks, drawn lanes and nodes of their own.
+        std::function<void (juce::ValueTree)> walk = [&walk] (juce::ValueTree node)
+        {
+            for (auto child : node)
+            {
+                if (child.hasType (IDs::TIMELINE)) ensureTimeline (child);
+                walk (child);
+            }
+        };
+        walk (state.getChildWithName (IDs::TRACKS));
     }
     applyProportions();
     undoManager.clearUndoHistory();

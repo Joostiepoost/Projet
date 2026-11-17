@@ -78,14 +78,27 @@ public:
 
     double getViewStart() const noexcept            { return viewStart; }
     double getPixelsPerSecond() const noexcept      { return pps; }
+    double getViewEnd() const noexcept              { return xToTime ((float) getWidth()); }
     void setView (double start, double pixelsPerSecond);
     void zoomBy (double factor, double aroundSeconds);
     void zoomToFit();
     /** Scrolls so the playhead stays visible while playing. */
     void followPlayhead (double seconds);
 
-    /** Called by the owner at the display rate. */
+    /** Called by the owner at the display rate (piece seconds; drawn where
+        it falls in the level shown). */
     void setPlayhead (double seconds);
+
+    //== Levels (stage 5b) ====================================================
+    /** The project's focus changed: each level keeps its own view; the first
+        visit to a container fits its window. Going up selects the container
+        you came from. */
+    void levelChanged();
+    /** The piece's own view, wherever the focus is (for saving). */
+    double getPieceViewStart() const;
+    double getPiecePixelsPerSecond() const;
+    /** Forget every level's view (another project). */
+    void resetLevels()                              { levelViews.clear(); levelId = {}; }
 
     //== Callbacks ============================================================
     std::function<void (double seconds)> onLocate;
@@ -94,6 +107,8 @@ public:
     std::function<void (juce::ValueTree box)> onRevealOriginal;
     std::function<void (juce::ValueTree track, double seconds)> onAddTextBox;
     std::function<void (juce::ValueTree box)> onEditNotes, onSplitAtPlayhead, onOpenNotesWindow;
+    /** Go inside a container (stage 5b). */
+    std::function<void (juce::ValueTree container)> onDiveIn;
     std::function<void (const juce::String& message, bool warning)> onStatus;
     /** Show the ruler layers in the panel (a layer id, or "" for the active one). */
     std::function<void (const juce::String& layerId)> onShowRulerPanel;
@@ -318,7 +333,12 @@ private:
 
     double viewStart = 0.0, pps = 20.0;
     int scrollY = 0;
-    double playhead = 0.0;
+    double playhead = 0.0;              // in the level shown
+    double playheadPiece = 0.0;         // in the piece
+    // Each level's view (stage 5b): container id ("" for the piece) -> start, pixels per second.
+    std::map<juce::String, std::pair<double, double>> levelViews;
+    juce::String levelId;
+    void paintWindowEdges (juce::Graphics&);
     bool dropHighlight = false;
 
     void selectionChanged();

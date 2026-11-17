@@ -544,16 +544,31 @@ juce::String Inspector::projectSummary()
         ++count;
     }
 
-    int sounds = 0, texts = 0, containers = 0;
-    for (auto b : project.allBoxes()) (Project::isSound (b) ? sounds : (Project::isContainer (b) ? containers : texts))++;
+    // The whole piece, at every depth (stage 5b).
+    int sounds = 0, texts = 0, containers = 0, tracks = 0;
+    std::function<void (const juce::ValueTree&)> walk = [&] (const juce::ValueTree& list)
+    {
+        for (auto t : list)
+        {
+            if (! Project::isFolder (t)) ++tracks;
+            for (auto b : t)
+            {
+                (Project::isSound (b) ? sounds : (Project::isContainer (b) ? containers : texts))++;
+                if (Project::isContainer (b)) walk (Project::innerTracks (b));
+            }
+        }
+    };
+    walk (project.getRootTracks());
 
     juce::String s;
-    s << project.getName() << "\n\n"
-      << "Sample rate: " << juce::String (project.getSampleRate() / 1000.0, 1) << " kHz\n"
-      << "Tracks: " << project.getNumTracks() << "\n"
+    s << project.getName() << "\n\n";
+    if (! project.atPiece())
+        s << "Shown: inside " << project.getFocus()[IDs::name].toString() << " (depth " << project.focusDepth() << ")\n\n";
+    s << "Sample rate: " << juce::String (project.getSampleRate() / 1000.0, 1) << " kHz\n"
+      << "Tracks: " << tracks << "\n"
       << "Boxes: " << sounds << " sound, " << texts << " text" << (containers > 0 ? ", " + juce::String (containers) + " container" + (containers > 1 ? "s" : "") : juce::String()) << "\n"
       << "Sounds: " << count << " (" << juce::File::descriptionOfSizeInBytes (bytes) << ")\n"
-      << "Length: " << TimeFormat::format (project.getContentEnd(), 1) << "\n\n"
+      << "Length: " << TimeFormat::format (Project::contentEnd (project.getRootTracks()), 1) << "\n\n"
       << "Folder:\n" << folder.getFolder().getFullPathName();
     return s;
 }

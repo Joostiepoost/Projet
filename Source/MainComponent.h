@@ -19,6 +19,8 @@
 #include "UI/Theme.h"
 #include "UI/TimelineView.h"
 #include "UI/Inspector.h"
+#include "UI/LevelBar.h"
+#include "UI/OutlinePanel.h"
 #include "UI/TransportBar.h"
 #include "UI/ImportPanel.h"
 #include "UI/StartPanel.h"
@@ -46,7 +48,8 @@ public:
         cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow,
         cmdTogglePanel,
         cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap,           // stage 5a
-        cmdAudioEngine
+        cmdAudioEngine,
+        cmdDiveIn, cmdLevelUp, cmdToggleOutline                  // stage 5b
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -182,6 +185,15 @@ private:
     Framework framework;            // the open project's framework packages (stage 4a, 4b)
     TimelineView timeline { project, pool, framework };
     Inspector inspector { project, pool, folder, framework };
+    LevelBar levelBar { project };
+    OutlinePanel outline { project };
+    bool outlineShown = true;
+    void setOutlineShown (bool);
+    /** Shows a level (invalid: the piece). */
+    void goTo (juce::ValueTree container);
+    void focusChanged();
+    /** The playhead in the time of the level shown (5b). */
+    double playheadInLevel() const                  { return project.pieceToLevel (engine.getPositionSeconds()); }
     ImportPanel importPanel;
     std::unique_ptr<NotesWindow> notesWindow;
     StartPanel startPanel;
