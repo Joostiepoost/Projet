@@ -109,7 +109,20 @@ namespace
             skip();
             if (peek() == U'-' || peek() == 0x2212) { ++pos; return -unary(); }
             if (peek() == U'+') { ++pos; return unary(); }
-            return atom();
+            return power();
+        }
+
+        // A power: phi^5, 2^-3 (right to left: 2^3^2 = 2^9).
+        double power()
+        {
+            const double base = atom();
+            skip();
+            if (peek() != U'^') return base;
+            ++pos;
+            const double e = unary();
+            const double v = std::pow (base, e);
+            if (ok && ! std::isfinite (v)) { fail ("That power has no value."); return 0.0; }
+            return v;
         }
 
         double atom()
@@ -329,6 +342,28 @@ juce::String withSeriesPart (const juce::String& spec, const juce::String& key, 
     return out.joinIntoString (";");
 }
 
+Geometric geometricSeries (const juce::String& spec)
+{
+    Geometric g;
+    const auto factorText = seriesPart (spec, "geometric");
+    if (factorText.isEmpty()) return g;
+    const auto factor = parse (factorText);
+    const auto until = parse (seriesPart (spec, "geometric.to").isEmpty() ? juce::String ("64") : seriesPart (spec, "geometric.to"));
+    const auto from = parse (seriesPart (spec, "geometric.from").isEmpty() ? juce::String ("1") : seriesPart (spec, "geometric.from"));
+    if (! factor.ok)     { g.problem = "The factor: " + factor.error; return g; }
+    if (! until.ok)      { g.problem = "The value to go up to: " + until.error; return g; }
+    if (! from.ok)       { g.problem = "The start: " + from.error; return g; }
+    g.factor = factor.value;
+    g.until = until.value;
+    g.from = from.value;
+    if (g.factor <= 1.0001)              g.problem = "The factor should be more than 1.";
+    else if (g.from <= 0.0)              g.problem = "The start should be more than 0.";
+    else if (g.until <= g.from)          g.problem = "The value to go up to should be more than the start.";
+    else if (g.until > 1.0e9)            g.problem = "The value to go up to is too large.";
+    else g.ok = true;
+    return g;
+}
+
 std::vector<SeriesPoint> seriesPoints (const juce::String& spec)
 {
     std::vector<SeriesPoint> out;
@@ -387,6 +422,35 @@ std::vector<SeriesPoint> seriesPoints (const juce::String& spec)
     const int harmonic = seriesPart (spec, "harmonic").getIntValue();
     for (int k = 2; k <= juce::jmin (harmonic, 64); ++k)
         addWithDirection ("harmonic", 1.0 / k, fraction (1, k), fraction (k - 1, k));
+
+    // Primes: the frame in N parts, a point at each prime below N (2, 3, 5, 7 ...)
+    const int primesTo = juce::jlimit (0, 1000, seriesPart (spec, "primes").getIntValue());
+    auto isPrime = [] (int k)
+    {
+        if (k < 2) return false;
+        for (int q = 2; q * q <= k; ++q) if (k % q == 0) return false;
+        return true;
+    };
+    for (int k = 2; k < primesTo; ++k)
+        if (isPrime (k)) addWithDirection ("primes", (double) k / primesTo, fraction (k, primesTo), fraction (primesTo - k, primesTo));
+
+    // Geometric: from a start (1), each term the one before times a factor,
+    // up to a value, which is the frame's end: a point at each term / that value.
+    const auto geometric = geometricSeries (spec);
+    if (geometric.ok)
+    {
+        const bool wholeEnd = isWhole (geometric.until);
+        double t = geometric.from;
+        for (int i = 0; i < 256 && t < geometric.until * (1.0 - 1.0e-9); ++i, t *= geometric.factor)
+        {
+            const double p = t / geometric.until;
+            const bool whole = wholeEnd && isWhole (t);
+            const auto decimal = [] (double v) { return formatNumber (std::round (v * 1000.0) / 1000.0); };
+            addWithDirection ("geometric", p,
+                              whole ? fraction (std::llround (t), std::llround (geometric.until)) : decimal (p),
+                              whole ? fraction (std::llround (geometric.until - t), std::llround (geometric.until)) : decimal (1.0 - p));
+        }
+    }
 
     // Your own list of expressions
     for (auto& t : juce::StringArray::fromTokens (seriesPart (spec, "custom"), ",", ""))

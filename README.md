@@ -42,7 +42,7 @@ Other options:
 | 1.1 | Start window, import progress panel with Cancel, faster rate conversion, playhead trace fixed | done |
 | 2 | Editing: text boxes, rich-text notes editor, type switching, multi-selection, split/copy/paste, undo everywhere | done |
 | 3a | Proportions and folders: proportion frames, typed proportions, divisions that follow the zoom, snapping with a readout, track folders | done |
-| 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci, harmonic, your own), ratio checking | done |
+| 3b | Ruler layers and presets, named marks, ratio splits, series (golden, Fibonacci, harmonic, primes, geometric, your own), ratio checking | done |
 | 4a | Framework file and box fields: energies, semiotic levels, roles, Schaeffer's type; changes along a box; colour modes, highlight, folder levels | done |
 | 4b.1 | Framework packages: the categories themselves as data (kinds, marks, groups, charts, two names, additions); library and project copies; Display and Frameworks panels; an example package | done |
 | 4b.2 | Energy glyphs (in JavaScript, as in the mockups), profiles with Schaeffer's names, semiotic fills, figure/ground weight | done |
@@ -142,6 +142,7 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 | `2/3 of 3/4` | a fraction of a fraction (= 1/2) |
 | `phi` or `φ`, `1/phi`, `1-1/phi`, `golden` | the golden ratio (1.618); `golden` = 0.618 |
 | `sqrt(2)/2`, `pi` | roots and constants |
+| `phi^2`, `2^-3` | powers |
 | `3:8` | a ratio: the first part of 3 + 8 (= 3/11) |
 
 - **Keep the proportions when the frame changes** (on by default): the box follows its frame. Move or stretch the frame (the box, the span, the piece length) and the box keeps 3/11. A box measured against a box measured against the piece follows the whole chain. Boxes with proportions have a small corner mark (filled while they follow).
@@ -160,12 +161,14 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 - The proportion layer you last clicked is the **active** one (a small square before its name): its grid shows through the tracks, and *Use as the ruler's frame* and new box proportions refer to it.
 - **Presets**: *Time and the piece (A)*, *Time only*, *Form work (B)* (golden section of the piece above the time, a span below). *Save...* keeps the present layers as your own preset, for all projects.
 
-**Series** (layer menu > *Series*, or the panel): drawn in their own colour (green-blue), labelled, snapped to.
+**Series** (layer menu > *Series*, one submenu per series, or the panel): drawn in their own colour (green-blue), labelled, snapped to. Several can be on at once.
 - **Golden section**: 1 level (0.382 and 0.618), 2 or 3 levels (each part cut again).
 - **Fibonacci**: the parts of 5, 8, 13, 21, 34 or 55 (for 13: 1/13, 2/13, 3/13, 5/13, 8/13).
 - **Harmonic**: 1/2, 1/3 ... up to 1/4, 1/6, 1/8, 1/12, 1/16, 1/24, 1/32 or 1/64.
+- **Primes**: the frame in N parts, a point at each prime below N (up to 13: 2/13, 3/13, 5/13, 7/13, 11/13). In the menu from 7 to 53; in the panel any N from 3 to 1000.
+- **Geometric**: from a start (1), each term the one before times a factor, up to an end value, which is the frame's end: a point at each term over the end (× 2 up to 64: 1/64, 2/64, 4/64 ... 32/64; × 3 up to 81: 1, 3, 9, 27 of 81; × φ up to φ⁵: 0.09, 0.146, 0.236, 0.382, 0.618). The menu has a few; in the panel type the start, the factor and the end, as numbers or expressions (`1.5`, `phi`, `sqrt(2)`, `phi^5`); an empty factor turns it off.
 - **Your own**: proportions separated by commas (1/7, 3/7, golden of 1/2).
-- **Direction** (Fibonacci, harmonic, your own): *from the start*, *reversed* (measured from the end: harmonic to 1/8 reversed gives 1/2, 2/3, 3/4 ... 7/8; Fibonacci of 5 reversed gives 2/5, 3/5, 4/5), or *both*. The golden section is symmetric already.
+- **Direction** (Fibonacci, harmonic, primes, geometric, your own): *from the start*, *reversed* (measured from the end: harmonic to 1/8 reversed gives 1/2, 2/3, 3/4 ... 7/8; Fibonacci of 5 reversed gives 2/5, 3/5, 4/5), or *both*. The golden section is symmetric already.
 
 **Marks** are named proportions of a frame. They follow their frame and are drawn on every layer with that frame, and as dashed lines through the tracks.
 - **Double-click** a proportion layer for a new mark (it asks for a name, such as *a1*); **drag** a mark to move it (it snaps). Right-click a mark: rename, type its proportion, move it to the playhead, pin the selected boxes to it, delete.

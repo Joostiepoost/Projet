@@ -514,6 +514,72 @@ public:
                 y += 30;
             }
 
+            // Primes: the frame in N parts, a point at each prime below N
+            label ("Primes up to N: the frame in N parts");
+            {
+                auto* n = place (std::make_unique<juce::TextEditor>(), 0, y, cw, 24);
+                const int primes = Proportion::seriesPart (spec, "primes").getIntValue();
+                n->setText (primes > 0 ? juce::String (primes) : juce::String(), false);
+                n->setTextToShowWhenEmpty ("N (off)", Theme::textMuted);
+                n->setInputRestrictions (4, "0123456789");
+                n->setTooltip ("The frame in N parts, a point at each prime below N (2, 3, 5, 7 ...); 3 to 1000; empty turns the series off");
+                directionBox ("primes", cw + 4, y, cw);
+                y += 30;
+                auto commit = [layer, n] () mutable
+                {
+                    const int v = n->getText().getIntValue();
+                    layer.setProperty (IDs::series, Proportion::withSeriesPart (layer[IDs::series].toString(), "primes",
+                                                                                v >= 3 ? juce::String (juce::jmin (v, 1000)) : juce::String()), nullptr);
+                };
+                n->onReturnKey = commit;
+                n->onFocusLost = commit;
+            }
+
+            // Geometric: from a start, each term the one before times a factor, up to a value
+            label ("Geometric: each term the one before times a factor");
+            {
+                const int qw = (w - cw - 12) / 3;     // three fields, then the direction as wide as the others
+                const char* titles[] = { "Start", "\xc3\x97 factor", "Up to (the end)" };
+                for (int c = 0; c < 3; ++c)
+                {
+                    auto* l = place (std::make_unique<juce::Label> (juce::String(), juce::String::fromUTF8 (titles[c])), c * (qw + 4), y, c == 2 ? qw + cw : qw, 16);
+                    styleLabel (*l, 10.5f);
+                }
+                y += 16;
+                const auto g = Proportion::geometricSeries (spec);
+                const auto factorText = Proportion::seriesPart (spec, "geometric");
+                auto field = [&] (int column, const juce::String& text, const juce::String& empty)
+                {
+                    auto* e = place (std::make_unique<juce::TextEditor>(), column * (qw + 4), y, qw, 24);
+                    e->setText (text, false);
+                    e->setTextToShowWhenEmpty (empty, Theme::textMuted);
+                    e->setTooltip ("From the start (1 if empty), each term is the one before times the factor, up to the end value, which is the frame's end. A number or an expression: 2, 1.5, phi, sqrt(2), phi^5. An empty factor turns the series off.");
+                    if (factorText.isNotEmpty() && ! g.ok) e->setColour (juce::TextEditor::textColourId, juce::Colour (0xffe8a3bd));
+                    return e;
+                };
+                auto* from = field (0, Proportion::seriesPart (spec, "geometric.from"), "1");
+                auto* factor = field (1, factorText, "off");
+                auto* until = field (2, factorText.isEmpty() ? juce::String() : (Proportion::seriesPart (spec, "geometric.to").isEmpty() ? juce::String ("64") : Proportion::seriesPart (spec, "geometric.to")), "64");
+                directionBox ("geometric", w - cw, y, cw);
+                y += 30;
+                if (factorText.isNotEmpty() && ! g.ok) note (g.problem);
+                auto commit = [layer, from, factor, until] () mutable
+                {
+                    auto next = layer[IDs::series].toString();
+                    const auto f = factor->getText().trim();
+                    const auto u = until->getText().trim(), s0 = from->getText().trim();
+                    next = Proportion::withSeriesPart (next, "geometric", f);
+                    next = Proportion::withSeriesPart (next, "geometric.to", f.isEmpty() ? juce::String() : (u.isEmpty() ? juce::String ("64") : u));
+                    next = Proportion::withSeriesPart (next, "geometric.from", f.isEmpty() || s0 == "1" ? juce::String() : s0);
+                    if (next != layer[IDs::series].toString()) layer.setProperty (IDs::series, next, nullptr);
+                };
+                for (auto* e : { from, factor, until })
+                {
+                    e->onReturnKey = commit;
+                    e->onFocusLost = commit;
+                }
+            }
+
             label ("Your own series: proportions separated by commas (1/7, 3/7, 0.3)");
             auto* custom = place (std::make_unique<juce::TextEditor>(), 0, y, w - cw - 4, 24);
             directionBox ("custom", w - cw, y, cw);

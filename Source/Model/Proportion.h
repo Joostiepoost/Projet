@@ -53,13 +53,21 @@ namespace Proportion
         first ("1 : 2.667"). */
     juce::String ratioText (const juce::Array<double>& values);
 
-    /** A point of a series (golden section, Fibonacci, harmonic, your own). */
+    /** A point of a series (golden section, Fibonacci, harmonic, primes,
+        geometric, your own). */
     struct SeriesPoint { double position = 0.0; juce::String label; };
     /** Series written as "golden:2;fibonacci:13;harmonic:8;custom:1/7,3/7".
         "fibonacci.dir:reversed" (or "both") measures a series from the end of
-        the frame too; the same for harmonic and custom. */
+        the frame too; the same for harmonic, primes, geometric and custom.
+        "primes:23": the frame in 23 parts, a point at each prime below 23.
+        "geometric:2;geometric.to:64;geometric.from:1": 1, 2, 4 ... 32 of 64
+        (each value an expression: phi, 1.5, phi^5; the start is 1 when left out). */
     std::vector<SeriesPoint> seriesPoints (const juce::String& spec);
     juce::String seriesPart (const juce::String& spec, const juce::String& key);
+    /** The geometric series in a spec, worked out; `problem` says what is wrong
+        when it cannot be drawn (empty when there is none). */
+    struct Geometric { bool ok = false; double factor = 0.0, until = 0.0, from = 1.0; juce::String problem; };
+    Geometric geometricSeries (const juce::String& spec);
     juce::String withSeriesPart (const juce::String& spec, const juce::String& key, const juce::String& value);
 
     /** The closest n/d with d from 1 to maxDenominator (and the extra

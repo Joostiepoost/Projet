@@ -9,6 +9,23 @@
 
 namespace
 {
+    // The geometric series offered in the ruler's menu (stage 3b, added later).
+    struct GeometricPreset { const char* factor; const char* until; const char* label; };
+    const GeometricPreset geometricPresets[] = {
+        { "2", "16", "\xc3\x97 2, up to 16 (1, 2, 4, 8 of 16)" },
+        { "2", "32", "\xc3\x97 2, up to 32" },
+        { "2", "64", "\xc3\x97 2, up to 64" },
+        { "2", "128", "\xc3\x97 2, up to 128" },
+        { "3", "81", "\xc3\x97 3, up to 81 (1, 3, 9, 27 of 81)" },
+        { "1.5", "16", "\xc3\x97 1.5, up to 16" },
+        { "phi", "phi^5", "\xc3\x97 \xcf\x86, up to \xcf\x86\xe2\x81\xb5" },
+        { "phi", "phi^8", "\xc3\x97 \xcf\x86, up to \xcf\x86\xe2\x81\xb8" },
+    };
+    constexpr int numGeometricPresets = (int) (sizeof (geometricPresets) / sizeof (geometricPresets[0]));
+}
+
+namespace
+{
     const juce::Colour seriesColour (0xff8fd6c9);
     const juce::Colour layerBackground (0xff1b1a17);
     constexpr int minLayerHeight = 12, maxLayerHeight = 90;
@@ -690,29 +707,77 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         const int golden = Proportion::seriesPart (series, "golden").getIntValue();
         const int fib = Proportion::seriesPart (series, "fibonacci").getIntValue();
         const int harmonic = Proportion::seriesPart (series, "harmonic").getIntValue();
+        // One submenu per series, named with what is chosen in it.
         juce::PopupMenu seriesMenu;
-        seriesMenu.addSectionHeader ("Golden section");
-        seriesMenu.addItem (500, "Off", true, golden == 0);
-        for (int lv = 1; lv <= 3; ++lv) seriesMenu.addItem (500 + lv, juce::String (lv) + (lv == 1 ? " level (0.382, 0.618)" : " levels"), true, golden == lv);
-        auto direction = [&] (const juce::String& key, int base)
+        auto direction = [&] (juce::PopupMenu& into, const juce::String& key, int base, bool on)
         {
             const auto dir = Proportion::seriesPart (series, key + ".dir");
             juce::PopupMenu d;
             d.addItem (base, "From the start", true, dir != "reversed" && dir != "both");
             d.addItem (base + 1, "From the end (reversed)", true, dir == "reversed");
             d.addItem (base + 2, "Both", true, dir == "both");
-            return d;
+            into.addSeparator();
+            into.addSubMenu ("Direction", d, on);
         };
-        seriesMenu.addSectionHeader ("Fibonacci");
-        seriesMenu.addItem (510, "Off", true, fib == 0);
-        for (int n : { 5, 8, 13, 21, 34, 55 }) seriesMenu.addItem (510 + n, "Parts of " + juce::String (n), true, fib == n);
-        seriesMenu.addSubMenu ("Direction", direction ("fibonacci", 700), fib > 0);
-        seriesMenu.addSectionHeader ("Harmonic (1/2, 1/3 ...)");
-        seriesMenu.addItem (600, "Off", true, harmonic == 0);
-        for (int n : { 4, 6, 8, 12, 16, 24, 32, 64 }) seriesMenu.addItem (600 + n, "Up to 1/" + juce::String (n), true, harmonic == n);
-        seriesMenu.addSubMenu ("Direction", direction ("harmonic", 710), harmonic > 0);
+        auto title = [] (const juce::String& name, const juce::String& chosen) { return chosen.isEmpty() ? name : name + ": " + chosen; };
+
+        juce::PopupMenu goldenMenu;
+        goldenMenu.addItem (500, "Off", true, golden == 0);
+        for (int lv = 1; lv <= 3; ++lv) goldenMenu.addItem (500 + lv, juce::String (lv) + (lv == 1 ? " level (0.382, 0.618)" : " levels"), true, golden == lv);
+        seriesMenu.addSubMenu (title ("Golden section", golden > 0 ? juce::String (golden) + (golden == 1 ? " level" : " levels") : juce::String()), goldenMenu, true, juce::Image(), golden > 0);
+
+        juce::PopupMenu fibMenu;
+        fibMenu.addItem (510, "Off", true, fib == 0);
+        for (int n : { 5, 8, 13, 21, 34, 55 }) fibMenu.addItem (510 + n, "Parts of " + juce::String (n), true, fib == n);
+        direction (fibMenu, "fibonacci", 700, fib > 0);
+        seriesMenu.addSubMenu (title ("Fibonacci", fib > 0 ? "parts of " + juce::String (fib) : juce::String()), fibMenu, true, juce::Image(), fib > 0);
+
+        juce::PopupMenu harmonicMenu;
+        harmonicMenu.addItem (600, "Off", true, harmonic == 0);
+        for (int n : { 4, 6, 8, 12, 16, 24, 32, 64 }) harmonicMenu.addItem (600 + n, "Up to 1/" + juce::String (n), true, harmonic == n);
+        direction (harmonicMenu, "harmonic", 710, harmonic > 0);
+        seriesMenu.addSubMenu (title ("Harmonic (1/2, 1/3 ...)", harmonic > 0 ? "up to 1/" + juce::String (harmonic) : juce::String()), harmonicMenu, true, juce::Image(), harmonic > 0);
+
+        // Primes: the frame in N parts, a point at each prime below N
+        const int primes = Proportion::seriesPart (series, "primes").getIntValue();
+        juce::PopupMenu primesMenu;
+        primesMenu.addItem (1100, "Off", true, primes == 0);
+        bool listed = primes == 0;
+        for (int n : { 7, 11, 13, 17, 19, 23, 29, 31, 37, 43, 53 })
+        {
+            primesMenu.addItem (1100 + n, "Up to " + juce::String (n) + " (in " + juce::String (n) + " parts)", true, primes == n);
+            listed = listed || primes == n;
+        }
+        if (! listed) primesMenu.addItem (1100 + juce::jlimit (0, 199, primes), "Up to " + juce::String (primes) + " (in " + juce::String (primes) + " parts)", true, true);
+        primesMenu.addItem (7, "Another value: in the ruler panel...");
+        direction (primesMenu, "primes", 720, primes > 0);
+        seriesMenu.addSubMenu (title ("Primes (2, 3, 5, 7 ...)", primes > 0 ? "up to " + juce::String (primes) : juce::String()), primesMenu, true, juce::Image(), primes > 0);
+
+        // Geometric: 1, then each term the one before times a factor, up to a value
+        const auto geometric = Proportion::seriesPart (series, "geometric");
+        const auto geometricTo = Proportion::seriesPart (series, "geometric.to");
+        const auto geometricFrom = Proportion::seriesPart (series, "geometric.from");
+        juce::PopupMenu geometricMenu;
+        geometricMenu.addItem (1300, "Off", true, geometric.isEmpty());
+        listed = geometric.isEmpty();
+        for (int i = 0; i < numGeometricPresets; ++i)
+        {
+            const auto& g = geometricPresets[i];
+            const bool on = geometric == g.factor && geometricTo == g.until && (geometricFrom.isEmpty() || geometricFrom == "1");
+            geometricMenu.addItem (1301 + i, juce::String::fromUTF8 (g.label), true, on);
+            listed = listed || on;
+        }
+        const auto times = juce::String::fromUTF8 ("\xc3\x97 ");
+        const auto own = times + geometric + ", up to " + (geometricTo.isEmpty() ? juce::String ("64") : geometricTo)
+                         + (geometricFrom.isEmpty() ? juce::String() : ", from " + geometricFrom);
+        if (! listed) geometricMenu.addItem (7, "Yours: " + own, true, true);
+        geometricMenu.addItem (7, "Your own start, factor and end: in the ruler panel...");
+        direction (geometricMenu, "geometric", 730, geometric.isNotEmpty());
+        seriesMenu.addSubMenu (title ("Geometric (1, then times a factor)", geometric.isNotEmpty() ? own : juce::String()), geometricMenu, true, juce::Image(), geometric.isNotEmpty());
+
+        const auto ownSeries = Proportion::seriesPart (series, "custom");
         seriesMenu.addSeparator();
-        seriesMenu.addItem (7, "Your own series: in the ruler panel...");
+        seriesMenu.addItem (7, ownSeries.isNotEmpty() ? "Your own series (" + ownSeries + "): in the ruler panel..." : juce::String ("Your own series: in the ruler panel..."), true, ownSeries.isNotEmpty());
 
         m.addSectionHeader (layer[IDs::name].toString());
         m.addSubMenu ("Frame: " + project.frameName (ref), frame);
@@ -812,9 +877,20 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         else if (r >= 500 && r < 510) setSeries ("golden", r - 500);
         else if (r >= 510 && r < 600) setSeries ("fibonacci", r - 510);
         else if (r >= 600 && r < 700) setSeries ("harmonic", r - 600);
-        else if (r >= 700 && r < 720)
+        else if (r >= 1100 && r < 1300) setSeries ("primes", r - 1100);
+        else if (r >= 1300 && r < 1300 + 1 + numGeometricPresets)
         {
-            const juce::String key = r < 710 ? "fibonacci.dir" : "harmonic.dir";
+            auto spec = layer[IDs::series].toString();
+            spec = Proportion::withSeriesPart (spec, "geometric", r == 1300 ? juce::String() : juce::String (geometricPresets[r - 1301].factor));
+            spec = Proportion::withSeriesPart (spec, "geometric.to", r == 1300 ? juce::String() : juce::String (geometricPresets[r - 1301].until));
+            spec = Proportion::withSeriesPart (spec, "geometric.from", {});
+            if (r == 1300) spec = Proportion::withSeriesPart (spec, "geometric.dir", {});
+            layer.setProperty (IDs::series, spec, nullptr);
+        }
+        else if (r >= 700 && r < 740)
+        {
+            static const char* const keys[] = { "fibonacci.dir", "harmonic.dir", "primes.dir", "geometric.dir" };
+            const juce::String key = keys[(r - 700) / 10];
             const int choice = (r - 700) % 10;
             layer.setProperty (IDs::series, Proportion::withSeriesPart (layer[IDs::series].toString(), key,
                                                                         choice == 1 ? "reversed" : (choice == 2 ? "both" : "")), nullptr);
