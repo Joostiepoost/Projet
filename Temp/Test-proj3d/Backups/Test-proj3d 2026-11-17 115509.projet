@@ -1,0 +1,962 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj3d",
+  "sampleRate": 48000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 3.288232328990183,
+  "pixelsPerSecond": 35.816641197055617,
+  "playhead": 9.724551761671968,
+  "activeLayer": "2718cdbf610642b38c2fcc39f7c89701",
+  "fwLanguage": "en",
+  "frameLength": 210.099004712476187,
+  "spanStart": 3.514880149435655,
+  "spanEnd": 30.477279670749709,
+  "fwDisplay": "composition.role=strip;composition.level=label",
+  "children": [
+    {
+      "type": "SOUNDS",
+      "children": [
+        {
+          "type": "SOUND",
+          "id": "1cfe465c42154dea868279116aa8f86b",
+          "name": "0001 8-Audio-1 render 023",
+          "file": "Sounds/0001 8-Audio-1 render 023.ogg",
+          "originalPath": "/Users/jvkmuz/Library/Mobile Documents/com~apple~CloudDocs/Joost/Compositie/RUW MATERIAAL/Akoesmatische stukken/FHP/03 Après Debussy/After Feux d'Artifice/src/Debussy slicing werkkopie/Slices versie 1/0001 8-Audio-1 render 023.wav",
+          "originalHash": "ea942d7c4cda15b7b16dc7a98648190e",
+          "lengthSamples": 46292,
+          "originalRate": 44100.0,
+          "originalChannels": 1,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "8236837b59324cd689c3b1ebd07e80fc",
+          "name": "0001 8-Audio-1 render 012",
+          "file": "Sounds/0001 8-Audio-1 render 012.ogg",
+          "originalPath": "/Users/jvkmuz/Library/Mobile Documents/com~apple~CloudDocs/Joost/Compositie/RUW MATERIAAL/Akoesmatische stukken/FHP/03 Après Debussy/After Feux d'Artifice/src/Debussy slicing werkkopie/Slices versie 1/0001 8-Audio-1 render 012.wav",
+          "originalHash": "7454e90cb0c92b2ae1dc2986881a1786",
+          "lengthSamples": 52052,
+          "originalRate": 44100.0,
+          "originalChannels": 1,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "ab701fcab35f412b9541c6e43a4c9ea8",
+          "name": "0001 8-Audio-1 render 001",
+          "file": "Sounds/0001 8-Audio-1 render 001.ogg",
+          "originalPath": "/Users/jvkmuz/Library/Mobile Documents/com~apple~CloudDocs/Joost/Compositie/RUW MATERIAAL/Akoesmatische stukken/FHP/03 Après Debussy/After Feux d'Artifice/src/Debussy slicing werkkopie/Slices versie 1/0001 8-Audio-1 render 001.wav",
+          "originalHash": "3c28565c244377d80d183105611126e9",
+          "lengthSamples": 54311,
+          "originalRate": 44100.0,
+          "originalChannels": 1,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "f95c9e25c7724fd7b5183ccf7fda38ff",
+          "name": "Untitled capture 2026-11-07 143018",
+          "file": "Sounds/Untitled capture 2026-11-07 143018.ogg",
+          "originalPath": "/Users/jvkmuz/Music/Effet Captures/Untitled capture 2026-11-07 143018.wav",
+          "originalHash": "32334ef65b1bb146f1517b482c7f36c9",
+          "lengthSamples": 477728,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        }
+      ]
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "50ce766bc1d04434a106c7656522f450",
+          "name": "Upper layer",
+          "isFolder": true,
+          "colour": 6,
+          "height": 30,
+          "mute": false,
+          "solo": false,
+          "folded": false,
+          "fw.vandegorne.timefelt": "short",
+          "fw.vandegorne.timemove": "speeding",
+          "fw.vandegorne.writing": "stainedglass"
+        },
+        {
+          "type": "TRACK",
+          "id": "03dbcd44b71e436fbe4c300cfb2f866e",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "50ce766bc1d04434a106c7656522f450",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "a2438d464e584cafaa1349d14c16fea4",
+              "kind": "text",
+              "name": "Text",
+              "start": 5.763625156711812,
+              "length": 7.307376480666057,
+              "opacity": 1.0,
+              "notes": "",
+              "fw.composition.role": "F",
+              "fw.thoresen.ending": "vague",
+              "fw.composition.profile": "decrescendo",
+              "fw.composition.level": "ison",
+              "propStart": "0.083403",
+              "propLength": "0.271021",
+              "propFrame": "span",
+              "propLock": true,
+              "fw.composition.energy": "percussion-resonance",
+              "fw.composition.energy2": "flux",
+              "fw.composition.role.along": "0.6:M:0.3"
+            },
+            {
+              "type": "BOX",
+              "id": "8647d5f9457e4c7d8f60fa6e336f965e",
+              "kind": "text",
+              "name": "Text",
+              "start": 10.740371822755481,
+              "length": 6.672897295130494,
+              "opacity": 0.72,
+              "notes": "",
+              "propStart": "0.267984",
+              "propLength": "0.247489",
+              "propFrame": "span",
+              "propLock": true,
+              "fw.composition.energy": "frottement-granulation",
+              "fw.composition.role.along": "0.5:B:0.25",
+              "fw.composition.level": "meson"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "afb9a0f537da4b42b0cd54e24e9119b5",
+          "name": "Track 2",
+          "colour": 1,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "folderId": "50ce766bc1d04434a106c7656522f450",
+          "children": [
+            {
+              "type": "BOX",
+              "id": "da978678499a49918e2949fd43acb4e8",
+              "kind": "text",
+              "name": "Text",
+              "start": 19.473762651704316,
+              "length": 9.20601473015795,
+              "opacity": 1.0,
+              "notes": "",
+              "fw.thoresen.ending": "vague",
+              "propStart": "L1a",
+              "propLength": "0.341439",
+              "propFrame": "span",
+              "propLock": true,
+              "fw.example.density": 1.0,
+              "fw.composition.profile": "delta",
+              "fw.composition.peak": 33.0,
+              "fw.composition.energy": "accumulation-corpuscules",
+              "fw.example.motion": "circling",
+              "fw.composition.level": "ison",
+              "fw.composition.role": "F",
+              "fw.composition.peakshape": "soft",
+              "fw.schaeffer.type": "Ax",
+              "fw.thoresen.junction": "hinged",
+              "fw.vandegorne.mixing": "complementarity",
+              "fw.example.materials": "wood"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "39320700a2fe4737974262052e303657",
+          "name": "Track 3",
+          "colour": 2,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "5e27343e226a43fa984884be17e876fc",
+              "kind": "text",
+              "name": "Text",
+              "start": 15.525659815778704,
+              "length": 9.033676572325177,
+              "opacity": 1.0,
+              "notes": "Cirkel in *tegenwijzer-zin:*\n\n- Dit\n- Dat\n"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "3e706701c05d4d8d975ad3533f1abe63",
+          "name": "Track 4",
+          "colour": 2,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "d9b3a532841c4f85b773e37c383c4502",
+              "kind": "text",
+              "name": "Raw box",
+              "start": 6.51070231847055,
+              "length": 9.78496721715387,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": 0.0,
+              "offset": 0.0,
+              "fadeIn": 0.01,
+              "fadeOut": 0.01,
+              "fadeInShape": 2,
+              "fadeOutShape": 2
+            },
+            {
+              "type": "BOX",
+              "id": "3672daa5ec0342a5a5af8236294ab94d",
+              "kind": "container",
+              "name": "Start geste (repetitie)",
+              "start": 24.804401548913756,
+              "length": 5.720918245610086,
+              "gainDb": 0.0,
+              "fadeIn": 0.005,
+              "fadeOut": 0.115369675690893,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "stretch": true,
+              "innerLength": 2.991409732977127,
+              "innerOffset": 2.17500011201196,
+              "notes": "",
+              "children": [
+                {
+                  "type": "TIMELINE",
+                  "children": [
+                    {
+                      "type": "TRACKS",
+                      "children": [
+                        {
+                          "type": "TRACK",
+                          "id": "44eebf97287648a8aa302f27fb78d5de",
+                          "name": "Track 4",
+                          "colour": 4,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "5657777c68c34e20839309b05f979aa3",
+                              "kind": "sound",
+                              "name": "0001 8-Audio-1 render 023",
+                              "start": 0.118458354960853,
+                              "length": 0.964416666666667,
+                              "soundId": "1cfe465c42154dea868279116aa8f86b",
+                              "offset": 0.0,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.01,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "2fc3af91d18e4fb386c8e8f5569c225a",
+                              "kind": "sound",
+                              "name": "0001 8-Audio-1 render 012",
+                              "start": 2.463052640860079,
+                              "length": 1.084416666666667,
+                              "soundId": "8236837b59324cd689c3b1ebd07e80fc",
+                              "offset": 0.0,
+                              "gainDb": 9.700000000000005,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.01,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "fdf2aadc1a094dbaa35ed7f47709ccfe",
+                              "kind": "sound",
+                              "name": "0001 8-Audio-1 render 001",
+                              "start": 4.844454637997732,
+                              "length": 1.131479166666667,
+                              "soundId": "ab701fcab35f412b9541c6e43a4c9ea8",
+                              "offset": 0.0,
+                              "gainDb": -9.899999999999997,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.01,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "062e34f3fdfc44b090aff77170a6f3a4",
+                          "name": "Track 5",
+                          "colour": 5,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "b2506169407e40889e5fbe81610b03c1",
+                              "kind": "sound",
+                              "name": "Untitled capture 2026-11-07 143018",
+                              "start": 0.0,
+                              "length": 1.557015307391278,
+                              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
+                              "offset": 0.674295412015415,
+                              "gainDb": -2.399999999999996,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.005,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "bacb04d9c18c4030b5e76f9f1d42f764",
+                              "kind": "sound",
+                              "name": "Untitled capture 2026-11-07 143018",
+                              "start": 2.463052640860079,
+                              "length": 1.648129950900284,
+                              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
+                              "offset": 2.48594226164257,
+                              "gainDb": 5.700000000000005,
+                              "fadeIn": 0.005,
+                              "fadeOut": 0.005,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "0ca328a2f9074cd4a8033ada97cd71e6",
+                              "kind": "sound",
+                              "name": "Untitled capture 2026-11-07 143018",
+                              "start": 4.807289267321953,
+                              "length": 1.29832028034885,
+                              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
+                              "offset": 4.134072212542854,
+                              "gainDb": -5.699999999999997,
+                              "fadeIn": 0.005,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "584df016516e4af1b7c9ebd9a2880e51",
+              "kind": "sound",
+              "name": "Untitled capture 2026-11-07 143018",
+              "start": 34.039914284088056,
+              "length": 3.68764715198968,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": -10.799999999999997,
+              "offset": 0.0,
+              "fadeIn": 0.01,
+              "fadeOut": 0.01,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
+              "fw.composition.profile": "resonance"
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "8859bfbf53154d22957aac9e410f6232",
+          "name": "Track 5",
+          "colour": 5,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "c96001f843a045a686e1bcb1b559ad29",
+              "kind": "container",
+              "name": "Start geste (repetitie)",
+              "start": 30.082886378625734,
+              "length": 5.946408467907229,
+              "gainDb": 3.996802888650564e-15,
+              "fadeIn": 0.305645215599679,
+              "fadeOut": 0.0,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "stretch": true,
+              "innerLength": 2.17500011201196,
+              "innerOffset": 0.0,
+              "notes": "",
+              "children": [
+                {
+                  "type": "TIMELINE",
+                  "children": [
+                    {
+                      "type": "TRACKS",
+                      "children": [
+                        {
+                          "type": "TRACK",
+                          "id": "c74affc86356433a8f47defedf0468c4",
+                          "name": "Track 4",
+                          "colour": 4,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "25e0e48f82714353a30a79ce81362145",
+                              "kind": "sound",
+                              "name": "0001 8-Audio-1 render 023",
+                              "start": 0.118458354960853,
+                              "length": 0.964416666666667,
+                              "soundId": "1cfe465c42154dea868279116aa8f86b",
+                              "offset": 0.0,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.01,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "94e1d6e9c0764141bfca9116cb1d0f0c",
+                              "kind": "sound",
+                              "name": "0001 8-Audio-1 render 012",
+                              "start": 2.463052640860079,
+                              "length": 1.084416666666667,
+                              "soundId": "8236837b59324cd689c3b1ebd07e80fc",
+                              "offset": 0.0,
+                              "gainDb": 9.700000000000005,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.01,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "13ec5820cab44544bc04c8c7ed2d6372",
+                              "kind": "sound",
+                              "name": "0001 8-Audio-1 render 001",
+                              "start": 4.844454637997732,
+                              "length": 1.131479166666667,
+                              "soundId": "ab701fcab35f412b9541c6e43a4c9ea8",
+                              "offset": 0.0,
+                              "gainDb": -9.899999999999997,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.01,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "ae9a749ceeb74bc4960068c1930e0b9f",
+                          "name": "Track 5",
+                          "colour": 5,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "beca3fe2a9c0467da66ca8d39f2c956f",
+                              "kind": "sound",
+                              "name": "Untitled capture 2026-11-07 143018",
+                              "start": 0.0,
+                              "length": 1.557015307391278,
+                              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
+                              "offset": 0.674295412015415,
+                              "gainDb": -2.399999999999996,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.005,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "02f3daf19ea24f8981ed8c1bf7257eb3",
+                              "kind": "sound",
+                              "name": "Untitled capture 2026-11-07 143018",
+                              "start": 2.463052640860079,
+                              "length": 1.648129950900284,
+                              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
+                              "offset": 2.48594226164257,
+                              "gainDb": 5.700000000000005,
+                              "fadeIn": 0.005,
+                              "fadeOut": 0.005,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "b2b4358ed6664a6386f87c84be8799d8",
+                              "kind": "sound",
+                              "name": "Untitled capture 2026-11-07 143018",
+                              "start": 4.807289267321953,
+                              "length": 1.29832028034885,
+                              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
+                              "offset": 4.134072212542854,
+                              "gainDb": -5.699999999999997,
+                              "fadeIn": 0.005,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "notes": ""
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "id": "b569d4b4eae34bb1a8cc56f3f871cca3",
+          "kind": "time",
+          "name": "Time",
+          "height": 28,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "309b72b2cf8d4f09940a2d6bb62c65b9",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": false,
+          "snap": true,
+          "frame": "piece",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "81cac3b3253744b181420ef3183983b0",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": false,
+          "snap": true,
+          "frame": "span",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true,
+          "series": "fibonacci:8;harmonic:4"
+        },
+        {
+          "type": "LAYER",
+          "id": "aa8ac556e90448aaa558facb6894fd18",
+          "kind": "lane",
+          "lane": "composition.energies",
+          "name": "Energies",
+          "height": 69,
+          "visible": false
+        },
+        {
+          "type": "LAYER",
+          "id": "2942484f6c9b4fc1b9bc84e6150b021a",
+          "kind": "lane",
+          "lane": "schaeffer.typology",
+          "name": "Typology",
+          "height": 193,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "f46128827bc14623b2d33d888a120769",
+          "kind": "time",
+          "name": "Time",
+          "height": 52,
+          "visible": false,
+          "frame": "da978678499a49918e2949fd43acb4e8"
+        },
+        {
+          "type": "LAYER",
+          "id": "2718cdbf610642b38c2fcc39f7c89701",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "span",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "9f8b1b5824434d2986be1eb3d3890db0",
+          "kind": "lane",
+          "lane": "thoresen.dynamic",
+          "name": "Dynamic form",
+          "height": 53,
+          "visible": false
+        },
+        {
+          "type": "LAYER",
+          "id": "3f2ad81975f444718c99b679408f4d51",
+          "kind": "lane",
+          "lane": "composition.semiotic",
+          "name": "Semiotic profile",
+          "height": 109,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "type": "MARKS",
+      "children": [
+        {
+          "type": "MARK",
+          "id": "de2c62a372ee4885b332b0faffcc2d47",
+          "name": "L1a",
+          "frame": "span",
+          "expr": "0.591894"
+        },
+        {
+          "type": "MARK",
+          "id": "2a25143223f54408ac65cb44f52d7c3d",
+          "name": "L1a_GP",
+          "frame": "span",
+          "expr": "0.685851",
+          "colour": 8
+        },
+        {
+          "type": "MARK",
+          "id": "af6dd6a5bdd74c009e62275e6f9f5c97",
+          "name": "Startges1",
+          "frame": "c96001f843a045a686e1bcb1b559ad29",
+          "expr": "2/5"
+        },
+        {
+          "type": "MARK",
+          "id": "1dc89828f436497a8f3711e2fbd6fe9c",
+          "name": "Startges2",
+          "frame": "c96001f843a045a686e1bcb1b559ad29",
+          "expr": "7/10"
+        },
+        {
+          "type": "MARK",
+          "id": "96f96c8e3c7e4cc68afa7ab200a29298",
+          "name": "Startges3",
+          "frame": "c96001f843a045a686e1bcb1b559ad29",
+          "expr": "9/10"
+        },
+        {
+          "type": "MARK",
+          "id": "56751c7d203644ab8409f35287ccbce6",
+          "name": "Text1",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "1/10"
+        },
+        {
+          "type": "MARK",
+          "id": "8f677e68805f4a93a8ed4f0aa4117819",
+          "name": "Text2",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "3/10"
+        },
+        {
+          "type": "MARK",
+          "id": "3735606ed07f4ec4a0d53db7f199e7ba",
+          "name": "Text3",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "3/5"
+        },
+        {
+          "type": "MARK",
+          "id": "fb8bbc0e9081448eb3f6d89daa0e2940",
+          "name": "s1",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "2/5"
+        },
+        {
+          "type": "MARK",
+          "id": "f0651f95ce1c40c18a44081dfed46d42",
+          "name": "s2",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "7/10"
+        },
+        {
+          "type": "MARK",
+          "id": "d1c7a77265494b13af15f1123b4db16e",
+          "name": "s3",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "9/10"
+        },
+        {
+          "type": "MARK",
+          "id": "0cda746e9089416a860a1e11a80ea6fe",
+          "name": "l1",
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "expr": "1/3"
+        },
+        {
+          "type": "MARK",
+          "id": "e22f9ebe07df45f182fb89a244bd278b",
+          "name": "l2",
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "expr": "2/3"
+        },
+        {
+          "type": "MARK",
+          "id": "dafbb936387a4af8b5bbc8f14c06298b",
+          "name": "Untitled1",
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "expr": "1/9"
+        },
+        {
+          "type": "MARK",
+          "id": "7e52dabbaa2647dbbf79b35c5d4db905",
+          "name": "Untitled2",
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "expr": "5/18"
+        },
+        {
+          "type": "MARK",
+          "id": "a3cfc975c85944f8bc8ee28e32d1e55c",
+          "name": "Untitled3",
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "expr": "5/9"
+        },
+        {
+          "type": "MARK",
+          "id": "a6e42f0e857342eab239ad8a4f0bc5b6",
+          "name": "Untitled4",
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "expr": "1/9"
+        },
+        {
+          "type": "MARK",
+          "id": "176498ddebbe484d828e736630714af4",
+          "name": "Untitled5",
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "expr": "5/18"
+        },
+        {
+          "type": "MARK",
+          "id": "f47ad2f7a19641a7be2d4521c1adee7f",
+          "name": "Untitled6",
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "expr": "5/9"
+        },
+        {
+          "type": "MARK",
+          "id": "c88f8060d4c04aed85ea6c1e45d8e3ae",
+          "name": "Rawbox1",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "1/9"
+        },
+        {
+          "type": "MARK",
+          "id": "d73be63f6a514e9a83e84edaee997546",
+          "name": "Rawbox2",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "5/18"
+        },
+        {
+          "type": "MARK",
+          "id": "020e03db36474e088d10c7e306267b82",
+          "name": "Rawbox3",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "5/9"
+        },
+        {
+          "type": "MARK",
+          "id": "61afc5ae0633423fb15eceb0c37c207c",
+          "name": "Rawbox4",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "2/5"
+        },
+        {
+          "type": "MARK",
+          "id": "1cbe92e6625e4d9281c3a4d50d680ec9",
+          "name": "Rawbox5",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "7/10"
+        },
+        {
+          "type": "MARK",
+          "id": "c907c7112e1c4f42bd350d482b4c4b44",
+          "name": "Rawbox6",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "9/10"
+        },
+        {
+          "type": "MARK",
+          "id": "623fea2602164f4680fe0e62857ab4f0",
+          "name": "m1",
+          "frame": "d9b3a532841c4f85b773e37c383c4502",
+          "expr": "2.896946"
+        },
+        {
+          "type": "MARK",
+          "id": "3e46d9c537634997988b09baa9d6e049",
+          "name": "m2",
+          "frame": "span",
+          "expr": "2/7"
+        }
+      ]
+    },
+    {
+      "type": "DRAWN",
+      "children": [
+        {
+          "type": "ITEM",
+          "id": "321f65f17ae94a14aa0e6967c1be4b7d",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 19.481701055010753,
+          "end": 22.251346695029145,
+          "value": "forward",
+          "goal": "partial",
+          "emphasis": "emphasised"
+        },
+        {
+          "type": "ITEM",
+          "id": "3fe3e7ab04964dd8bff92dc7d3199886",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 13.737107397795214,
+          "end": 17.281971848505414,
+          "value": "presence",
+          "emphasis": "emphasised",
+          "size": "low"
+        },
+        {
+          "type": "ITEM",
+          "id": "132e558d067b497f88ba7005102aeef6",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 30.860629806127491,
+          "end": 34.600773833023183,
+          "value": "wavering",
+          "emphasis": "faint"
+        },
+        {
+          "type": "ITEM",
+          "id": "690da10c44ba4d1d9c6b4a43c10c727a",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 22.288006137157662,
+          "end": 29.47828993633463,
+          "value": "backward",
+          "size": "high",
+          "emphasis": "faint"
+        },
+        {
+          "type": "ITEM",
+          "id": "5f2d11544d6c4d1fa9798bd40fa79392",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 28.997622399005717,
+          "end": 33.244739848783723,
+          "value": "delta",
+          "goalAt": 0.305034851187725
+        },
+        {
+          "type": "ITEM",
+          "id": "4f4cddbc94844997b09a789a39a14f08",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 22.72089544848404,
+          "value": "release"
+        },
+        {
+          "type": "ITEM",
+          "id": "094701b8b83d4cb8ae1d8bcd2563b602",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 22.298850702180957,
+          "value": "goal"
+        },
+        {
+          "type": "ITEM",
+          "id": "dbdf8bf484fb4b20b9872fc86e7eea39",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 13.737107397795214,
+          "value": "affirmation"
+        },
+        {
+          "type": "ITEM",
+          "id": "34c6a40d54264e88a6ea72abe959d046",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 15.776212754871306,
+          "value": "separation"
+        }
+      ]
+    },
+    {
+      "type": "NODES",
+      "children": [
+        {
+          "type": "NODE",
+          "id": "b041d8c1be614e96a25643800a53d53a",
+          "folderId": "50ce766bc1d04434a106c7656522f450",
+          "start": 8.51461594498539,
+          "length": 13.801025823019007
+        },
+        {
+          "type": "NODE",
+          "id": "591467f09419436ab3339be585cd9027",
+          "folderId": "50ce766bc1d04434a106c7656522f450",
+          "start": 32.322923801919416,
+          "length": 7.875457555312948
+        }
+      ]
+    }
+  ]
+}

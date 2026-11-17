@@ -5,9 +5,9 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 3.288232328990183,
+  "viewStart": 22.750048363517696,
   "pixelsPerSecond": 35.816641197055617,
-  "playhead": 9.724551761671968,
+  "playhead": 29.943951239265274,
   "activeLayer": "2718cdbf610642b38c2fcc39f7c89701",
   "fwLanguage": "en",
   "frameLength": 210.099004712476187,
@@ -225,11 +225,11 @@
               "id": "3672daa5ec0342a5a5af8236294ab94d",
               "kind": "container",
               "name": "Start geste (repetitie)",
-              "start": 24.804401548913756,
-              "length": 5.720918245610086,
+              "start": 23.736679790421196,
+              "length": 7.37518524519194,
               "gainDb": 0.0,
               "fadeIn": 0.005,
-              "fadeOut": 0.115369675690893,
+              "fadeOut": 0.378657283340662,
               "fadeInShape": 2,
               "fadeOutShape": 2,
               "stretch": true,
@@ -239,6 +239,9 @@
               "children": [
                 {
                   "type": "TIMELINE",
+                  "activeLayer": "1d744486566f4eb08511ed310ed16974",
+                  "spanStart": 3.25557804415479,
+                  "spanEnd": 4.606226495156661,
                   "children": [
                     {
                       "type": "TRACKS",
@@ -274,7 +277,7 @@
                               "id": "2fc3af91d18e4fb386c8e8f5569c225a",
                               "kind": "sound",
                               "name": "0001 8-Audio-1 render 012",
-                              "start": 2.463052640860079,
+                              "start": 2.376872663162166,
                               "length": 1.084416666666667,
                               "soundId": "8236837b59324cd689c3b1ebd07e80fc",
                               "offset": 0.0,
@@ -291,7 +294,7 @@
                               "id": "fdf2aadc1a094dbaa35ed7f47709ccfe",
                               "kind": "sound",
                               "name": "0001 8-Audio-1 render 001",
-                              "start": 4.844454637997732,
+                              "start": 4.069605427279707,
                               "length": 1.131479166666667,
                               "soundId": "ab701fcab35f412b9541c6e43a4c9ea8",
                               "offset": 0.0,
@@ -336,7 +339,7 @@
                               "id": "bacb04d9c18c4030b5e76f9f1d42f764",
                               "kind": "sound",
                               "name": "Untitled capture 2026-11-07 143018",
-                              "start": 2.463052640860079,
+                              "start": 2.378565157068932,
                               "length": 1.648129950900284,
                               "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
                               "offset": 2.48594226164257,
@@ -353,7 +356,7 @@
                               "id": "0ca328a2f9074cd4a8033ada97cd71e6",
                               "kind": "sound",
                               "name": "Untitled capture 2026-11-07 143018",
-                              "start": 4.807289267321953,
+                              "start": 4.079165433806439,
                               "length": 1.29832028034885,
                               "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
                               "offset": 4.134072212542854,
@@ -366,6 +369,204 @@
                               "notes": ""
                             }
                           ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "8815d9299a3f4fb2a1279d592f6209db",
+                          "name": "Track 3",
+                          "colour": 2,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "66fdf748b97f463194caef39115213f0",
+                              "kind": "container",
+                              "name": "Test-block",
+                              "start": 2.206673438245348,
+                              "length": 2.838486516256786,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "stretch": true,
+                              "innerLength": 4.0,
+                              "innerOffset": 0.0,
+                              "notes": "",
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "activeLayer": "dd0f05b049ed471d82ff9453c43a292c",
+                                  "spanStart": 0.0,
+                                  "spanEnd": 4.992020871291921,
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "d5f31b8f6384412fa1ccbd76e26b7427",
+                                          "name": "Track 1",
+                                          "colour": 2,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false,
+                                          "children": [
+                                            {
+                                              "type": "BOX",
+                                              "id": "4f3a0e5c50f04f9592c3501881f87220",
+                                              "kind": "container",
+                                              "name": "Container",
+                                              "start": 0.0,
+                                              "length": 2.496010435645961,
+                                              "gainDb": 0.0,
+                                              "fadeIn": 0.0,
+                                              "fadeOut": 0.0,
+                                              "fadeInShape": 2,
+                                              "fadeOutShape": 2,
+                                              "stretch": true,
+                                              "innerLength": 4.0,
+                                              "innerOffset": 0.0,
+                                              "notes": "",
+                                              "children": [
+                                                {
+                                                  "type": "TIMELINE",
+                                                  "activeLayer": "e1a60c7a2727418986bab27f013a4b6d",
+                                                  "children": [
+                                                    {
+                                                      "type": "TRACKS",
+                                                      "children": [
+                                                        {
+                                                          "type": "TRACK",
+                                                          "id": "63b5c914e1724abe8a1d01248396c717",
+                                                          "name": "Track 1",
+                                                          "colour": 2,
+                                                          "height": 72,
+                                                          "mute": false,
+                                                          "solo": false
+                                                        }
+                                                      ]
+                                                    },
+                                                    {
+                                                      "type": "MARKS"
+                                                    },
+                                                    {
+                                                      "type": "DRAWN"
+                                                    },
+                                                    {
+                                                      "type": "NODES"
+                                                    },
+                                                    {
+                                                      "type": "RULERS",
+                                                      "children": [
+                                                        {
+                                                          "type": "LAYER",
+                                                          "id": "6d6d69aad5ea4513977dd0c7747d8302",
+                                                          "kind": "time",
+                                                          "name": "Time",
+                                                          "height": 30,
+                                                          "visible": true,
+                                                          "frame": "piece"
+                                                        },
+                                                        {
+                                                          "type": "LAYER",
+                                                          "id": "e1a60c7a2727418986bab27f013a4b6d",
+                                                          "kind": "proportion",
+                                                          "name": "Proportion",
+                                                          "height": 22,
+                                                          "visible": true,
+                                                          "snap": true,
+                                                          "frame": "piece",
+                                                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                                          "autoDivisions": true
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    },
+                                    {
+                                      "type": "RULERS",
+                                      "children": [
+                                        {
+                                          "type": "LAYER",
+                                          "id": "ae67ed71dba14520be08f4dba15c9aa3",
+                                          "kind": "time",
+                                          "name": "Time",
+                                          "height": 30,
+                                          "visible": true,
+                                          "frame": "4f3a0e5c50f04f9592c3501881f87220"
+                                        },
+                                        {
+                                          "type": "LAYER",
+                                          "id": "dd0f05b049ed471d82ff9453c43a292c",
+                                          "kind": "proportion",
+                                          "name": "Proportion",
+                                          "height": 90,
+                                          "visible": true,
+                                          "snap": true,
+                                          "frame": "span",
+                                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                          "autoDivisions": true
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "MARKS"
+                    },
+                    {
+                      "type": "DRAWN"
+                    },
+                    {
+                      "type": "NODES"
+                    },
+                    {
+                      "type": "RULERS",
+                      "children": [
+                        {
+                          "type": "LAYER",
+                          "id": "5b0f39af37624fbb8704acc77e6f9c1b",
+                          "kind": "time",
+                          "name": "Time",
+                          "height": 30,
+                          "visible": true,
+                          "frame": "piece"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "1d744486566f4eb08511ed310ed16974",
+                          "kind": "proportion",
+                          "name": "Proportion",
+                          "height": 90,
+                          "visible": true,
+                          "snap": true,
+                          "frame": "span",
+                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                          "autoDivisions": true
                         }
                       ]
                     }
@@ -421,6 +622,7 @@
               "children": [
                 {
                   "type": "TIMELINE",
+                  "activeLayer": "eea0a57fd4f743dc8acbb3d802b65784",
                   "children": [
                     {
                       "type": "TRACKS",
@@ -548,6 +750,41 @@
                               "notes": ""
                             }
                           ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "MARKS"
+                    },
+                    {
+                      "type": "DRAWN"
+                    },
+                    {
+                      "type": "NODES"
+                    },
+                    {
+                      "type": "RULERS",
+                      "children": [
+                        {
+                          "type": "LAYER",
+                          "id": "a791e8c45bbb44298829308220b6ff93",
+                          "kind": "time",
+                          "name": "Time",
+                          "height": 30,
+                          "visible": true,
+                          "frame": "piece"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "eea0a57fd4f743dc8acbb3d802b65784",
+                          "kind": "proportion",
+                          "name": "Proportion",
+                          "height": 22,
+                          "visible": true,
+                          "snap": true,
+                          "frame": "piece",
+                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                          "autoDivisions": true
                         }
                       ]
                     }
