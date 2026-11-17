@@ -88,11 +88,19 @@ std::vector<TimelineView::TrackRow> TimelineView::rows() const
     {
         if (! project.isVisible (t)) continue;    // inside a folded folder
         const bool folder = Project::isFolder (t);
-        const int h = folder ? folderHeight : juce::jlimit (40, 240, (int) t.getProperty (IDs::height, 72));
+        const int h = folder ? folderHeight : juce::jlimit (minTrackHeight, maxTrackHeight, (int) t.getProperty (IDs::height, defaultTrackHeight));
         r.push_back ({ t, y, h, project.depthOf (t), folder });
         y += h;
     }
     return r;
+}
+
+juce::ValueTree TimelineView::trackEdgeAt (int y) const
+{
+    if (y < tracksTop()) return {};
+    for (auto& r : rows())
+        if (! r.folder && std::abs (y - (r.y + r.h)) <= 3) return r.track;
+    return {};
 }
 
 int TimelineView::contentHeight() const
@@ -2065,6 +2073,7 @@ void TimelineView::mouseMove (const juce::MouseEvent& e)
 {
     const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (rulerMouseMove (e)) return;
+    if (trackEdgeAt (e.y).isValid()) { setMouseCursor (juce::MouseCursor::UpDownResizeCursor); return; }
     Zone zone;
     auto box = boxAt (e.position, zone);
     if (zone == Zone::startEdge || zone == Zone::endEdge) setMouseCursor (juce::MouseCursor::LeftRightResizeCursor);
@@ -2082,6 +2091,16 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
 
     // The ruler layers
     if (rulerMouseDown (e)) return;
+
+    // A track's lower edge, in the header or the lane: drag it to make the track taller or lower.
+    if (! e.mods.isPopupMenu())
+        if (auto edgeTrack = trackEdgeAt (e.y); edgeTrack.isValid())
+        {
+            dragMode = DragMode::trackHeight;
+            dragLayer = edgeTrack;
+            dragLayerStartHeight = juce::jlimit (minTrackHeight, maxTrackHeight, (int) edgeTrack.getProperty (IDs::height, defaultTrackHeight));
+            return;
+        }
 
     // Header
     if (e.x < headerWidth)
@@ -2236,6 +2255,13 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
 {
     const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (rulerMouseDrag (e)) return;
+    if (dragMode == DragMode::trackHeight)
+    {
+        const int h = juce::jlimit (minTrackHeight, maxTrackHeight, dragLayerStartHeight + e.getDistanceFromDragStartY());
+        if (h != (int) dragLayer.getProperty (IDs::height, defaultTrackHeight)) dragLayer.setProperty (IDs::height, h, nullptr);
+        repaint();
+        return;
+    }
     const bool snapping = ! e.mods.isShiftDown();
     const double t = xToTime (e.position.x);
 
@@ -2394,6 +2420,7 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         case DragMode::nodeMove:
         case DragMode::nodeStart:
         case DragMode::nodeEnd:     // drawn lanes and nodes (TimelineDrawn.cpp)
+        case DragMode::trackHeight: // above
         case DragMode::none:
             break;
     }
@@ -2453,6 +2480,12 @@ void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
     const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (rulerDoubleClick (e)) return;
     if (e.y < tracksTop()) return;
+    if (auto edgeTrack = trackEdgeAt (e.y); edgeTrack.isValid())            // back to the usual height
+    {
+        edgeTrack.setProperty (IDs::height, defaultTrackHeight, nullptr);
+        repaint();
+        return;
+    }
 
     if (e.x < headerWidth)
     {

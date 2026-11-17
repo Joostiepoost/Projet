@@ -165,10 +165,14 @@ private:
     enum class DragMode { none, locate, move, trimStart, trimEnd, fadeIn, fadeOut, lasso,
                           span, frameStart, frameEnd, track, layerHeight, mark,
                           drawSpan, itemMove, itemStart, itemEnd, itemGoal, itemGoalEnd,   // drawn lanes (4d.2)
-                          drawNode, nodeMove, nodeStart, nodeEnd };
+                          drawNode, nodeMove, nodeStart, nodeEnd,
+                          trackHeight };                                                     // a track's lower edge (after stage 7)
     enum class Zone { none, body, startEdge, endEdge, fadeInHandle, fadeOutHandle };
 
     struct TrackRow { juce::ValueTree track; int y = 0, h = 0, depth = 0; bool folder = false; };
+    /** The track (not a folder) whose lower edge is at y, if any: drag it to change the height. */
+    juce::ValueTree trackEdgeAt (int y) const;
+    static constexpr int minTrackHeight = 40, maxTrackHeight = 480, defaultTrackHeight = 72;
     std::vector<TrackRow> rows() const;
     int contentHeight() const;
     TrackRow rowAt (int y) const;
