@@ -668,6 +668,26 @@ void testMarks()
     check (Proportion::seriesPoints ("harmonic:4").size() == 3, "harmonic to 1/4");
     check (Proportion::seriesPoints ("harmonic:64").size() == 63, "harmonic to 1/64");
     check (Proportion::seriesPoints ("custom:1/7, golden").size() == 2, "own series");
+    {
+        // Primes and geometric series (added after 3b), and powers in expressions
+        auto primes = Proportion::seriesPoints ("primes:13");
+        check (primes.size() == 5 && primes[0].label == "2/13" && primes[4].label == "11/13", "primes up to 13: 2, 3, 5, 7, 11 of 13");
+        auto primesBoth = Proportion::seriesPoints ("primes:7;primes.dir:both");
+        check (primesBoth.size() == 4, "primes up to 7 both ways: 2/7, 3/7, 4/7, 5/7");
+        auto geo = Proportion::seriesPoints ("geometric:2;geometric.to:64");
+        check (geo.size() == 6 && geo[0].label == "1/64" && geo[5].label == "32/64" && std::abs (geo[5].position - 0.5) < 1.0e-12,
+               "geometric x2 up to 64: 1 ... 32 of 64");
+        auto geoRev = Proportion::seriesPoints ("geometric:3;geometric.to:81;geometric.dir:reversed");
+        check (geoRev.size() == 4 && geoRev[0].label == "54/81" && geoRev[3].label == "80/81", "geometric x3 up to 81, reversed");
+        auto geoPhi = Proportion::seriesPoints ("geometric:phi;geometric.to:phi^5");
+        check (geoPhi.size() == 5 && std::abs (geoPhi[4].position - 1.0 / 1.6180339887498949) < 1.0e-9, "geometric x phi up to phi^5: the last at 0.618");
+        auto geoFrom = Proportion::seriesPoints ("geometric:2;geometric.to:40;geometric.from:5");
+        check (geoFrom.size() == 3 && geoFrom[0].label == "5/40" && geoFrom[2].label == "20/40", "geometric from 5: 5, 10, 20 of 40");
+        check (! Proportion::geometricSeries ("geometric:1").ok && Proportion::seriesPoints ("geometric:0.5;geometric.to:8").empty(), "a factor of 1 or less draws nothing");
+        check (std::abs (Proportion::parse ("2^-3").value - 0.125) < 1.0e-12 && std::abs (Proportion::parse ("phi^2").value - (1.6180339887498949 + 1.0)) < 1.0e-12
+               && std::abs (Proportion::parse ("2^3^2").value - 512.0) < 1.0e-9 && std::abs (Proportion::parse ("-2^2").value + 4.0) < 1.0e-12,
+               "powers: 2^-3, phi^2, 2^3^2, -2^2");
+    }
     check (Proportion::withSeriesPart ("golden:2;harmonic:8", "golden", "") == "harmonic:8", "remove a series");
     {
         auto rev = Proportion::seriesPoints ("harmonic:8;harmonic.dir:reversed");
