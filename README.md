@@ -54,7 +54,7 @@ Other options:
 | 5c | The framework on containers: section fields (writing type, time-feel, nodes) on containers, the dynamic form attached to them, time-field brackets, typological formulas | done |
 | 6 | Magnified inline expansion: a container of the level shown opened in a second timeline below, with full editing, following the selection | done |
 | 7 | Takes: alternatives of a box's content (sounds, texts, containers), one active; new takes from a copy, the project's sounds or files; switching on the box, in the panel or with Cmd-] and Cmd-[; takes shown stacked in their boxes | built, to test |
-| 8 | Relations, materials, origin | |
+| 8 | Relations, materials, origin; the operations of the structuring language (built last, after stage 12, once the research is ready) | |
 | 9 | Framework, layer 4: factor curves | |
 | 10 | Strata view | |
 | 11 | Board box | |
@@ -104,6 +104,7 @@ Every piece is a folder:
 - **Split at playhead (Cmd-T)**: cuts the selected boxes at the playhead; with nothing selected, every box under the playhead. Short 5 ms fades are put on the cut so it does not click.
 - **Copy, Cut, Paste (Cmd-C, Cmd-X, Cmd-V)**: paste puts the boxes at the playhead, starting on the selected track, keeping their spacing in time and between tracks; tracks are added when needed.
 - **Track header**: **M** mutes, **S** solos (several tracks can be soloed). Double-click the name to rename. Right-click: rename, colour, add a track above or below, delete. **+ Track** at the bottom (or Shift-Cmd-N) adds one.
+- **Track height**: drag a track's lower edge (in its header or across its lane; the cursor changes) to make it taller or lower, from 40 to 480 pixels; double-click the edge for the usual height. Taller tracks show stacked takes (stage 7) and miniatures better.
 - **Wheel**: scroll up and down; Shift-wheel or a sideways swipe scrolls in time. **Cmd-wheel or pinch** zooms; Cmd-= / Cmd-- / Cmd-0 (the whole piece).
 - **Undo / Redo** (Cmd-Z / Shift-Cmd-Z) for every change to tracks and boxes.
 
