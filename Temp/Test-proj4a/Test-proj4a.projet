@@ -5,9 +5,9 @@
   "sampleRate": 96000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 0.0,
-  "pixelsPerSecond": 33.27684306231604,
-  "playhead": 18.184792927532108,
+  "viewStart": 4.691264646028968,
+  "pixelsPerSecond": 53.457067320275904,
+  "playhead": 16.256547306335015,
   "activeLayer": "002a4fc541114efb8217754d03f8b902",
   "fwLanguage": "en",
   "frameLength": 31.092351711340086,
@@ -399,7 +399,8 @@
                           "snap": true,
                           "frame": "span",
                           "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
-                          "autoDivisions": true
+                          "autoDivisions": true,
+                          "series": "harmonic:6;geometric:2;geometric.to:32"
                         }
                       ]
                     }
@@ -433,7 +434,7 @@
           "frame": "piece",
           "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
           "autoDivisions": true,
-          "series": "fibonacci:13"
+          "series": "primes.dir:reversed;primes:7"
         },
         {
           "type": "LAYER",
