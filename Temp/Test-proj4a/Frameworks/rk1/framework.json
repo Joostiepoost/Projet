@@ -1,0 +1,81 @@
+{
+  "projet": "framework package",
+  "id": "rk1",
+  "version": 1,
+  "order": 90,
+  "name": {"fr": "Langage de structuration (RK1)", "en": "Structuring language (RK1)"},
+  "about": {
+    "fr": "Les opérations de votre langage de structuration (10 primitives, 16 macros), provisoires : utilisées à partir de l'étape 8.",
+    "en": "The operations of your structuring language (10 primitives, 16 macros), provisional: used from stage 8."
+  },
+  "status": "provisional: the structuring language of the RK1 research (26 October 2026); used from stage 8",
+  "categories": [],
+  "operations": {
+    "primitives": [
+      {
+        "id": "REPEAT",
+        "about": "Copy objects with selected attributes inherited",
+        "params": ["source", "inherit", "override"]
+      },
+      {
+        "id": "TRANSPOSE",
+        "about": "Shift pitches in chromatic, diatonic or registral coordinates",
+        "params": ["field", "amount"]
+      },
+      {
+        "id": "INTERPOLATE",
+        "about": "Insert new events between structural anchors",
+        "params": ["from", "to", "count"]
+      },
+      {
+        "id": "NEIGHBOUR",
+        "about": "Expand an anchor by departure and return",
+        "params": ["anchor", "field", "amount"]
+      },
+      {"id": "SUBDIVIDE", "about": "Replace one duration or event with shorter events", "params": ["parts"]},
+      {
+        "id": "SUBSTITUTE",
+        "about": "Replace selected events or their attribute values",
+        "params": ["target", "with"]
+      },
+      {
+        "id": "SUPERPOSE",
+        "about": "Combine processes in simultaneous or time-offset layers",
+        "params": ["layers", "offset"]
+      },
+      {"id": "CONCAT", "about": "Concatenate sequences into larger structures", "params": ["parts"]},
+      {
+        "id": "ARPEGGIATE",
+        "about": "Linearize a collection of simultaneous pitches",
+        "params": ["order", "spacing"]
+      },
+      {
+        "id": "INVERT",
+        "about": "Reflect pitch or interval directions around an axis",
+        "params": ["field", "axis"]
+      }
+    ],
+    "macros": [
+      {"id": "OSTINATO", "expansion": "REPEAT + stable attribute template", "onBoxes": true},
+      {"id": "DIATONIC_RUN", "expansion": "INTERPOLATE (diatonic)", "onBoxes": false, "alias": "CONNECT"},
+      {"id": "DIATONIC_SEQUENCE", "expansion": "REPEAT + systematic TRANSPOSE", "onBoxes": true},
+      {"id": "ORNAMENT_CHORD", "expansion": "chord-tone path + NEIGHBOUR / INTERPOLATE", "onBoxes": false},
+      {"id": "ARPEGGIATED_EXPANSION", "expansion": "ARPEGGIATE + ornament", "onBoxes": false},
+      {"id": "HARMONIC_PROJECTION", "expansion": "two parts from one pitch collection", "onBoxes": false},
+      {
+        "id": "HARMONIC_CONSOLIDATION",
+        "expansion": "earlier linear pitches recombined as a sonority",
+        "onBoxes": false
+      },
+      {"id": "CHROMATIC_DESCENT", "expansion": "REPEAT + TRANSPOSE (-1 semitone)", "onBoxes": false},
+      {"id": "IMITATE", "expansion": "REPEAT + time offset + TRANSPOSE", "onBoxes": true},
+      {"id": "ROLE_EXCHANGE", "expansion": "SUBSTITUTE of active and supporting roles", "onBoxes": true},
+      {"id": "CADENTIAL_SUBSTITUTION", "expansion": "REPEAT + SUBSTITUTE (ending)", "onBoxes": true},
+      {"id": "VARIED_RECAPITULATION", "expansion": "REPEAT with selective overrides", "onBoxes": true},
+      {"id": "ARTICULATED_GESTURE", "expansion": "rhythmic profile + articulation pattern", "onBoxes": true},
+      {"id": "CLOSING_GESTURE", "expansion": "recurrent closing rhythmic profile", "onBoxes": true},
+      {"id": "DYNAMIC_REVERSAL", "expansion": "SUBSTITUTE (permuted dynamic values)", "onBoxes": true},
+      {"id": "SUSTAINED_DYAD", "expansion": "sustained layer, tied continuations", "onBoxes": true}
+    ]
+  }
+}
