@@ -12,4 +12,6 @@
 
 **Glyphs.** The energies are drawn on the boxes by `glyphs.js`, this package's drawing script (JavaScript, sandboxed: no files or network). Edit it to change the shapes; each value's `glyph` field names the shape it uses.
 
+**Variation factors** (version 6). Each energy has its variation factors (Vande Gorne's, plus dynamics for every energy), drawn as curves along a box in its Framework tab or over the box itself; they reshape its glyph. Speed spaces an oscillation's swings, density fills a cloud, attack sharpens a percussion's front, sustainment lengthens its resonance, and so on. A drawn dynamics curve takes the place of the profile's envelope; left-right space draws the glyph lower or higher; depth draws it smaller and fainter. The curves describe: they do not change the sound. The energy category lists the factors (`factors`: id, names, the two ends, a neutral value, and an `effect` for those Projet applies itself); each energy names its own (`factors`: ids). `glyphs.js` reads them as `f ("vitesse", t)`.
+
 Edit `framework.json` to rename, translate or add values, then *Framework > Reload frameworks*.

@@ -8,7 +8,7 @@
   "viewStart": 0.0,
   "pixelsPerSecond": 27.593927672558483,
   "playhead": 18.898208333333333,
-  "activeLayer": "002a4fc541114efb8217754d03f8b902",
+  "activeLayer": "6787a7cd19124155930d27aa39282a06",
   "fwLanguage": "en",
   "frameLength": 31.092351711340086,
   "showTakes": "1",
@@ -69,7 +69,7 @@
               "fadeInShape": 2,
               "fadeOutShape": 2,
               "innerLength": 6.844097002329602,
-              "fw.vandegorne.writing": "complex",
+              "fw.vandegorne.writing": "weaving",
               "children": [
                 {
                   "type": "TIMELINE",
@@ -150,6 +150,10 @@
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
                               "opacity": 1.0,
+                              "fw.composition.energy": "percussion-resonance",
+                              "fw.composition.energy.factors": "attaque=0.0694:1 0.2172:0;dynamique=0.3177:0.232 0.5017:0.8307 1:0.0341;entretien=0.3888:0.4158 0.7769:0.8704;halo=0.041:0 0.9721:0.8798",
+                              "fw.composition.energy2": "oscillation",
+                              "fw.composition.energy2.factors": "dynamique=0:0.9229 0.2765:0;force=0.1842:0.5898 0.5486:0.2877 0.6651:0.7599 1:0;grain=0.5283:0;iteratif=0.0309:1 1:0;vitesse=0.5634:1",
                               "children": [
                                 {
                                   "type": "TAKES",
@@ -305,6 +309,9 @@
                               "fadeOut": 0.01,
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
+                              "fw.composition.energy2": "percussion-resonance",
+                              "fw.composition.energy2.factors": "dynamique=0.4167:0 0.4205:1 0.4915:0.3769 0.6477:0;entretien=0:0 0.5872:0.752;halo=0:0.2L 0.33:0.2L 0.34:0.5L 0.66:0.5L 0.67:0.8L 1:0.8L",
+                              "fw.composition.profile": "delta",
                               "children": [
                                 {
                                   "type": "TAKES",
@@ -452,7 +459,7 @@
                               "length": 3.33730478344956,
                               "opacity": 1.0,
                               "notes": "",
-                              "gainDb": 0.0,
+                              "gainDb": -2.099999999999996,
                               "offset": 0.712869142837828,
                               "fadeIn": 0.01,
                               "fadeOut": 0.01,
@@ -462,7 +469,14 @@
                               "propStart": "0",
                               "propLength": "1",
                               "propFrame": "span",
-                              "propLock": true
+                              "propLock": true,
+                              "fw.composition.energy": "frottement-granulation",
+                              "fw.composition.energy.factors": "dynamique=0:1 0.0435:0.1647 0.185:0 0.5555:0.0152 0.5589:1 0.6318:0.2361 0.761:0;grain=0.1497:0.1578 0.4039:0.8757 0.748:0.5968;iteratif=0:0 0.4432:1 0.8949:0 0.9829:0;vitesse=0.0053:1 0.3363:0.1219 0.7103:1",
+                              "fw.composition.profile": "decrescendo",
+                              "fw.composition.level": "ison",
+                              "fw.composition.role": "F",
+                              "fw.composition.energy2": "flux",
+                              "fw.composition.energy2.factors": "dynamique=1:1"
                             }
                           ]
                         }
@@ -500,6 +514,25 @@
                           "frame": "span",
                           "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
                           "autoDivisions": true
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "328c3682c7e1459897f80c481cc610cf",
+                          "kind": "lane",
+                          "lane": "composition.energies",
+                          "name": "Energies",
+                          "height": 154,
+                          "visible": true,
+                          "laneFactor": "entretien"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "047618f8f02941b08d395a9d85be815d",
+                          "kind": "lane",
+                          "lane": "composition.semiotic",
+                          "name": "Semiotic profile",
+                          "height": 124,
+                          "visible": true
                         }
                       ]
                     }
@@ -853,6 +886,15 @@
           "frame": "9389583c79c744838dff3fd33e6cdfa4",
           "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
           "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "3edc381ff8664be88fbdb00e54cb82dd",
+          "kind": "lane",
+          "lane": "composition.energies",
+          "name": "Energies",
+          "height": 240,
+          "visible": true
         }
       ]
     },
