@@ -32,8 +32,8 @@ namespace
 
 //== Selection =================================================================
 
-juce::ValueTree TimelineView::getSelectedItem()     { return project.findItem (selectedItemId); }
-juce::ValueTree TimelineView::getSelectedNode()     { return project.findNode (selectedNodeId); }
+juce::ValueTree TimelineView::getSelectedItem()     { const Project::ScopedFocus levelScope (project, level); return project.findItem (selectedItemId); }
+juce::ValueTree TimelineView::getSelectedNode()     { const Project::ScopedFocus levelScope (project, level); return project.findNode (selectedNodeId); }
 
 void TimelineView::selectDrawn (const juce::String& itemId, const juce::String& nodeId)
 {
@@ -47,6 +47,7 @@ void TimelineView::selectDrawn (const juce::String& itemId, const juce::String& 
 
 void TimelineView::deleteDrawnSelection()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     auto item = getSelectedItem();
     auto node = getSelectedNode();
     if (! item.isValid() && ! node.isValid()) return;
@@ -509,6 +510,7 @@ void TimelineView::showNewSpanMenu (const Framework::Lane& lane, double a, doubl
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, key, a, b] (int r)
     {
         if (safe == nullptr || r < 100) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         auto* l = safe->framework.findLane (key);
         auto* c = l != nullptr ? safe->framework.findCategory (l->spans) : nullptr;
         if (c == nullptr || ! juce::isPositiveAndBelow (r - 100, safe->framework.valuesOf (*c).size())) return;
@@ -531,6 +533,7 @@ void TimelineView::showNewPointMenu (const Framework::Lane& lane, double t)
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, key, t] (int r)
     {
         if (safe == nullptr || r < 100) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         auto* l = safe->framework.findLane (key);
         auto* c = l != nullptr ? safe->framework.findCategory (l->points) : nullptr;
         if (c == nullptr || ! juce::isPositiveAndBelow (r - 100, safe->framework.valuesOf (*c).size())) return;
@@ -603,6 +606,7 @@ void TimelineView::showItemMenu (juce::ValueTree item, const Framework::Lane& la
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, item, key, span] (int r) mutable
     {
         if (safe == nullptr || r <= 0 || ! item.getParent().isValid()) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         auto* l = safe->framework.findLane (key);
         if (l == nullptr) return;
         auto& fw = safe->framework;
@@ -861,6 +865,7 @@ void TimelineView::showSectionMenu (double t)
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, focus, t] (int r)
     {
         if (safe == nullptr || r == 0) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         if (r >= boxMenuBase && r < folderMenuBase) safe->applyFrameworkMenu (r, { focus });
         else if (r == 2)
         {
@@ -922,6 +927,7 @@ void TimelineView::showNodeMenu (juce::ValueTree node, const juce::ValueTree& fo
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, node, folder, t] (int r)
     {
         if (safe == nullptr) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         if (r == 1 && node.isValid()) { safe->selectDrawn ({}, node[IDs::id].toString()); safe->deleteDrawnSelection(); }
         if (r == 2 && folder.isValid())
         {
@@ -934,6 +940,7 @@ void TimelineView::showNodeMenu (juce::ValueTree node, const juce::ValueTree& fo
 
 std::pair<juce::String, juce::String> TimelineView::describeNode (const juce::ValueTree& node)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     const auto& rules = framework.getNodeRules();
     auto folder = project.findTrack (node[IDs::folderId].toString());
     const bool whole = ! folder.isValid() && project.getFocus()[IDs::id].toString() == node[IDs::folderId].toString();

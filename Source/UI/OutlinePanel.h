@@ -1,6 +1,7 @@
 // OutlinePanel.h — the panel on the left (stage 5b): the piece's containers
 // and boxes as a tree in time order, indented by depth, with the depth
-// number. The level shown and the selected boxes are highlighted. Click a
+// number. The level shown, the container magnified below it (in blue) and
+// the selected boxes are highlighted. Click a
 // row to select the box (going to its level), double-click a container to
 // go inside it; the triangles fold containers.
 
@@ -19,6 +20,9 @@ public:
     void refresh();
     /** The timeline's selection (box ids). */
     void setSelected (const juce::StringArray& ids);
+    /** The level the timeline shows (invalid: the piece) and the container
+        magnified below it (invalid: none), stage 6. */
+    void setLevels (const juce::ValueTree& upper, const juce::ValueTree& magnifiedBelow);
     /** Scrolls so the level shown is in view. */
     void showFocus();
 
@@ -58,6 +62,7 @@ private:
     std::vector<Row> list;
     std::set<juce::String> folded;
     juce::StringArray selected;
+    juce::ValueTree shown, magnified;
     bool stale = true;
 
     static constexpr int rowHeight = 21, titleHeight = 34;

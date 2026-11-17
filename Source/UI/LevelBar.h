@@ -12,7 +12,9 @@ class LevelBar : public juce::Component
 public:
     explicit LevelBar (Project&);
 
-    /** The main timeline's view (in the focus' time), shown as a bracket. */
+    /** The level the timeline shows (a container); the bar is about it. */
+    void setLevel (const juce::ValueTree& l)        { level = l; repaint(); }
+    /** The main timeline's view (in that level's time), shown as a bracket. */
     void setView (double start, double end);
     /** Piece seconds. */
     void setPlayhead (double pieceSeconds);
@@ -31,6 +33,8 @@ public:
 
 private:
     Project& project;
+    juce::ValueTree level;
+    juce::Array<juce::ValueTree> path() const;
     struct Crumb { juce::Rectangle<int> area; juce::ValueTree target; };
     std::vector<Crumb> crumbs;
     struct Hit { juce::Rectangle<float> area; juce::ValueTree box; };

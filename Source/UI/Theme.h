@@ -17,6 +17,7 @@ namespace Theme
     inline const juce::Colour accent       { 0xffe8b04b };     // selection, playhead
     inline const juce::Colour signs        { 0xffa3e49c };     // junction, ending and mixing signs (stage 4c)
     inline const juce::Colour nodes        { 0xffb9a8e6 };     // nodes on folders (4d.2): a soft purple
+    inline const juce::Colour magnifier     { 0xff5d82bd };      // the container magnified below (stage 6)
     inline const juce::Colour nodesFlagged { 0xffe8a3bd };     // a node out of balance, or a voice that does not change
     inline const juce::Colour laneEven     { 0xff16171a };
     inline const juce::Colour laneOdd      { 0xff18191d };

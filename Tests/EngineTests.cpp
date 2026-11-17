@@ -1955,6 +1955,52 @@ void testSections()
 
 } // namespace
 
+void testMagnifier()
+{
+    line ("## 19. Two levels at once: the magnifier (stage 6)");
+    line();
+    const double rate = 48000.0;
+    Project p;
+    p.resetToDefault ("Magnifier", rate);
+    auto t1 = p.getTrack (0);
+    auto x = p.addTextBox (t1, 0.0, 1.0);
+    auto y = p.addTextBox (t1, 1.5, 1.0);
+    auto z = p.addTextBox (t1, 3.0, 1.0);
+    auto c = p.groupIntoContainer ({ y, z });                 // inside: y at 0, z at 1.5
+    int focusCalls = 0;
+    p.onFocusChanged = [&focusCalls] { ++focusCalls; };
+
+    // == A view's scope: the level shown there, then back, without notice
+    {
+        const Project::ScopedFocus there (p, c);
+        check (p.getFocus() == c && p.getTracks() == Project::innerTracks (c) && p.allBoxes().size() == 2,
+               "a scoped focus works in the container's level");
+    }
+    check (p.atPiece() && focusCalls == 0, "and the focus comes back afterwards, with no notice");
+    {
+        const Project::ScopedFocus there (p, c);
+        p.setFocus ({});
+        p.setFocus (c);                                         // going there for real, from inside a scope
+    }
+    check (p.getFocus() == c && focusCalls == 2, "a real change of focus made inside a scope stays");
+    p.setFocus ({});
+    focusCalls = 0;
+
+    // == Joins of each level, whatever the focus
+    auto j = p.joinBefore (z);
+    check (j.isValid() && j.before == y && std::abs (j.gap - 0.5) < 1.0e-9, "a join inside the container is found from the piece");
+    check (p.boxAfter (x) == c && p.joinBefore (c).before == x, "and the piece's joins at the same time");
+    {
+        const Project::ScopedFocus there (p, c);
+        check (p.boxAfter (y) == z && p.joinBefore (c).before == x, "the same from inside the container's level");
+    }
+
+    // == Preparing a level for a second view
+    p.prepareLevel (c);
+    check (p.atPiece() && focusCalls == 0, "preparing a container's level leaves the focus where it was");
+    line();
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
@@ -1964,7 +2010,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -1999,6 +2045,7 @@ int main (int argc, char** argv)
     std::cout << "Containers..." << std::endl;         testContainers();
     std::cout << "Levels..." << std::endl;             testLevels();
     std::cout << "Sections..." << std::endl;           testSections();
+    std::cout << "Magnifier..." << std::endl;          testMagnifier();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

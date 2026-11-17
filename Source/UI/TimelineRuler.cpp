@@ -741,6 +741,7 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, layer, selected] (int r) mutable
     {
         if (safe == nullptr || r == 0) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         auto& p = safe->project;
         auto list = p.layerDenominators (layer);
         auto setList = [&] (juce::Array<double> l) { std::sort (l.begin(), l.end()); p.setLayerDenominators (layer, l); };
@@ -849,6 +850,7 @@ void TimelineView::showMarkMenu (juce::ValueTree mark)
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, mark, boxes, name] (int r) mutable
     {
         if (safe == nullptr || r == 0) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         auto& p = safe->project;
         if (r == 1) safe->askMarkName (mark);
         else if (r == 2) safe->askMarkExpression (mark);
@@ -1072,6 +1074,7 @@ int TimelineView::laneHeight (const Framework& fw, const Framework::Lane& lane)
 
 juce::ValueTree TimelineView::addLane (int laneIndex, int layerIndex)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (! juce::isPositiveAndBelow (laneIndex, framework.getLanes().size())) return {};
     const auto& lane = framework.getLanes().getReference (laneIndex);
     auto l = project.addLaneLayer (lane.key(), framework.text (lane.name), laneHeight (framework, lane), layerIndex);

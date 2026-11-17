@@ -21,6 +21,7 @@
 #include "UI/Inspector.h"
 #include "UI/LevelBar.h"
 #include "UI/OutlinePanel.h"
+#include "UI/MagnifierBar.h"
 #include "UI/TransportBar.h"
 #include "UI/ImportPanel.h"
 #include "UI/StartPanel.h"
@@ -49,7 +50,8 @@ public:
         cmdTogglePanel,
         cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap,           // stage 5a
         cmdAudioEngine,
-        cmdDiveIn, cmdLevelUp, cmdToggleOutline                  // stage 5b
+        cmdDiveIn, cmdLevelUp, cmdToggleOutline,                 // stage 5b
+        cmdMagnify                                               // stage 6
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -192,8 +194,37 @@ private:
     /** Shows a level (invalid: the piece). */
     void goTo (juce::ValueTree container);
     void focusChanged();
-    /** The playhead in the time of the level shown (5b). */
+    /** The playhead in the time of the level worked on (5b). */
     double playheadInLevel() const                  { return project.pieceToLevel (engine.getPositionSeconds()); }
+
+    //== The magnifier (stage 6) ================================================
+    // A container of the level shown, magnified in a second timeline below.
+    // The project's focus is the level of the view last clicked (active):
+    // the panel, the commands and the playhead commands work there.
+    TimelineView magnifier { project, pool, framework };
+    MagnifierBar magnifierBar;
+    TimelineView* active = &timeline;
+    TimelineView& view()                            { return *active; }
+    bool magnifierShown = false, quietFocus = false;
+    double magnifierShare = 0.5, shareAtDragStart = 0.5;    // the magnifier's part of the height
+    juce::Rectangle<int> viewsArea;
+    void wireView (TimelineView&);
+    /** The view becomes the one worked on: the focus moves quietly to its level. */
+    void activate (TimelineView&);
+    /** Magnify a container of the level shown (fitted). */
+    void openMagnifier (juce::ValueTree container);
+    void closeMagnifier();
+    /** From either view: the upper one's containers are magnified; one inside
+        the magnified container goes a level down (the upper view goes inside
+        the magnified one, and magnifies it). */
+    void magnify (TimelineView& from, juce::ValueTree container);
+    void updateMagnifierBar();
+    /** The view showing the level a box or track lies in, if any. */
+    TimelineView* viewFor (const juce::ValueTree& node);
+    /** Selects a box in the view showing its level. */
+    void selectInView (const juce::ValueTree& box);
+    void repaintViews()                             { timeline.repaint(); magnifier.repaint(); }
+    void levelsChanged();
     ImportPanel importPanel;
     std::unique_ptr<NotesWindow> notesWindow;
     StartPanel startPanel;

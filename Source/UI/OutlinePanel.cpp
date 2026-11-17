@@ -29,10 +29,17 @@ void OutlinePanel::setSelected (const juce::StringArray& ids)
     rows.repaint();
 }
 
+void OutlinePanel::setLevels (const juce::ValueTree& upper, const juce::ValueTree& magnifiedBelow)
+{
+    shown = upper;
+    magnified = magnifiedBelow;
+    rows.repaint();
+}
+
 void OutlinePanel::showFocus()
 {
     if (stale) rebuild();
-    const auto focus = project.getFocus();
+    const auto focus = shown;
     for (size_t i = 0; i < list.size(); ++i)
         if (list[i].box == focus)
         {
@@ -104,7 +111,7 @@ void OutlinePanel::Rows::paint (juce::Graphics& g)
 {
     auto& o = owner;
     if (o.stale) o.rebuild();
-    const auto focus = o.project.getFocus();
+    const auto focus = o.shown;
     const int w = getWidth();
     for (size_t i = 0; i < o.list.size(); ++i)
     {
@@ -122,6 +129,13 @@ void OutlinePanel::Rows::paint (juce::Graphics& g)
             g.setColour (Theme::accent.withAlpha (0.09f));
             g.fillRect (0, y, w, rowHeight);
             g.setColour (Theme::accent);
+            g.fillRect (0, y + 2, 3, rowHeight - 4);
+        }
+        else if (o.magnified.isValid() && row.box == o.magnified)     // magnified below (stage 6)
+        {
+            g.setColour (Theme::magnifier.withAlpha (0.12f));
+            g.fillRect (0, y, w, rowHeight);
+            g.setColour (Theme::magnifier);
             g.fillRect (0, y + 2, 3, rowHeight - 4);
         }
 

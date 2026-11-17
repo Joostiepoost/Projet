@@ -9,6 +9,7 @@
 
 #include <JuceHeader.h>
 #include <map>
+#include <set>
 #include "Identifiers.h"
 #include "Proportion.h"
 #include "Framework.h"
@@ -206,6 +207,25 @@ public:
     std::function<void()> onFocusChanged;
     /** Every container in the project, outer ones before those inside them. */
     juce::Array<juce::ValueTree> allContainers();
+    /** Gives a container what a first visit gives it (ruler layers, marks,
+        lanes), without going there. */
+    void prepareLevel (const juce::ValueTree& container);
+
+    /** Works on another level for a while (stage 6: a second view draws and
+        handles its own level): sets the focus without telling anyone, and
+        puts it back when it goes. */
+    struct ScopedFocus
+    {
+        ScopedFocus (Project& p, const juce::ValueTree& level) : project (p), saved (p.focus), sets (p.focusSets)  { p.focus = level; }
+        // A real change of focus meanwhile (going inside from this view) stays.
+        ~ScopedFocus()                                      { if (project.focusSets == sets) project.focus = saved; }
+        ScopedFocus (const ScopedFocus&) = delete;
+        ScopedFocus& operator= (const ScopedFocus&) = delete;
+    private:
+        Project& project;
+        juce::ValueTree saved;
+        int sets;
+    };
     /** Puts the boxes (all on tracks of the same timeline) into a new
         container that spans them, on the first of their tracks. Inside,
         tracks mirror the ones they came from (with their folders), each box
@@ -470,6 +490,7 @@ private:
     void applyLevelProportions();
     void applyLevelAttachments();
     juce::ValueTree focus;
+    int focusSets = 0;                              // real changes of focus, for ScopedFocus
     juce::Array<juce::ValueTree> focusTrail;        // the containers around the focus when it was set
     int markDepth = 0;
     /** For a locked, bound box: its proportions become these times. */
@@ -490,9 +511,12 @@ private:
     const Framework* framework = nullptr;
     struct JoinInfo { juce::String before, after; double gap = 0.0; bool covered = false; };
     std::map<juce::String, JoinInfo> joins;      // by box id; rebuilt after a change
+    std::set<juce::String> joinedLevels;         // the levels (container ids, "" the piece) whose joins are in it
     bool joinsValid = false;
+    /** The joins of the box's own level (whatever the focus). */
+    void ensureJoins (const juce::ValueTree& box);
     int conditionDepth = 0;
-    void buildJoins();
+    void buildJoins (const juce::ValueTree& tracks);
     bool holds (const juce::ValueTree& box, const Framework::Condition&);
 
     void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override  { changed(); }

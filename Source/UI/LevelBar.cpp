@@ -9,6 +9,14 @@ LevelBar::LevelBar (Project& p) : project (p)
     setInterceptsMouseClicks (true, false);
 }
 
+juce::Array<juce::ValueTree> LevelBar::path() const
+{
+    juce::Array<juce::ValueTree> out;
+    int guard = 0;
+    for (auto c = level; c.isValid() && guard < 64; c = Project::containerOf (c), ++guard) out.insert (0, c);
+    return out;
+}
+
 void LevelBar::setView (double start, double end)
 {
     if (std::abs (start - viewStart) < 1.0e-9 && std::abs (end - viewEnd) < 1.0e-9) return;
@@ -26,7 +34,7 @@ void LevelBar::setPlayhead (double pieceSeconds)
 
 juce::ValueTree LevelBar::aroundTracks() const
 {
-    auto around = Project::containerOf (project.getFocus());
+    auto around = Project::containerOf (level);
     return around.isValid() ? Project::innerTracks (around) : project.getRootTracks();
 }
 
@@ -34,7 +42,7 @@ juce::Range<double> LevelBar::aroundRange()
 {
     // The piece from 0:00, or the window of the container around, widened
     // to whatever lies there.
-    auto focus = project.getFocus();
+    auto focus = level;
     auto around = Project::containerOf (focus);
     double first = 0.0, last = Project::contentEnd (aroundTracks());
     if (around.isValid())
@@ -62,12 +70,12 @@ void LevelBar::paint (juce::Graphics& g)
     g.setColour (Theme::line);
     g.fillRect (0, getHeight() - 1, getWidth(), 1);
 
-    auto focus = project.getFocus();
+    auto focus = level;
     if (! focus.isValid()) return;
 
     // == Breadcrumbs: Piece > Section A > Phrase, then the depth and scale
     crumbs.clear();
-    const auto path = project.focusPath();
+    const auto trail = path();
     int x = 12;
     const int y = 3, h = crumbsHeight - 6;
     auto crumb = [&] (const juce::String& text, juce::ValueTree target, bool last)
@@ -88,15 +96,15 @@ void LevelBar::paint (juce::Graphics& g)
         x += 18;
     };
     crumb ("Piece", {}, false);
-    for (int i = 0; i < path.size(); ++i)
+    for (int i = 0; i < trail.size(); ++i)
     {
         separator();
-        auto name = path[i][IDs::name].toString();
-        crumb (name.isEmpty() ? juce::String ("Container") : name, path[i], i == path.size() - 1);
+        auto name = trail[i][IDs::name].toString();
+        crumb (name.isEmpty() ? juce::String ("Container") : name, trail[i], i == trail.size() - 1);
     }
     const double k = Project::containerScale (focus);
     juce::String about;
-    about << "   depth " << path.size() << "   " << juce::String::fromUTF8 ("\xc2\xb7") << "   "
+    about << "   depth " << trail.size() << "   " << juce::String::fromUTF8 ("\xc2\xb7") << "   "
           << (Project::isStretch (focus) ? "stretch " + juce::String::fromUTF8 ("\xc3\x97") + juce::String (k, 2) : juce::String ("window"));
     g.setFont (Theme::font (11.5f));
     g.setColour (Theme::textMuted);
@@ -163,7 +171,7 @@ void LevelBar::paint (juce::Graphics& g)
         g.fillRect (v1 - 1.0f, by - 3.0f, 1.0f, 4.5f);
     }
     double t = playheadPiece;
-    for (int i = 0; i + 1 < path.size(); ++i) t = Project::toInner (path[i], t);
+    for (int i = 0; i + 1 < trail.size(); ++i) t = Project::toInner (trail[i], t);
     const float px = toX (t, range);
     g.setColour (Theme::accent);
     g.fillRect (px - 0.5f, (float) strip.getY(), 1.5f, (float) strip.getHeight());

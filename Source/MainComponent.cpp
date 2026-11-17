@@ -25,6 +25,10 @@ MainComponent::MainComponent()
 
     addAndMakeVisible (transport);
     addAndMakeVisible (timeline);
+    addChildComponent (magnifier);
+    addChildComponent (magnifierBar);
+    wireView (timeline);
+    wireView (magnifier);
     addAndMakeVisible (inspector);
     addAndMakeVisible (panelEdge);
     addChildComponent (importPanel);
@@ -48,15 +52,29 @@ MainComponent::MainComponent()
     addChildComponent (outline);
     outlineShown = settings->getBoolValue ("outlineShown", true);
     project.onFocusChanged = [this] { focusChanged(); };
-    timeline.onDiveIn = [this] (juce::ValueTree c) { goTo (c); };
     levelBar.onGoTo = [this] (juce::ValueTree c) { goTo (c); };
     levelBar.onSelectAround = [this] (juce::ValueTree box) { goTo (Project::containerOf (box)); timeline.selectBox (box); };
     outline.onSelect = [this] (juce::ValueTree box)
     {
         if (! box.isValid()) { goTo ({}); return; }
+        // A box of either level shown is selected where it is (stage 6).
+        if (auto* v = viewFor (box)) { activate (*v); v->selectBox (box); return; }
         goTo (Project::containerOf (box));
         timeline.selectBox (box);
     };
+
+    // The magnifier (stage 6): its bar, and the divider it makes.
+    magnifierShare = juce::jlimit (0.2, 0.8, settings->getDoubleValue ("magnifierShare", 0.5));
+    magnifierBar.onClose = [this] { closeMagnifier(); };
+    magnifierBar.onGoInside = [this] { goTo (magnifier.getLevel()); };
+    magnifierBar.onDragStart = [this] { shareAtDragStart = magnifierShare; };
+    magnifierBar.onDrag = [this] (int dy)
+    {
+        const int h = juce::jmax (1, viewsArea.getHeight());
+        magnifierShare = juce::jlimit (0.15, 0.85, shareAtDragStart - (double) dy / h);
+        resized();
+    };
+    magnifierBar.onDragEnd = [this] { properties.getUserSettings()->setValue ("magnifierShare", magnifierShare); };
     outline.onDiveIn = [this] (juce::ValueTree c) { goTo (c); };
     outline.onHide = [this] { setOutlineShown (false); };
     transport.onToggleOutline = [this] { setOutlineShown (! outlineShown); };
@@ -68,53 +86,27 @@ MainComponent::MainComponent()
 
     transport.onPlayStop = [this] { playStop(); };
     transport.onToStart = [this] { locate (0.0); };
-    transport.onZoomIn = [this] { timeline.zoomBy (1.5, playheadInLevel()); };
-    transport.onZoomOut = [this] { timeline.zoomBy (1.0 / 1.5, playheadInLevel()); };
-    transport.onZoomFit = [this] { timeline.zoomToFit(); };
+    transport.onZoomIn = [this] { view().zoomBy (1.5, playheadInLevel()); };
+    transport.onZoomOut = [this] { view().zoomBy (1.0 / 1.5, playheadInLevel()); };
+    transport.onZoomFit = [this] { view().zoomToFit(); };
     transport.onImport = [this] { importDialog(); };
     transport.onToggleAudio = [this] { setAudioOn (! audioOn); };
 
-    timeline.onLocate = [this] (double t) { locate (t); };
-    timeline.onSelectionChanged = [this] { selectionChanged(); };
-    timeline.onAddTextBox = [this] (juce::ValueTree track, double t) { addTextBox (track, t); };
-    timeline.onEditNotes = [this] (juce::ValueTree box) { editNotes (box); };
-    timeline.onOpenNotesWindow = [this] (juce::ValueTree box) { timeline.selectBox (box); openNotesWindow(); };
-    timeline.onSplitAtPlayhead = [this] (juce::ValueTree box)
-    {
-        auto boxes = timeline.getSelectedBoxes();
-        if (boxes.isEmpty()) boxes.add (box);
-        splitAtPlayhead (boxes);
-    };
     inspector.onExpandNotes = [this] { openNotesWindow(); };
-    timeline.onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
-    timeline.onShowRulerPanel = [this] (const juce::String& layerId) { setPanelShown (true); inspector.showRuler (layerId); };
     inspector.getRulerPanel().getPlayhead = [this] { return playheadInLevel(); };
     inspector.getRulerPanel().setProperties (properties.getUserSettings());
     inspector.getRulerPanel().onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
     inspector.getRulerPanel().setFramework (&framework);
-    inspector.getRulerPanel().onAddLane = [this] (int laneIndex) { return timeline.addLane (laneIndex); };
+    inspector.getRulerPanel().onAddLane = [this] (int laneIndex) { return view().addLane (laneIndex); };
     inspector.extraInfo = [this]() -> std::pair<juce::String, juce::String>
     {
-        auto node = timeline.getSelectedNode();
-        return node.isValid() ? timeline.describeNode (node) : std::pair<juce::String, juce::String>();
-    };
-    timeline.onHighlightChanged = [this]
-    {
-        const auto& h = timeline.getHighlight();
-        transport.setStatus (h.isActive() ? "Highlighting " + h.describe (framework) + " (click the lane again, or View > Highlight > Show all, to clear)" : juce::String());
+        auto node = view().getSelectedNode();
+        return node.isValid() ? view().describeNode (node) : std::pair<juce::String, juce::String>();
     };
     inspector.getDisplayPanel().setProperties (properties.getUserSettings());
     inspector.getDisplayPanel().setView = [this] (const juce::Identifier& id, const juce::String& v) { setViewSetting (id, v); };
     inspector.getPackagesPanel().onAction = [this] (const juce::String& a, const juce::String& id) { packagesAction (a, id); };
     inspector.onShowFrameworks = [this] { showPackages(); };
-    timeline.onFilesDropped = [this] (const juce::StringArray& files, juce::ValueTree track, double t) { importFiles (files, track, t); };
-    timeline.onRevealOriginal = [this] (juce::ValueTree box)
-    {
-        auto s = project.findSound (box[IDs::soundId].toString());
-        juce::File f (s[IDs::originalPath].toString());
-        if (f.exists()) f.revealToUser();
-        else transport.setStatus ("The original of this sound is no longer at " + f.getFullPathName(), true);
-    };
     inspector.onReveal = [this] (const juce::File& f)
     {
         if (f.exists()) f.revealToUser();
@@ -131,7 +123,7 @@ MainComponent::MainComponent()
     {
         if (error.isNotEmpty()) transport.setStatus (error, true);
         rebuildArrangement();
-        timeline.repaint();
+        repaintViews();
         inspector.refresh();
     };
 
@@ -209,23 +201,202 @@ void MainComponent::setOutlineShown (bool shown)
 void MainComponent::goTo (juce::ValueTree container)
 {
     inspector.commitNotes();
-    project.setFocus (container);
+    closeMagnifier();
+    if (container.isValid() && (! Project::isContainer (container) || ! container.isAChildOf (project.getState()))) container = {};
+    if (container != timeline.getLevel())
+        timeline.setLevel (container);
+    if (project.getFocus() == container) levelsChanged();   // the focus was already there (the magnifier's)
+    else project.setFocus (container);
 }
 
 void MainComponent::focusChanged()
 {
-    timeline.levelChanged();
+    // A pane clicked: the focus follows it quietly, the views stay as they are.
+    if (quietFocus)
+    {
+        inspector.refresh();
+        selectionChanged();
+        commandManager.commandStatusChanged();
+        return;
+    }
+    // Going to a level, or the level worked on has gone (undo, delete).
+    if (magnifierShown && project.getFocus() != magnifier.getLevel()) closeMagnifier();
+    if (! magnifierShown && timeline.getLevel() != project.getFocus()) timeline.setLevel (project.getFocus());
+    levelsChanged();
+}
+
+void MainComponent::levelsChanged()
+{
     outline.refresh();
+    outline.setLevels (timeline.getLevel(), magnifierShown ? magnifier.getLevel() : juce::ValueTree());
     outline.showFocus();
-    levelBar.repaint();
+    levelBar.setLevel (timeline.getLevel());
     resized();
     selectionChanged();
     commandManager.commandStatusChanged();
-    const auto path = project.focusPath();
-    if (! path.isEmpty())
-        transport.setStatus ("Inside " + path.getLast()[IDs::name].toString() + ": double-click a container to go further in, Cmd-Up to go up.");
+    const auto level = timeline.getLevel();
+    if (level.isValid())
+        transport.setStatus ("Inside " + level[IDs::name].toString() + ": double-click a container to go further in, Cmd-Up to go up, Shift-Cmd-Down to magnify one below.");
     else
         transport.setStatus ({});
+}
+
+//== The magnifier (stage 6) ===================================================
+
+void MainComponent::wireView (TimelineView& v)
+{
+    v.onActivate = [this, &v] { activate (v); };
+    v.onDiveIn = [this] (juce::ValueTree c) { goTo (c); };
+    v.onMagnify = [this, &v] (juce::ValueTree c) { magnify (v, c); };
+    v.onLocate = [this] (double t) { locate (t); };
+    v.onSelectionChanged = [this, &v]
+    {
+        if (&v == active) selectionChanged();
+        // The magnifier follows the containers selected above (decision 1).
+        if (&v == &timeline && magnifierShown)
+        {
+            auto b = timeline.getSelectedBox();
+            if (Project::isContainer (b) && b != magnifier.getLevel() && timeline.getSelectedBoxes().size() == 1)
+                openMagnifier (b);
+        }
+    };
+    v.onAddTextBox = [this] (juce::ValueTree track, double t) { addTextBox (track, t); };
+    v.onEditNotes = [this] (juce::ValueTree box) { editNotes (box); };
+    v.onOpenNotesWindow = [this, &v] (juce::ValueTree box) { v.selectBox (box); openNotesWindow(); };
+    v.onSplitAtPlayhead = [this, &v] (juce::ValueTree box)
+    {
+        auto boxes = v.getSelectedBoxes();
+        if (boxes.isEmpty()) boxes.add (box);
+        splitAtPlayhead (boxes);
+    };
+    v.onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
+    v.onShowRulerPanel = [this] (const juce::String& layerId) { setPanelShown (true); inspector.showRuler (layerId); };
+    v.onHighlightChanged = [this, &v]
+    {
+        const auto& h = v.getHighlight();
+        (&v == &timeline ? magnifier : timeline).setHighlight (h);       // one highlight for both views
+        transport.setStatus (h.isActive() ? "Highlighting " + h.describe (framework) + " (click the lane again, or View > Highlight > Show all, to clear)" : juce::String());
+    };
+    v.onFilesDropped = [this] (const juce::StringArray& files, juce::ValueTree track, double t) { importFiles (files, track, t); };
+    v.onRevealOriginal = [this] (juce::ValueTree box)
+    {
+        auto s = project.findSound (box[IDs::soundId].toString());
+        juce::File f (s[IDs::originalPath].toString());
+        if (f.exists()) f.revealToUser();
+        else transport.setStatus ("The original of this sound is no longer at " + f.getFullPathName(), true);
+    };
+}
+
+void MainComponent::activate (TimelineView& v)
+{
+    if (&v == &magnifier && ! magnifierShown) return;
+    const bool changed = &v != active;
+    if (changed) inspector.commitNotes();
+    active = &v;
+    timeline.setActivePane (magnifierShown && active == &timeline);
+    magnifier.setActivePane (magnifierShown && active == &magnifier);
+    if (project.getFocus() != v.getLevel())
+    {
+        const juce::ScopedValueSetter<bool> quiet (quietFocus, true);
+        project.setFocus (v.getLevel());
+    }
+    else if (changed)
+    {
+        inspector.refresh();
+        selectionChanged();
+        commandManager.commandStatusChanged();
+    }
+}
+
+void MainComponent::openMagnifier (juce::ValueTree c)
+{
+    if (! Project::isContainer (c) || ! c.isAChildOf (project.getState()) || Project::containerOf (c) != timeline.getLevel()) return;
+    inspector.commitNotes();
+    project.prepareLevel (c);                      // its own rulers, on a first visit
+    if (active == &magnifier) activate (timeline);
+    magnifierShown = true;
+    resized();                                     // laid out first, so it can be fitted
+    magnifier.setHighlight (timeline.getHighlight());
+    magnifier.setLevel (c);
+    magnifier.zoomToFit();                          // fitted when it opens (decision 4)
+    magnifier.setPlayhead (engine.getPositionSeconds());
+    timeline.setMagnified (c);
+    timeline.setActivePane (true);
+    magnifier.setActivePane (false);
+    outline.setLevels (timeline.getLevel(), c);
+    updateMagnifierBar();
+    commandManager.commandStatusChanged();
+}
+
+void MainComponent::closeMagnifier()
+{
+    if (! magnifierShown) return;
+    if (active == &magnifier) activate (timeline);
+    magnifierShown = false;
+    magnifier.selectBox ({});
+    magnifier.setLevel ({});
+    timeline.setMagnified ({});
+    timeline.setActivePane (false);
+    outline.setLevels (timeline.getLevel(), {});
+    resized();
+    commandManager.commandStatusChanged();
+}
+
+void MainComponent::magnify (TimelineView& from, juce::ValueTree c)
+{
+    if (! Project::isContainer (c)) return;
+    if (&from == &magnifier && magnifierShown && Project::containerOf (c) == magnifier.getLevel())
+    {
+        // A level down: the upper view goes inside the magnified container.
+        const auto outer = magnifier.getLevel();
+        goTo (outer);
+        timeline.selectBox (c);
+        openMagnifier (c);
+        return;
+    }
+    if (magnifierShown && c == magnifier.getLevel()) { closeMagnifier(); return; }     // toggles
+    openMagnifier (c);
+}
+
+void MainComponent::updateMagnifierBar()
+{
+    if (! magnifierShown) return;
+    const auto c = magnifier.getLevel();
+    if (! c.isValid()) return;
+    juce::String name = c[IDs::name].toString();
+    if (name.isEmpty()) name = "Container";
+    // Its place in the piece, and how much larger it is drawn than above.
+    double from = 0.0, to = 0.0, upperPps = 1.0;
+    {
+        const Project::ScopedFocus upper (project, timeline.getLevel());
+        from = project.levelToPiece (Project::boxStart (c));
+        to = project.levelToPiece (Project::boxEnd (c));
+    }
+    upperPps = timeline.getPixelsPerSecond();
+    const double k = Project::containerScale (c);
+    const double times = magnifier.getPixelsPerSecond() / juce::jmax (1.0e-9, k * upperPps);
+    const auto dot = juce::String::fromUTF8 ("   \xc2\xb7   ");
+    int depth = 0;
+    for (auto p = c; p.isValid() && depth < 64; p = Project::containerOf (p)) ++depth;
+    juce::String about;
+    about << "depth " << depth << dot
+          << TimeFormat::format (from, 1) << juce::String::fromUTF8 (" \xe2\x80\x93 ") << TimeFormat::format (to, 1) << " in the piece" << dot
+          << juce::String::fromUTF8 ("\xc3\x97") << juce::String (times, times < 10.0 ? 1 : 0) << " larger" << dot
+          << (Project::isStretch (c) ? "stretch " + juce::String::fromUTF8 ("\xc3\x97") + juce::String (k, 2) : juce::String ("window"));
+    magnifierBar.setInfo (name, about);
+}
+
+TimelineView* MainComponent::viewFor (const juce::ValueTree& node)
+{
+    const auto level = Project::containerOf (node);
+    if (magnifierShown && level == magnifier.getLevel()) return &magnifier;
+    if (level == timeline.getLevel()) return &timeline;
+    return nullptr;
+}
+
+void MainComponent::selectInView (const juce::ValueTree& box)
+{
+    if (auto* v = viewFor (box)) v->selectBox (box);
 }
 
 void MainComponent::resized()
@@ -245,8 +416,19 @@ void MainComponent::resized()
     const bool showOutline = outlineShown && hasProject();
     outline.setVisible (showOutline);
     if (showOutline) outline.setBounds (r.removeFromLeft (OutlinePanel::preferredWidth));
-    levelBar.setVisible (hasProject() && ! project.atPiece());
+    levelBar.setVisible (hasProject() && timeline.getLevel().isValid());
     if (levelBar.isVisible()) levelBar.setBounds (r.removeFromTop (LevelBar::preferredHeight));
+    viewsArea = r;
+    // The magnifier below, half the height at first (decision 5); its bar is the divider.
+    const bool showMagnifier = magnifierShown && hasProject();
+    magnifier.setVisible (showMagnifier);
+    magnifierBar.setVisible (showMagnifier);
+    if (showMagnifier)
+    {
+        const int below = juce::jlimit (80, juce::jmax (80, r.getHeight() - 120), (int) std::round (r.getHeight() * magnifierShare));
+        magnifier.setBounds (r.removeFromBottom (below));
+        magnifierBar.setBounds (r.removeFromBottom (MagnifierBar::preferredHeight));
+    }
     timeline.setBounds (r);
     startPanel.setBounds (getLocalBounds());
     layoutImportPanel();
@@ -254,7 +436,7 @@ void MainComponent::resized()
 
 void MainComponent::layoutImportPanel()
 {
-    const auto t = timeline.getBounds();
+    const auto t = viewsArea.isEmpty() ? timeline.getBounds() : viewsArea;
     const int h = juce::jmin (t.getHeight() - 20, importPanel.preferredHeight());
     importPanel.setBounds (t.getRight() - 420 - 16, t.getBottom() - h - 16, 420, h);
 }
@@ -305,8 +487,15 @@ void MainComponent::afterProjectLoaded()
     loadFramework (false);
     startPanel.setVisible (false);
     pool.clear();
+    magnifierShown = false;
+    active = &timeline;
+    magnifier.resetLevels();
+    timeline.setMagnified ({});
+    timeline.setActivePane (false);
     timeline.selectBox ({});
     timeline.resetLevels();
+    levelBar.setLevel ({});
+    outline.setLevels ({}, {});
     auto& s = project.getState();
     timeline.setView (s.getProperty (IDs::viewStart, 0.0), s.getProperty (IDs::pixelsPerSecond, 20.0));
     outline.refresh();
@@ -354,7 +543,7 @@ void MainComponent::markClean()
 void MainComponent::saveProject()
 {
     inspector.commitNotes();
-    if (notesWindow != nullptr) notesWindow->setBox (notesWindow->isVisible() ? timeline.getSelectedBox() : juce::ValueTree());
+    if (notesWindow != nullptr) notesWindow->setBox (notesWindow->isVisible() ? view().getSelectedBox() : juce::ValueTree());
     {
         const juce::ScopedValueSetter<bool> svs (suppressDirty, true);
         auto& s = project.getState();
@@ -464,14 +653,20 @@ void MainComponent::rebuildArrangement()
 
 void MainComponent::modelChanged()
 {
-    project.checkFocus();                // the container shown may have gone (undo, delete)
+    project.checkFocus();                // the container worked on may have gone (undo, delete)
+    // The magnified container, or the one shown above, may have gone too (stage 6).
+    auto gone = [this] (const juce::ValueTree& c) { return c.isValid() && ! c.isAChildOf (project.getState()); };
+    if (magnifierShown && (gone (magnifier.getLevel()) || Project::containerOf (magnifier.getLevel()) != timeline.getLevel()))
+        closeMagnifier();
+    if (gone (timeline.getLevel())) goTo (project.getFocus().isAChildOf (project.getState()) ? project.getFocus() : juce::ValueTree());
     outline.refresh();
     levelBar.repaint();
     syncSounds();
     rebuildArrangement();
     inspector.refresh();
     if (notesWindow != nullptr) notesWindow->refresh();
-    timeline.repaint();
+    repaintViews();
+    updateMagnifierBar();
     updateTitle();
 }
 
@@ -490,7 +685,7 @@ void MainComponent::openFiles (const juce::StringArray& paths)
         sounds.add (p);
     }
     if (hasProject() && ! sounds.isEmpty())
-        importFiles (sounds, timeline.getSelectedLaneTrack(), playheadInLevel());
+        importFiles (sounds, view().getSelectedLaneTrack(), playheadInLevel());
 }
 
 void MainComponent::importDialog()
@@ -505,7 +700,7 @@ void MainComponent::importDialog()
         juce::StringArray paths;
         for (auto& f : fc.getResults()) paths.add (f.getFullPathName());
         if (paths.isEmpty()) return;
-        safeThis->importFiles (paths, safeThis->timeline.getSelectedLaneTrack(), safeThis->playheadInLevel());
+        safeThis->importFiles (paths, safeThis->view().getSelectedLaneTrack(), safeThis->playheadInLevel());
     });
 }
 
@@ -594,7 +789,7 @@ void MainComponent::placeReady (std::shared_ptr<ImportBatch> batch)
         project.getUndoManager().beginNewTransaction ("Import " + r.original.getFileName());
         auto box = project.addSoundBox (track, batch->cursor, soundId);
         batch->cursor = Project::boxEnd (box);
-        timeline.selectBox (box);
+        selectInView (box);
     }
 
     if (batch->next >= (int) batch->results.size())
@@ -619,38 +814,38 @@ void MainComponent::placeReady (std::shared_ptr<ImportBatch> batch)
 
 void MainComponent::selectionChanged()
 {
-    inspector.setSelection (timeline.getSelectedBoxes());
+    inspector.setSelection (view().getSelectedBoxes());
     juce::StringArray ids;
-    for (auto b : timeline.getSelectedBoxes()) ids.add (b[IDs::id].toString());
+    for (auto b : view().getSelectedBoxes()) ids.add (b[IDs::id].toString());
     outline.setSelected (ids);
     if (notesWindow != nullptr && notesWindow->isVisible())
-        notesWindow->setBox (timeline.getSelectedBox());
+        notesWindow->setBox (view().getSelectedBox());
 }
 
 void MainComponent::addTextBox (juce::ValueTree track, double start)
 {
-    if (! track.isValid() || Project::isFolder (track)) track = timeline.getSelectedLaneTrack();
+    if (! track.isValid() || Project::isFolder (track)) track = view().getSelectedLaneTrack();
     if (! track.isValid()) return;
     project.getUndoManager().beginNewTransaction ("New text box");
     // About 160 pixels long at the current zoom, at least 2 s.
-    auto box = project.addTextBox (track, start, juce::jmax (2.0, 160.0 / timeline.getPixelsPerSecond()));
-    timeline.selectBox (box);
+    auto box = project.addTextBox (track, start, juce::jmax (2.0, 160.0 / view().getPixelsPerSecond()));
+    view().selectBox (box);
     inspector.focusNotes();
 }
 
 void MainComponent::addContainer (juce::ValueTree track, double start)
 {
-    if (! track.isValid() || Project::isFolder (track)) track = timeline.getSelectedLaneTrack();
+    if (! track.isValid() || Project::isFolder (track)) track = view().getSelectedLaneTrack();
     if (! track.isValid()) return;
     project.getUndoManager().beginNewTransaction ("New container");
     // About 240 pixels long at the current zoom, at least 4 s.
-    auto box = project.addContainer (track, start, juce::jmax (4.0, 240.0 / timeline.getPixelsPerSecond()));
-    timeline.selectBox (box);
+    auto box = project.addContainer (track, start, juce::jmax (4.0, 240.0 / view().getPixelsPerSecond()));
+    view().selectBox (box);
 }
 
 void MainComponent::editNotes (juce::ValueTree box)
 {
-    timeline.selectBox (box);
+    view().selectBox (box);
     inspector.focusNotes();
 }
 
@@ -659,7 +854,7 @@ void MainComponent::openNotesWindow()
     inspector.commitNotes();
     if (notesWindow == nullptr)
         notesWindow = std::make_unique<NotesWindow> (project);
-    notesWindow->setBox (timeline.getSelectedBox());
+    notesWindow->setBox (view().getSelectedBox());
     notesWindow->setVisible (true);
     notesWindow->toFront (true);
 }
@@ -679,12 +874,12 @@ void MainComponent::splitAtPlayhead (juce::Array<juce::ValueTree> boxes)
         if (right.isValid()) rights.add (right);
     }
     if (rights.isEmpty()) transport.setStatus ("Nothing to split: no selected box is under the playhead.", true);
-    else timeline.setSelection (rights);
+    else view().setSelection (rights);
 }
 
 void MainComponent::copySelection()
 {
-    auto boxes = timeline.getSelectedBoxes();
+    auto boxes = view().getSelectedBoxes();
     if (boxes.isEmpty()) return;
 
     // Track offsets count only tracks that hold boxes (folders are skipped).
@@ -705,11 +900,11 @@ void MainComponent::copySelection()
 
 void MainComponent::deleteSelection (const juce::String& undoName)
 {
-    auto boxes = timeline.getSelectedBoxes();
-    if (boxes.isEmpty()) { timeline.deleteDrawnSelection(); return; }      // a node, span or accent (4d.2)
+    auto boxes = view().getSelectedBoxes();
+    if (boxes.isEmpty()) { view().deleteDrawnSelection(); return; }      // a node, span or accent (4d.2)
     project.getUndoManager().beginNewTransaction (undoName);
     for (auto b : boxes) project.removeBox (b);
-    timeline.selectBox ({});
+    view().selectBox ({});
 }
 
 void MainComponent::paste()
@@ -719,7 +914,7 @@ void MainComponent::paste()
     // At the playhead, starting on the selected track; more tracks are added if needed.
     const double t = playheadInLevel();
     auto lanes = project.laneTracks();
-    const int base = juce::jmax (0, lanes.indexOf (timeline.getSelectedLaneTrack()));
+    const int base = juce::jmax (0, lanes.indexOf (view().getSelectedLaneTrack()));
 
     project.getUndoManager().beginNewTransaction ("Paste");
 
@@ -749,7 +944,7 @@ void MainComponent::paste()
         lanes[base + clipboard[i].trackOffset].appendChild (copy, project.um());
         pasted.add (copy);
     }
-    timeline.setSelection (pasted);
+    view().setSelection (pasted);
 }
 
 //== Transport =================================================================
@@ -797,6 +992,7 @@ void MainComponent::locate (double seconds)
 {
     engine.locate (seconds);
     timeline.setPlayhead (seconds);
+    if (magnifierShown) magnifier.setPlayhead (seconds);
     transport.setTime (seconds);
 }
 
@@ -811,6 +1007,11 @@ void MainComponent::timerCallback()
     }
     const double t = engine.getPositionSeconds();
     timeline.setPlayhead (t);
+    if (magnifierShown)
+    {
+        magnifier.setPlayhead (t);
+        updateMagnifierBar();
+    }
     transport.setTime (t);
     transport.setPlaying (engine.isPlaying());
     if (audioOn) transport.setPeaks (engine.getPeak (0), engine.getPeak (1));
@@ -819,7 +1020,18 @@ void MainComponent::timerCallback()
         levelBar.setPlayhead (t);
         levelBar.setView (timeline.getViewStart(), timeline.getViewEnd());
     }
-    if (engine.isPlaying()) timeline.followPlayhead (t);
+    if (engine.isPlaying())
+    {
+        timeline.followPlayhead (t);
+        // The magnifier follows while the playhead is inside its container.
+        if (magnifierShown)
+        {
+            const auto c = magnifier.getLevel();
+            const Project::ScopedFocus upper (project, timeline.getLevel());
+            const double at = project.pieceToLevel (t);
+            if (at >= Project::boxStart (c) && at < Project::boxEnd (c)) magnifier.followPlayhead (t);
+        }
+    }
 
     // A reminder when the device runs at another rate than the project.
     if (auto* device = deviceManager.getCurrentAudioDevice())
@@ -874,7 +1086,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& c)
                   cmdPlayStop, cmdToStart, cmdZoomIn, cmdZoomOut, cmdZoomFit,
                   cmdAddTrack, cmdAudioSettings, cmdAudioEngine, cmdShortcuts,
                   cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel,
-                  cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, cmdDiveIn, cmdLevelUp, cmdToggleOutline });
+                  cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, cmdDiveIn, cmdLevelUp, cmdToggleOutline, cmdMagnify });
 }
 
 void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommandInfo& info)
@@ -882,7 +1094,7 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
     using KP = juce::KeyPress;
     const auto cmd = juce::ModifierKeys::commandModifier;
     const auto shift = juce::ModifierKeys::shiftModifier;
-    const bool hasBox = hasProject() && ! timeline.getSelectedBoxes().isEmpty();
+    const bool hasBox = hasProject() && ! view().getSelectedBoxes().isEmpty();
     const bool open = hasProject();
 
     switch (id)
@@ -905,7 +1117,7 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             break;
         case cmdDelete:
             info.setInfo ("Delete", "Delete the selected boxes", "Edit", 0);
-            info.setActive (hasBox || timeline.hasDrawnSelection());
+            info.setActive (hasBox || view().hasDrawnSelection());
             info.addDefaultKeypress (KP::backspaceKey, 0);
             info.addDefaultKeypress (KP::deleteKey, 0);
             break;
@@ -933,13 +1145,23 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case cmdDiveIn:
             info.setInfo ("Go inside", "Show the selected container's own timeline", "View", 0);
             info.addDefaultKeypress (KP::downKey, cmd);
-            info.setActive (hasProject() && Project::isContainer (timeline.getSelectedBox()));
+            info.setActive (hasProject() && Project::isContainer (view().getSelectedBox()));
             break;
         case cmdLevelUp:
             info.setInfo ("Up one level", "Show the level around this container", "View", 0);
             info.addDefaultKeypress (KP::upKey, cmd);
-            info.setActive (hasProject() && ! project.atPiece());
+            info.setActive (hasProject() && timeline.getLevel().isValid());
             break;
+        case cmdMagnify:
+        {
+            const auto sel = view().getSelectedBox();
+            const bool canOpen = hasProject() && Project::isContainer (sel) && (active == &timeline || magnifierShown);
+            info.setInfo (magnifierShown && (! canOpen || sel == magnifier.getLevel()) ? "Close the magnifier" : "Magnify below",
+                          "Show the selected container in a second timeline below, or close it", "View", 0);
+            info.addDefaultKeypress (KP::downKey, cmd | shift);
+            info.setActive (canOpen || magnifierShown);
+            break;
+        }
 
         case cmdAddTrack:      info.setInfo ("Add track", "Add a track below the selected one", "Track", 0); info.addDefaultKeypress ('n', cmd | shift); info.setActive (open); break;
         case cmdAudioSettings: info.setInfo ("Audio settings...", "Output device and sample rate", "Audio", 0); info.addDefaultKeypress (',', cmd); break;
@@ -957,13 +1179,13 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case cmdUngroup:
         {
             bool any = false;
-            if (hasProject()) for (auto b : timeline.getSelectedBoxes()) any = any || Project::isContainer (b);
+            if (hasProject()) for (auto b : view().getSelectedBoxes()) any = any || Project::isContainer (b);
             info.setInfo ("Ungroup", "Put the selected containers' boxes back on the tracks", "Edit", 0);
             info.addDefaultKeypress ('g', cmd | shift);
             info.setActive (any);
             break;
         }
-        case cmdSwap:          info.setInfo ("Swap the two boxes", "The two selected boxes change places, each keeping its length", "Edit", 0); info.setActive (hasProject() && timeline.getSelectedBoxes().size() == 2); break;
+        case cmdSwap:          info.setInfo ("Swap the two boxes", "The two selected boxes change places, each keeping its length", "Edit", 0); info.setActive (hasProject() && view().getSelectedBoxes().size() == 2); break;
         default: break;
     }
 }
@@ -987,70 +1209,77 @@ bool MainComponent::perform (const InvocationInfo& info)
         case cmdDelete:       deleteSelection ("Delete"); break;
         case cmdDuplicate:
         {
-            auto boxes = timeline.getSelectedBoxes();
+            auto boxes = view().getSelectedBoxes();
             if (boxes.isEmpty()) break;
             project.getUndoManager().beginNewTransaction ("Duplicate");
             juce::Array<juce::ValueTree> copies;
             for (auto b : boxes) copies.add (project.duplicateBox (b));
-            timeline.setSelection (copies);
+            view().setSelection (copies);
             break;
         }
-        case cmdNewTextBox:   addTextBox (timeline.getSelectedLaneTrack(), playheadInLevel()); break;
-        case cmdSplit:        splitAtPlayhead (timeline.getSelectedBoxes()); break;
+        case cmdNewTextBox:   addTextBox (view().getSelectedLaneTrack(), playheadInLevel()); break;
+        case cmdSplit:        splitAtPlayhead (view().getSelectedBoxes()); break;
         case cmdCopy:         copySelection(); break;
         case cmdCut:          copySelection(); deleteSelection ("Cut"); break;
         case cmdPaste:        paste(); break;
-        case cmdSelectAll:    timeline.selectAll(); break;
+        case cmdSelectAll:    view().selectAll(); break;
         case cmdNotesWindow:  openNotesWindow(); break;
-        case cmdNewContainer: addContainer (timeline.getSelectedLaneTrack(), playheadInLevel()); break;
+        case cmdNewContainer: addContainer (view().getSelectedLaneTrack(), playheadInLevel()); break;
         case cmdDiveIn:
         {
-            auto box = timeline.getSelectedBox();
+            auto box = view().getSelectedBox();
             if (Project::isContainer (box)) goTo (box);
             break;
         }
-        case cmdLevelUp:      if (! project.atPiece()) goTo (Project::containerOf (project.getFocus())); break;
+        case cmdLevelUp:      if (timeline.getLevel().isValid()) goTo (Project::containerOf (timeline.getLevel())); break;
+        case cmdMagnify:
+        {
+            const auto sel = view().getSelectedBox();
+            if (Project::isContainer (sel)) magnify (view(), sel);
+            else closeMagnifier();
+            break;
+        }
         case cmdToggleOutline: setOutlineShown (! outlineShown); break;
         case cmdGroup:
         {
-            auto boxes = timeline.getSelectedBoxes();
+            auto boxes = view().getSelectedBoxes();
             if (boxes.isEmpty()) break;
             project.getUndoManager().beginNewTransaction ("Group into a container");
             auto c = project.groupIntoContainer (boxes);
-            if (c.isValid()) timeline.selectBox (c);
+            if (c.isValid()) view().selectBox (c);
             break;
         }
         case cmdUngroup:
         {
             juce::Array<juce::ValueTree> moved;
             project.getUndoManager().beginNewTransaction ("Ungroup");
-            for (auto b : timeline.getSelectedBoxes())
+            for (auto b : view().getSelectedBoxes())
                 if (Project::isContainer (b)) moved.addArray (project.ungroupContainer (b));
-            timeline.setSelection (moved);
+            view().setSelection (moved);
             break;
         }
         case cmdSwap:
         {
-            auto boxes = timeline.getSelectedBoxes();
+            auto boxes = view().getSelectedBoxes();
             if (boxes.size() != 2) break;
             project.getUndoManager().beginNewTransaction ("Swap");
             project.swapBoxes (boxes[0], boxes[1]);
             break;
         }
-        case cmdDeselect:     timeline.selectBox ({}); break;
+        case cmdDeselect:     view().selectBox ({}); break;
 
         case cmdPlayStop:     playStop(); break;
         case cmdToStart:      locate (0.0); break;
-        case cmdZoomIn:       timeline.zoomBy (1.5, playheadInLevel()); break;
-        case cmdZoomOut:      timeline.zoomBy (1.0 / 1.5, playheadInLevel()); break;
-        case cmdZoomFit:      timeline.zoomToFit(); break;
+        case cmdZoomIn:       view().zoomBy (1.5, playheadInLevel()); break;
+        case cmdZoomOut:      view().zoomBy (1.0 / 1.5, playheadInLevel()); break;
+        case cmdZoomFit:      view().zoomToFit(); break;
         case cmdTogglePanel:  setPanelShown (! panelShown); break;
 
         case cmdAddTrack:
         {
             // After the selected track (and everything inside it), in the same folder.
             project.getUndoManager().beginNewTransaction ("Add track");
-            auto sel = timeline.getSelectedTrack();
+            auto sel = view().getSelectedTrack();
             if (sel.isValid()) project.addTrack ({}, project.blockEnd (sel), sel[IDs::folderId].toString());
             else project.addTrack();
             break;
@@ -1092,7 +1321,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
                        0, cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, 0, cmdSelectAll, cmdDeselect }); break;
         case 2:
         {
-            add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit, 0, cmdDiveIn, cmdLevelUp, 0, cmdTogglePanel, cmdToggleOutline });
+            add ({ cmdZoomIn, cmdZoomOut, cmdZoomFit, 0, cmdDiveIn, cmdLevelUp, cmdMagnify, 0, cmdTogglePanel, cmdToggleOutline });
             m.addSeparator();
             // Colour modes (stage 4a, 4b): 6000 = track colours, 6001 + category index
             const auto mode = project.getState().getProperty (IDs::colourMode, "own").toString();
@@ -1110,7 +1339,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             m.addSubMenu ("Colour boxes by", colours, hasProject());
 
             // Highlight: 6100 clears; values at highlightBase + index * 500 + 1 + i, groups at + 251 + i
-            const auto& h = timeline.getHighlight();
+            const auto& h = view().getHighlight();
             juce::PopupMenu hl;
             hl.addItem (6100, "Show all (clear)", h.isActive());
             for (auto& c : framework.getCategories())
@@ -1223,17 +1452,18 @@ void MainComponent::menuItemSelected (int id, int)
     if (id == 6099) { setPanelShown (true); inspector.showDisplay(); return; }
     if (id == 6100 || (id >= highlightBase && id < highlightBase + 500 * framework.getCategories().size()))
     {
-        if (id == 6100) timeline.clearHighlight();
+        if (id == 6100) view().clearHighlight();
         else
         {
             const auto& c = framework.getCategories().getReference ((id - highlightBase) / 500);
             const int item = (id - highlightBase) % 500;
             if (item >= 251 && juce::isPositiveAndBelow (item - 251, framework.groupsOf (c).size()))
-                timeline.toggleHighlight (c.key() + "#groups", framework.groupsOf (c)[item - 251].id);
+                view().toggleHighlight (c.key() + "#groups", framework.groupsOf (c)[item - 251].id);
             else if (item >= 1 && juce::isPositiveAndBelow (item - 1, framework.valuesOf (c).size()))
-                timeline.toggleHighlight (c.key(), framework.valuesOf (c)[item - 1].id);
+                view().toggleHighlight (c.key(), framework.valuesOf (c)[item - 1].id);
         }
-        const auto& h = timeline.getHighlight();
+        const auto& h = view().getHighlight();
+        (active == &timeline ? magnifier : timeline).setHighlight (h);
         transport.setStatus (h.isActive() ? "Highlighting " + h.describe (framework) + " (View > Highlight > Show all to clear)" : juce::String());
         return;
     }
@@ -1279,7 +1509,7 @@ void MainComponent::setViewSetting (const juce::Identifier& id, const juce::Stri
         if (value.isEmpty()) project.getState().removeProperty (id, nullptr);
         else project.getState().setProperty (id, value, nullptr);
     }
-    timeline.repaint();
+    repaintViews();
     inspector.frameworkChanged();
 }
 
@@ -1328,6 +1558,7 @@ void MainComponent::loadFramework (bool announce)
                              + (report.notes.isEmpty() ? juce::String() : " (" + juce::String (report.notes.size()) + " notes: Framework > Frameworks...)"));
 
     timeline.frameworkReloaded();
+    magnifier.frameworkReloaded();
     showGlyphProblems();
     inspector.frameworkChanged();
     inspector.refresh();

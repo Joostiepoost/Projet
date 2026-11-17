@@ -684,6 +684,7 @@ void Project::setFocus (juce::ValueTree c)
     if (c.isValid() && (! isContainer (c) || ! c.isAChildOf (state))) c = {};
     if (c == focus) return;
     focus = c;
+    ++focusSets;
     focusTrail = focusPath();
     if (focus.isValid())
     {
@@ -704,6 +705,7 @@ bool Project::checkFocus()
     for (int i = focusTrail.size() - 1; i >= 0; --i)
         if (focusTrail[i] != focus && focusTrail[i].isAChildOf (state)) { to = focusTrail[i]; break; }
     focus = {};                       // so setFocus sees a change
+    ++focusSets;
     setFocus (to);
     if (! to.isValid())
     {
@@ -726,6 +728,14 @@ juce::Array<juce::ValueTree> Project::allContainers()
     walk (getRootTracks());
     for (int i = 0; i < out.size() && i < 100000; ++i) walk (innerTracks (out[i]));
     return out;
+}
+
+void Project::prepareLevel (const juce::ValueTree& container)
+{
+    if (! isContainer (container)) return;
+    const ScopedFocus there (*this, container);
+    ensureTimeline (container.getChildWithName (IDs::TIMELINE));
+    ensureLevelRulers();
 }
 
 void Project::ensureLevelRulers()
@@ -1709,16 +1719,29 @@ juce::String Project::derivedValue (const Framework::Category& c, const Join& jo
     return {};
 }
 
-void Project::buildJoins()
+void Project::ensureJoins (const juce::ValueTree& box)
 {
-    joins.clear();
-    joinsValid = true;
+    if (! joinsValid)
+    {
+        joins.clear();
+        joinedLevels.clear();
+        joinsValid = true;
+    }
+    // Each level's joins are worked out the first time one of its boxes asks.
+    const auto level = containerOf (box)[IDs::id].toString();
+    if (joinedLevels.count (level) > 0) return;
+    joinedLevels.insert (level);
+    buildJoins (box.getParent().getParent());
+}
+
+void Project::buildJoins (const juce::ValueTree& tracks)
+{
     constexpr double eps = 1.0e-9;
 
     // Every box that sounds or plans a sound, with its track, for "covered".
     struct Span { double start, end; juce::String track; };
     std::vector<Span> spans;
-    for (auto t : getTracks())
+    for (auto t : tracks)
     {
         if (isFolder (t) || effectiveMute (t)) continue;
         const auto trackId = t[IDs::id].toString();
@@ -1726,7 +1749,7 @@ void Project::buildJoins()
             if (b.hasType (IDs::BOX)) spans.push_back ({ boxStart (b), boxEnd (b), trackId });
     }
 
-    for (auto t : getTracks())
+    for (auto t : tracks)
     {
         if (isFolder (t)) continue;
         std::vector<juce::ValueTree> boxes;
@@ -1757,7 +1780,7 @@ void Project::buildJoins()
 
 Project::Join Project::joinBefore (const juce::ValueTree& box)
 {
-    if (! joinsValid) buildJoins();
+    ensureJoins (box);
     Join j;
     const auto it = joins.find (box[IDs::id].toString());
     if (it == joins.end() || it->second.before.isEmpty()) return j;
@@ -1769,7 +1792,7 @@ Project::Join Project::joinBefore (const juce::ValueTree& box)
 
 juce::ValueTree Project::boxAfter (const juce::ValueTree& box)
 {
-    if (! joinsValid) buildJoins();
+    ensureJoins (box);
     const auto it = joins.find (box[IDs::id].toString());
     if (it == joins.end() || it->second.after.isEmpty()) return {};
     return box.getParent().getChildWithProperty (IDs::id, it->second.after);

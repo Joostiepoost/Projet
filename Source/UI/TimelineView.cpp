@@ -34,6 +34,7 @@ TimelineView::TimelineView (Project& p, projet::SoundPool& sp, const Framework& 
 
 void TimelineView::frameworkReloaded()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     glyphs.rebuild (framework);
     glyphCache.clear();
     displayCache = "\x01";      // reparse the display settings
@@ -41,6 +42,8 @@ void TimelineView::frameworkReloaded()
 }
 
 void TimelineView::resized() { updateScrollBar(); }
+
+void TimelineView::handleAsyncUpdate() { updateScrollBar(); }
 
 int TimelineView::maxScroll() const
 {
@@ -50,6 +53,7 @@ int TimelineView::maxScroll() const
 
 void TimelineView::updateScrollBar()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     // After every paint (asynchronously): the scroll bar follows the content.
     const int clamped = juce::jlimit (0, maxScroll(), scrollY);
     if (clamped != scrollY) { scrollY = clamped; repaint(); }
@@ -66,6 +70,7 @@ void TimelineView::updateScrollBar()
 
 void TimelineView::scrollBarMoved (juce::ScrollBar*, double newRangeStart)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     const int s = juce::jlimit (0, maxScroll(), juce::roundToInt (newRangeStart));
     if (s == scrollY) return;
     scrollY = s;
@@ -273,11 +278,13 @@ TimelineView::TrackDrop TimelineView::trackDropAt (int y) const
 
 juce::ValueTree TimelineView::getSelectedBox()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     return selectedBoxIds.size() == 1 ? project.findBox (selectedBoxIds[0]) : juce::ValueTree();
 }
 
 juce::Array<juce::ValueTree> TimelineView::getSelectedBoxes()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     juce::Array<juce::ValueTree> boxes;
     for (auto b : project.allBoxes())
         if (isSelected (b)) boxes.add (b);
@@ -295,6 +302,7 @@ void TimelineView::selectionChanged()
 
 void TimelineView::selectBox (const juce::ValueTree& box)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     juce::StringArray ids;
     if (box.isValid())
     {
@@ -313,6 +321,7 @@ void TimelineView::selectBox (const juce::ValueTree& box)
 
 void TimelineView::setSelection (const juce::Array<juce::ValueTree>& boxes)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     juce::StringArray ids;
     for (auto& b : boxes) ids.add (b[IDs::id].toString());
     if (! boxes.isEmpty()) selectedTrackId = boxes.getLast().getParent()[IDs::id].toString();
@@ -323,11 +332,13 @@ void TimelineView::setSelection (const juce::Array<juce::ValueTree>& boxes)
 
 void TimelineView::selectAll()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     setSelection (project.allBoxes());
 }
 
 juce::ValueTree TimelineView::getSelectedLaneTrack()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     auto t = project.findTrack (selectedTrackId);
     if (t.isValid() && ! Project::isFolder (t)) return t;
     auto lanes = project.laneTracks();
@@ -339,6 +350,7 @@ juce::ValueTree TimelineView::getSelectedLaneTrack()
 
 juce::ValueTree TimelineView::getSelectedTrack()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     auto tracks = project.getTracks();
     auto t = tracks.getChildWithProperty (IDs::id, selectedTrackId);
     return t.isValid() ? t : tracks.getChild (0);
@@ -346,6 +358,7 @@ juce::ValueTree TimelineView::getSelectedTrack()
 
 void TimelineView::setView (double start, double pixelsPerSecond)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     pps = juce::jlimit (0.5, 4000.0, pixelsPerSecond);
     viewStart = juce::jmax (0.0, start);
     repaint();
@@ -353,6 +366,7 @@ void TimelineView::setView (double start, double pixelsPerSecond)
 
 void TimelineView::zoomBy (double factor, double around)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     const float x = timeToX (around);
     pps = juce::jlimit (0.5, 4000.0, pps * factor);
     viewStart = juce::jmax (0.0, around - (double) (x - (float) headerWidth) / pps);
@@ -361,6 +375,7 @@ void TimelineView::zoomBy (double factor, double around)
 
 void TimelineView::zoomToFit()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     const double width = juce::jmax (100, getWidth() - headerWidth - 20);
     if (! project.atPiece())
     {
@@ -375,17 +390,20 @@ void TimelineView::zoomToFit()
     setView (0.0, width / end);
 }
 
-void TimelineView::levelChanged()
+void TimelineView::setLevel (juce::ValueTree newLevel)
 {
     levelViews[levelId] = { viewStart, pps };
-    const auto came = project.findBox (levelId);           // going up: the container we were in
-    levelId = project.atPiece() ? juce::String() : project.getFocus()[IDs::id].toString();
+    const auto cameFrom = level;
+    level = newLevel;
+    const Project::ScopedFocus levelScope (project, level);
+    levelId = level.isValid() ? level[IDs::id].toString() : juce::String();
     scrollY = 0;
     playhead = project.pieceToLevel (playheadPiece);
     auto it = levelViews.find (levelId);
     if (it != levelViews.end()) setView (it->second.first, it->second.second);
     else zoomToFit();
-    if (came.isValid()) selectBox (came);
+    // Going up: the container we were in is selected.
+    if (cameFrom.isValid() && Project::containerOf (cameFrom) == level) selectBox (cameFrom);
     else selectBox ({});
     repaint();
 }
@@ -406,6 +424,7 @@ double TimelineView::getPiecePixelsPerSecond() const
 
 void TimelineView::followPlayhead (double pieceSeconds)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     const double seconds = project.pieceToLevel (pieceSeconds);
     const double visible = (double) (getWidth() - headerWidth) / pps;
     if (seconds > viewStart + visible * 0.92 || seconds < viewStart)
@@ -417,6 +436,7 @@ void TimelineView::followPlayhead (double pieceSeconds)
 
 void TimelineView::setPlayhead (double pieceSeconds)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     playheadPiece = pieceSeconds;
     const double seconds = project.pieceToLevel (pieceSeconds);
     if (std::abs (seconds - playhead) * pps < 0.25) return;
@@ -430,6 +450,7 @@ void TimelineView::setPlayhead (double pieceSeconds)
 
 void TimelineView::paint (juce::Graphics& g)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     triggerAsyncUpdate();               // the scroll bar follows (after this paint)
     g.fillAll (Theme::background);
     auto rs = rows();
@@ -627,6 +648,26 @@ void TimelineView::paint (juce::Graphics& g)
     }
 
     paintWindowEdges (g);
+
+    // The container magnified below (stage 6): its span across the tracks.
+    if (magnified.isValid() && Project::containerOf (magnified) == level && magnified.getParent().isValid())
+    {
+        juce::Graphics::ScopedSaveState s (g);
+        const int top = tracksTop();
+        g.reduceClipRegion (headerWidth, top, getWidth() - headerWidth, getHeight() - top);
+        const float x0 = timeToX (Project::boxStart (magnified)), x1 = timeToX (Project::boxEnd (magnified));
+        g.setColour (Theme::magnifier.withAlpha (0.08f));
+        g.fillRect (x0, (float) top, x1 - x0, (float) (getHeight() - top));
+        g.setColour (Theme::magnifier.withAlpha (0.8f));
+        g.fillRect (x0, (float) top, 1.0f, (float) (getHeight() - top));
+        g.fillRect (x1 - 1.0f, (float) top, 1.0f, (float) (getHeight() - top));
+    }
+    // The view worked in, when there are two (stage 6).
+    if (activePane)
+    {
+        g.setColour (Theme::accent);
+        g.fillRect (0, 0, getWidth(), 2);
+    }
 
     // The proportion of the edge being moved
     if (readout.isNotEmpty())
@@ -1029,7 +1070,8 @@ void TimelineView::paintContainer (juce::Graphics& g, const juce::ValueTree& box
 
     paintFrameworkMarks (g, box, r, alpha);
     // A double edge tells a container from a sound box.
-    const auto edge = selected ? Theme::accent : (emphasis ? base.brighter (0.25f) : base).withAlpha (alpha);
+    auto edge = selected ? Theme::accent : (emphasis ? base.brighter (0.25f) : base).withAlpha (alpha);
+    if (box == magnified && ! selected) edge = Theme::magnifier;
     g.setColour (edge);
     g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : (emphasis ? 1.8f : 1.0f));
     if (r.getWidth() > 8.0f && r.getHeight() > 8.0f)
@@ -1347,6 +1389,7 @@ const TimelineView::SignHit* TimelineView::signAt (juce::Point<float> p) const
 
 juce::String TimelineView::getTooltip()
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (auto* hit = signAt (getMouseXYRelative().toFloat())) return hit->tip;
     return {};
 }
@@ -1542,6 +1585,7 @@ void TimelineView::showSignMenu (const SignHit& hit)
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, box] (int r)
     {
         if (safe == nullptr || r == 0) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         if (r >= boxMenuBase && r < folderMenuBase) { safe->applyFrameworkMenu (r, { box }); safe->repaint(); }
     });
 }
@@ -1897,6 +1941,7 @@ void TimelineView::paintWaveform (juce::Graphics& g, const juce::ValueTree& box,
 
 void TimelineView::mouseMove (const juce::MouseEvent& e)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (rulerMouseMove (e)) return;
     Zone zone;
     auto box = boxAt (e.position, zone);
@@ -1908,6 +1953,8 @@ void TimelineView::mouseMove (const juce::MouseEvent& e)
 
 void TimelineView::mouseDown (const juce::MouseEvent& e)
 {
+    if (onActivate) onActivate();          // this view's level becomes the one worked on (stage 6)
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     dragMode = DragMode::none;
     if (auto* parent = getParentComponent()) parent->grabKeyboardFocus();   // so Space etc. reach the commands
 
@@ -2050,6 +2097,7 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
 
 void TimelineView::mouseDrag (const juce::MouseEvent& e)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (rulerMouseDrag (e)) return;
     const bool snapping = ! e.mods.isShiftDown();
     const double t = xToTime (e.position.x);
@@ -2216,6 +2264,7 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
 
 void TimelineView::mouseUp (const juce::MouseEvent& e)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (drawnMouseUp (e)) return;                   // drawn lanes and nodes (4d.2)
     if (clickedSelectedBox && ! e.mouseWasDraggedSinceMouseDown() && dragBox.isValid())
         selectBox (dragBox);
@@ -2264,6 +2313,7 @@ void TimelineView::mouseUp (const juce::MouseEvent& e)
 
 void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (rulerDoubleClick (e)) return;
     if (e.y < tracksTop()) return;
 
@@ -2292,6 +2342,7 @@ void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
 
 void TimelineView::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (e.mods.isCommandDown())
     {
         zoomBy (std::pow (1.0025, (double) w.deltaY * 400.0), xToTime (e.position.x));
@@ -2313,6 +2364,7 @@ void TimelineView::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseW
 
 void TimelineView::mouseMagnify (const juce::MouseEvent& e, float scaleFactor)
 {
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     zoomBy ((double) scaleFactor, xToTime (e.position.x));
 }
 
@@ -2388,6 +2440,7 @@ void TimelineView::showTrackMenu (juce::ValueTree track)
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, track] (int r) mutable
     {
         if (safe == nullptr || r == 0) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         auto& p = safe->project;
         const int index = p.getTracks().indexOf (track);
         const auto folderId = track[IDs::folderId].toString();
@@ -2448,6 +2501,7 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
     if (Project::isContainer (box) && ! several)
     {
         m.addItem (25, "Go inside (double-click, Cmd-Down)");
+        m.addItem (26, "Magnify below (Shift-Cmd-Down)");
         m.addSeparator();
     }
     m.addItem (1, several ? "Duplicate boxes" : "Duplicate");
@@ -2503,6 +2557,7 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
     m.showMenuAsync (juce::PopupMenu::Options(), [safe, box] (int r) mutable
     {
         if (safe == nullptr || r == 0) return;
+        const Project::ScopedFocus levelScope (safe->project, safe->level);   // the menu's view's level (stage 6)
         auto& p = safe->project;
         auto selection = safe->getSelectedBoxes();
         if (selection.isEmpty()) selection.add (box);
@@ -2525,6 +2580,10 @@ void TimelineView::showBoxMenu (juce::ValueTree box)
         else if (r == 25)
         {
             if (safe->onDiveIn) safe->onDiveIn (box);
+        }
+        else if (r == 26)
+        {
+            if (safe->onMagnify) safe->onMagnify (box);
         }
         else if (r >= 41 && r <= 43)
         {
@@ -2596,6 +2655,8 @@ bool TimelineView::isInterestedInFileDrag (const juce::StringArray& files)
 
 void TimelineView::filesDropped (const juce::StringArray& files, int x, int y)
 {
+    if (onActivate) onActivate();
+    const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     dropHighlight = false;
     repaint();
 

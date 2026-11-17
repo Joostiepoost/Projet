@@ -51,8 +51,8 @@ Other options:
 | 4d.2 | The dynamic form lane (Thoresen: form-building functions, deltas, goals, accents), drawn by hand; nodes on folders, with their checks | done |
 | 5a | Containers: boxes holding a timeline of their own, stretch or window, grouping and ungrouping, nested playback, a miniature of the inside; opacity follows gain; swapping boxes | done |
 | 5b | Moving between levels: going inside containers, breadcrumbs and depth, the context strip, the outline panel; each level with its own rulers, marks and lanes | done |
-| 5c | The framework on containers: section fields (writing type, time-feel, nodes) on containers, the dynamic form attached to them, time-field brackets, typological formulas | built, to test |
-| 6 | Magnified inline expansion | |
+| 5c | The framework on containers: section fields (writing type, time-feel, nodes) on containers, the dynamic form attached to them, time-field brackets, typological formulas | done |
+| 6 | Magnified inline expansion: a container of the level shown opened in a second timeline below, with full editing, following the selection | built, to test |
 | 7 | Takes | |
 | 8 | Relations, materials, origin | |
 | 9 | Framework, layer 4: factor curves | |
@@ -60,7 +60,7 @@ Other options:
 | 11 | Board box | |
 | 12 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 
-## Using Projet (stages 1–5c)
+## Using Projet (stages 1–6)
 
 ### The project folder
 
@@ -327,6 +327,17 @@ Containers are the sections folders stood in for in stage 4d.
 - **Typological formula**: each container gets a formula in Schaeffer's notation, from the types of the boxes inside it and how they sit in time: parts in succession joined by +, parts at once by a dot, after its own type: A(N + X.Y + N). Parts count as at once when they overlap by at least half the shorter one; text boxes without a type are left out, other boxes without one show as ?, and a container inside without a type gives its own formula. It shows in the container's header (when there is room), on its section row, in the panel and in the Framework tab beside its own type, which stays yours to choose.
 - Framework packages: schaeffer v4 marks its type as the one that makes formulas (`"formula": true`); vandegorne v4 speaks of sections. *Framework > Frameworks...* to take them.
 
+### The magnifier (stage 6)
+
+A container of the level you are in can be opened in a **second timeline below**, magnified, while the level around it stays in view above.
+- **Open it**: select a container and **Shift-Cmd-Down** (*View > Magnify below*, or right-click > *Magnify below*). It opens fitted to the container, in half the height; the container is marked in blue above (a band across the tracks) and in the outline.
+- **It follows the selection**: while it is open, select another container above and the magnifier shows that one instead (fitted again).
+- **Work in either**: everything works in the magnifier as inside the container (its own rulers, marks, lanes and section row; adding, moving, trimming, framework values, undo). Click in a timeline to work there: a line along its top shows which, and the panel, the commands, the zoom buttons and the playhead commands (Cmd-B, Cmd-T, paste) follow it. Each timeline keeps its own selection, zoom and scroll.
+- **The bar** between the two: the container's name, its depth, where it lies in the piece, how much larger it is drawn than above (×2.5 larger), and its scale (stretch ×1.00) or *window*. Drag the bar up or down to give either timeline more room (remembered). *Go inside* goes into the container (the magnifier closes); × closes it.
+- **A level down**: select a container inside the magnified one and Shift-Cmd-Down (or right-click > *Magnify below*): the upper timeline goes inside the magnified container and the magnifier shows the one you selected.
+- **Closing**: × on the bar, Shift-Cmd-Down again on the magnified container (or with no container selected), double-clicking a container in it (which goes inside that one), Cmd-Up, Cmd-Down, the breadcrumbs or the outline going to another level. If the magnified container goes (deleted, undone), the magnifier closes.
+- The **playhead** is drawn in both, each in its own time; during playback the magnifier follows it while it is inside the container. **Highlight** (View > Highlight, or a lane click) shows in both. One container is magnified at a time.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -358,6 +369,15 @@ Containers are the sections folders stood in for in stage 4d.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 6**:
+- On the piece, select a container and Shift-Cmd-Down: the magnifier below, fitted; the blue band above and the blue row in the outline; the bar (depth, place in the piece, ×larger, stretch or window). Select another container above: it follows.
+- Click in the magnifier (the line along its top moves there; the panel shows its level and selection): add a text box (double-click), move and trim boxes, give one an energy, split one at the playhead, paste; undo. Click above again: the panel and commands go back there.
+- Drag the bar up and down; zoom and scroll each timeline on its own (the zoom buttons work on the one you last clicked).
+- A container inside the magnified one: select it below and Shift-Cmd-Down (the upper timeline goes inside, the magnifier shows the inner one); Cmd-Up; *Go inside* on the bar; double-click a container below.
+- Delete the magnified container above, or group boxes, magnify the new container, click in it and undo: the magnifier closes.
+- Play, or click the ruler above: the playhead in both; a stretched or window container below.
+- Whatever feels awkward to work with (which timeline the commands go to, the selections in both, the following): tell me, and we change it.
 
 **Worth testing in stage 5c**:
 - First, *Framework > Frameworks...*: schaeffer v4 and vandegorne v4 — *Library: take Projet's*, then *Take the library's* (formulas work with v3 too).

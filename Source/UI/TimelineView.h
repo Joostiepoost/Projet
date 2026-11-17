@@ -89,16 +89,27 @@ public:
         it falls in the level shown). */
     void setPlayhead (double seconds);
 
-    //== Levels (stage 5b) ====================================================
-    /** The project's focus changed: each level keeps its own view; the first
-        visit to a container fits its window. Going up selects the container
-        you came from. */
-    void levelChanged();
+    //== Levels (stage 5b, 6) =================================================
+    /** Shows a level (invalid: the piece; or a container). Each level keeps
+        its own view; the first visit to a container fits its window. Going
+        up selects the container you came from. Everything the view draws or
+        does happens in its own level, whichever level the project is
+        working on (stage 6: two views). */
+    void setLevel (juce::ValueTree level);
+    juce::ValueTree getLevel() const                { return level; }
+    /** The container magnified in the other view, highlighted here. */
+    void setMagnified (const juce::ValueTree& container)    { magnified = container; repaint(); }
+    /** With two views: the one worked in has a mark along its top. */
+    void setActivePane (bool isActive)              { if (isActive != activePane) { activePane = isActive; repaint(); } }
+    /** The view is clicked: its level becomes the one worked on. */
+    std::function<void()> onActivate;
+    /** Magnify a container below (stage 6). */
+    std::function<void (juce::ValueTree container)> onMagnify;
     /** The piece's own view, wherever the focus is (for saving). */
     double getPieceViewStart() const;
     double getPiecePixelsPerSecond() const;
     /** Forget every level's view (another project). */
-    void resetLevels()                              { levelViews.clear(); levelId = {}; }
+    void resetLevels()                              { levelViews.clear(); levelId = {}; level = {}; magnified = {}; }
 
     //== Callbacks ============================================================
     std::function<void (double seconds)> onLocate;
@@ -133,6 +144,7 @@ public:
     void toggleHighlight (const juce::String& key, const juce::String& id);
     void clearHighlight()                           { highlight = {}; repaint(); }
     const Highlight& getHighlight() const noexcept  { return highlight; }
+    void setHighlight (const Highlight& h)          { highlight = h; repaint(); }
     bool matchesHighlight (const juce::ValueTree& box);
     /** The mark a category gets on the boxes: the project's display setting,
         else the package's. */
@@ -186,7 +198,7 @@ private:
     juce::ScrollBar vScroll { true };
     void updateScrollBar();
     void scrollBarMoved (juce::ScrollBar*, double newRangeStart) override;
-    void handleAsyncUpdate() override               { updateScrollBar(); }
+    void handleAsyncUpdate() override;
     LayerRow layerAt (int y) const;
 
     struct Tick { double time = 0.0; Proportion::Division division; float height = 0.0f; bool labelled = false;
@@ -344,6 +356,8 @@ private:
     // Each level's view (stage 5b): container id ("" for the piece) -> start, pixels per second.
     std::map<juce::String, std::pair<double, double>> levelViews;
     juce::String levelId;
+    juce::ValueTree level, magnified;
+    bool activePane = false;
     void paintWindowEdges (juce::Graphics&);
     bool dropHighlight = false;
 
