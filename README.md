@@ -54,13 +54,14 @@ Other options:
 | 5c | The framework on containers: section fields (writing type, time-feel, nodes) on containers, the dynamic form attached to them, time-field brackets, typological formulas | done |
 | 6 | Magnified inline expansion: a container of the level shown opened in a second timeline below, with full editing, following the selection | done |
 | 7 | Takes: alternatives of a box's content (sounds, texts, containers), one active; new takes from a copy, the project's sounds or files; switching on the box, in the panel or with Cmd-] and Cmd-[; takes shown stacked in their boxes | built, to test |
-| 8 | Relations, materials, origin; the operations of the structuring language (built last, after stage 12, once the research is ready) | |
-| 9 | Framework, layer 4: factor curves | |
-| 10 | Strata view | |
-| 11 | Board box | |
-| 12 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
+| 8 | Framework, layer 4: variation factors as curves along a box (in its Framework tab or drawn over the box), reshaping its glyph; one factor across the boxes in the energies lane | built, to test |
+| 9 | Board box | |
+| 10 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
+| 11 | Relations, materials, origin; the operations of the structuring language (once the research is ready) | |
+| 12 | Strata view | |
+| 13 | A framework package template, for packages of your own | |
 
-## Using Projet (stages 1–7)
+## Using Projet (stages 1–8)
 
 ### The project folder
 
@@ -355,6 +356,17 @@ A box can hold **takes**: alternatives of what it is, A, B, C ..., one of them a
 - **Editing boxes with takes**: copying, pasting, duplicating and moving keep all takes. Splitting cuts every take at the same point (a take that ends before the cut stays whole in the first part). Grouping keeps them inside the container. Ungrouping a container with several takes puts back the active take's boxes; the other takes go (Cmd-Z brings them back).
 - **Containers with takes**: inside a container, or magnified, you see and edit its active take's inside. Switching to a take that is not a container closes the magnifier, or takes you up a level if you were inside it.
 
+### Variation factors (stage 8)
+
+An energy has its **variation factors** (Vande Gorne's, with dynamics for every energy): an oscillation its speed, triggering force, frequency, density and spectrum; a percussion its attack, sustainment and harmonic halo; and so on, plus left-right space and depth for all. Each is a **curve along the box**, from its start to its end, between the factor's two ends (slow and fast, weak and strong). The curves describe the sound and reshape its glyph; they do not change the sound.
+- **Where**: the box's **Framework** tab, under its energy (and its second energy): one small curve per factor, with its two ends. A factor without a curve is at its neutral value (the dotted line) and the glyph is drawn as before.
+- **Drawing**: click to add a point, drag a point to move it, double-click a point to remove it, **Alt-drag** to draw freely (it becomes a point every 12 pixels). Right-click: a point's line straight or smooth, *Start from a shape* (rising, falling, swell, dip, steps), all straight, all smooth, *Reset* (no curve).
+- **Over the box**: the pen (✎) beside a factor draws it over the selected box itself, in its lower part, with the same gestures, which is easier on a long box (make the track taller, or zoom in). The status line says which factor. It follows the selection: another box with the same factor gets the overlay; the pen again stops it.
+- **What the glyph does**: speed spaces an oscillation's swings, density fills a cloud, attack sharpens a percussion's front, sustainment lengthens its resonance, the triggering force widens the swings, and so on for each energy. **Dynamics** takes the place of the profile's envelope; **left-right space** draws the glyph lower (left) or higher (right); **depth** draws it smaller and fainter (far).
+- **Takes and editing**: each take has its own curves; splitting a box cuts its curves at the same point; copying, pasting and undo keep them.
+- **In the energies lane**: right-click the lane's header > *Show a variation factor* > speed (or any other): the lane shows that factor across the boxes of the level, each box's curve over its own time (the second energy fainter, a box without a curve dotted at its neutral value). *Off* shows the energies again.
+- The factors come from the composition package, **version 6**: take it first (*Framework > Frameworks...*: *Library: take Projet's*, then *Take the library's*). A package of your own can list factors for its categories (its help says how); `glyphs.js` reads them as `f ("speed", t)`.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -386,6 +398,16 @@ A box can hold **takes**: alternatives of what it is, A, B, C ..., one of them a
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 8**:
+- First, *Framework > Frameworks...*: composition v6, *Library: take Projet's*, then *Take the library's*.
+- Give a sound box an energy (an oscillation, say): its factors appear under it in the Framework tab. Click two or three points into speed: the swings tighten where it is fast. Drag a point; double-click one; Alt-drag a curve; right-click for the shapes, straight and smooth, and Reset. Cmd-Z.
+- Dynamics on a box with a profile: the drawn curve replaces the profile's envelope. Left-right space and depth: the glyph moves up and down, grows smaller and fainter.
+- Other energies: a percussion's attack and sustainment, an accumulation's density, a rotation's speed. Tell me where a factor does too little or too much, or the wrong thing.
+- The pen beside a factor: draw over a long box in a tall track; select another box with the same energy (the overlay follows); the pen again.
+- Split a box with curves at the playhead; switch takes (each its own curves); copy and paste.
+- An energies lane: right-click its header > *Show a variation factor* > speed; boxes with and without curves; *Off*.
+- Save, quit, reopen.
 
 **Worth testing in stage 7**:
 - Select a sound box; **New take** > *A sound from the project*: the box gets the other sound's length, B/2 on the box, A B in the panel. Click A and B (and listen); Cmd-] and Cmd-[; Cmd-Z.

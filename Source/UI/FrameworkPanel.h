@@ -34,6 +34,11 @@ public:
 
     /** "Frameworks..." and "Display..." at the bottom of the tab. */
     std::function<void()> onShowFrameworks, onShowDisplay;
+    /** Stage 8: a factor's curve to draw over the box on the timeline ("" "": stop). */
+    std::function<void (const juce::String& categoryKey, const juce::String& factorId)> onDrawFactor;
+    /** The factor being drawn on the timeline, shown pressed. */
+    void setDrawingFactor (const juce::String& categoryKey, const juce::String& factorId)
+                                                    { drawingKey = categoryKey; drawingFactor = factorId; rebuild(); }
 
 private:
     class Content;
@@ -49,4 +54,5 @@ private:
     void setTag (const juce::String& categoryKey, const juce::String& tag, bool on);
     /** The changes along the (one) selected box. Undoable. */
     void setAlong (const juce::String& categoryKey, const juce::Array<Along::Change>& changes);
+    juce::String drawingKey, drawingFactor;
 };

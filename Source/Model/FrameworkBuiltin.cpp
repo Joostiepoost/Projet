@@ -35,7 +35,7 @@ const juce::Array<Framework::Builtin>& Framework::builtins()
 R"PKG({
   "projet": "framework package",
   "id": "composition",
-  "version": 5,
+  "version": 6,
   "order": 10,
   "name": {"fr": "Cadre de composition", "en": "Composition framework"},
   "about": {
@@ -93,103 +93,213 @@ R"PKG({
           }
         ]
       },
-      "details": {"fr": "Facteurs de variation", "en": "Variation factors"},
+      "factors": [
+        {
+          "id": "dynamique",
+          "name": {"fr": "dynamique", "en": "dynamics"},
+          "low": {"fr": "pp", "en": "pp"},
+          "high": {"fr": "ff", "en": "ff"},
+          "neutral": 1,
+          "effect": "envelope",
+          "about": {
+            "fr": "dessinée, elle remplace l'enveloppe du profil dynamique",
+            "en": "once drawn, it takes the place of the dynamic profile's envelope"
+          }
+        },
+        {
+          "id": "attaque",
+          "name": {"fr": "attaque", "en": "attack"},
+          "low": {"fr": "douce", "en": "soft"},
+          "high": {"fr": "raide", "en": "sharp"}
+        },
+        {
+          "id": "entretien",
+          "name": {"fr": "entretien", "en": "sustainment"},
+          "low": {"fr": "bref", "en": "short"},
+          "high": {"fr": "long", "en": "long"}
+        },
+        {
+          "id": "halo",
+          "name": {"fr": "halo harmonique", "en": "harmonic halo"},
+          "low": {"fr": "sans", "en": "none"},
+          "high": {"fr": "riche", "en": "rich"}
+        },
+        {
+          "id": "vitesse",
+          "name": {"fr": "vitesse", "en": "speed"},
+          "low": {"fr": "lente", "en": "slow"},
+          "high": {"fr": "rapide", "en": "fast"}
+        },
+        {
+          "id": "grain",
+          "name": {"fr": "grain", "en": "grain"},
+          "low": {"fr": "fin", "en": "fine"},
+          "high": {"fr": "gros", "en": "coarse"}
+        },
+        {
+          "id": "iteratif",
+          "name": {"fr": "entretien itératif", "en": "iterative sustainment"},
+          "low": {"fr": "espacé", "en": "sparse"},
+          "high": {"fr": "serré", "en": "close"}
+        },
+        {
+          "id": "masse",
+          "name": {"fr": "masse", "en": "mass"},
+          "low": {"fr": "mince", "en": "thin"},
+          "high": {"fr": "épaisse", "en": "thick"}
+        },
+        {
+          "id": "calibre",
+          "name": {"fr": "calibre", "en": "caliber"},
+          "low": {"fr": "égal", "en": "even"},
+          "high": {"fr": "varié", "en": "varied"}
+        },
+        {
+          "id": "densite",
+          "name": {"fr": "densité", "en": "density"},
+          "low": {"fr": "clairsemée", "en": "sparse"},
+          "high": {"fr": "dense", "en": "dense"}
+        },
+        {
+          "id": "force",
+          "name": {"fr": "force de déclenchement", "en": "triggering force"},
+          "low": {"fr": "faible", "en": "weak"},
+          "high": {"fr": "forte", "en": "strong"}
+        },
+        {
+          "id": "frequence",
+          "name": {"fr": "fréquence", "en": "frequency"},
+          "low": {"fr": "grave", "en": "low"},
+          "high": {"fr": "aiguë", "en": "high"}
+        },
+        {
+          "id": "spectre",
+          "name": {"fr": "spectre", "en": "spectrum"},
+          "low": {"fr": "sombre", "en": "dark"},
+          "high": {"fr": "brillant", "en": "bright"}
+        },
+        {
+          "id": "espace",
+          "name": {"fr": "espace G-D", "en": "left-right space"},
+          "low": {"fr": "gauche", "en": "left"},
+          "high": {"fr": "droite", "en": "right"},
+          "effect": "shift",
+          "about": {
+            "fr": "dessiné plus bas (gauche) ou plus haut (droite)",
+            "en": "drawn lower (left) or higher (right)"
+          }
+        },
+        {
+          "id": "profondeur",
+          "name": {"fr": "profondeur", "en": "depth"},
+          "low": {"fr": "proche", "en": "near"},
+          "high": {"fr": "lointain", "en": "far"},
+          "neutral": 0,
+          "effect": "depth",
+          "about": {"fr": "lointain : plus petit et plus pâle", "en": "far: smaller and fainter"}
+        },
+        {
+          "id": "matiere",
+          "name": {"fr": "matière", "en": "matter"},
+          "low": {"fr": "lisse", "en": "smooth"},
+          "high": {"fr": "rugueuse", "en": "rough"}
+        },
+        {
+          "id": "profilmasse",
+          "name": {"fr": "profil de masse", "en": "mass profile"},
+          "low": {"fr": "étroit", "en": "narrow"},
+          "high": {"fr": "large", "en": "wide"}
+        },
+        {
+          "id": "profilmelodique",
+          "name": {"fr": "profil mélodique", "en": "melodic profile"},
+          "low": {"fr": "descend", "en": "falls"},
+          "high": {"fr": "monte", "en": "rises"}
+        },
+        {
+          "id": "envspectrale",
+          "name": {"fr": "enveloppe spectrale", "en": "spectral envelope"},
+          "low": {"fr": "sombre", "en": "dark"},
+          "high": {"fr": "brillante", "en": "bright"}
+        },
+        {
+          "id": "direction",
+          "name": {"fr": "direction de l'accélération", "en": "direction of acceleration"},
+          "low": {"fr": "vers le bas", "en": "downward"},
+          "high": {"fr": "vers le haut", "en": "upward"},
+          "neutral": 1
+        }
+      ],
       "values": [
         {
           "id": "percussion-resonance",
           "name": {"fr": "Percussion-résonance", "en": "Percussion-resonance"},
           "glyph": "percussion-resonance",
           "groups": ["materielle"],
-          "details": {
-            "fr": ["dynamique", "halo harmonique", "attaque", "entretien"],
-            "en": ["dynamics", "harmonic halo", "attack", "sustainment"]
-          }
+          "factors": ["dynamique", "halo", "attaque", "entretien"]
         },
         {
           "id": "frottement-granulation",
           "name": {"fr": "Frottement-granulation", "en": "Friction-granulation"},
           "glyph": "frottement-granulation",
           "groups": ["materielle", "gestuelle"],
-          "details": {
-            "fr": ["vitesse", "grain", "entretien itératif"],
-            "en": ["speed", "grain", "iterative sustainment"]
-          }
+          "factors": ["dynamique", "vitesse", "grain", "iteratif"]
         },
         {
           "id": "accumulation-corpuscules",
           "name": {"fr": "Accumulation de corpuscules", "en": "Accumulation of corpuscles"},
           "glyph": "accumulation-corpuscules",
           "groups": ["globale"],
-          "details": {"fr": ["grain", "masse", "calibre", "densité"], "en": ["grain", "mass", "caliber", "density"]}
+          "factors": ["dynamique", "grain", "masse", "calibre", "densite"]
         },
         {
           "id": "oscillation",
           "name": {"fr": "Oscillation", "en": "Oscillation"},
           "glyph": "oscillation",
           "groups": ["loi"],
-          "details": {
-            "fr": [
-              "force de déclenchement",
-              "vitesse",
-              "densité",
-              "fréquence",
-              "spectre",
-              "espace G-D",
-              "profondeur"
-            ],
-            "en": ["triggering force", "speed", "density", "frequency", "spectrum", "left-right space", "depth"]
-          }
+          "factors": ["dynamique", "force", "vitesse", "densite", "frequence", "spectre", "espace", "profondeur"]
         },
         {
           "id": "balancement",
           "name": {"fr": "Balancement", "en": "Swaying"},
           "glyph": "balancement",
           "groups": ["gestuelle"],
-          "details": {
-            "fr": ["vitesse", "densité", "fréquence", "spectre", "espace G-D", "profondeur"],
-            "en": ["speed", "density", "frequency", "spectrum", "left-right space", "depth"]
-          }
+          "factors": ["dynamique", "vitesse", "densite", "frequence", "spectre", "espace", "profondeur"]
         },
         {
           "id": "rebond",
           "name": {"fr": "Rebond", "en": "Bounce"},
           "glyph": "rebond",
           "groups": ["gestuelle", "loi"],
-          "details": {"fr": ["vitesse", "halo harmonique", "matière"], "en": ["speed", "harmonic halo", "matter"]}
+          "factors": ["dynamique", "vitesse", "halo", "matiere"]
         },
         {
           "id": "flux",
           "name": {"fr": "Flux", "en": "Flow"},
           "glyph": "flux",
           "groups": ["globale", "mouvement"],
-          "details": {"fr": ["densité", "profil de masse"], "en": ["density", "mass profile"]}
+          "factors": ["dynamique", "densite", "profilmasse"]
         },
         {
           "id": "pression-deformation",
           "name": {"fr": "Pression-déformation", "en": "Pressure-deformation"},
           "glyph": "pression-deformation",
           "groups": ["mouvement"],
-          "details": {
-            "fr": ["vitesse", "profil de masse ou mélodique", "enveloppe spectrale"],
-            "en": ["speed", "mass or melodic profile", "spectral envelope"]
-          }
+          "factors": ["dynamique", "vitesse", "profilmasse", "profilmelodique", "envspectrale"]
         },
         {
           "id": "rotation",
           "name": {"fr": "Rotation", "en": "Rotation"},
           "glyph": "rotation",
           "groups": ["mouvement"],
-          "details": {"fr": ["vitesse", "fréquence", "espace"], "en": ["speed", "frequency", "space"]}
+          "factors": ["dynamique", "vitesse", "frequence", "espace"]
         },
         {
           "id": "spirale",
           "name": {"fr": "Spirale", "en": "Spiral"},
           "glyph": "spirale",
           "groups": ["mouvement"],
-          "details": {
-            "fr": ["vitesse", "fréquence", "espace", "direction de l'accélération"],
-            "en": ["speed", "frequency", "space", "direction of acceleration"]
-          }
+          "factors": ["dynamique", "vitesse", "frequence", "espace", "direction"]
         }
       ]
     },
@@ -482,6 +592,8 @@ R"HELP(# Composition framework
 **Lanes.** Two overview lanes, added in the ruler panel (*Add lane*): **Energies**, one row per family, with a bar wherever a box has an energy of that family (the second energy lighter, the bar thicker where more boxes sound at once); and the **Semiotic profile**, a band from the most concrete to the most abstract level present at each moment, with a line for their average weighted by role (F 3, M 2, B 1). Muted tracks are left out. The `lanes` list in `framework.json` declares them.
 
 **Glyphs.** The energies are drawn on the boxes by `glyphs.js`, this package's drawing script (JavaScript, sandboxed: no files or network). Edit it to change the shapes; each value's `glyph` field names the shape it uses.
+
+**Variation factors** (version 6). Each energy has its variation factors (Vande Gorne's, plus dynamics for every energy), drawn as curves along a box in its Framework tab or over the box itself; they reshape its glyph. Speed spaces an oscillation's swings, density fills a cloud, attack sharpens a percussion's front, sustainment lengthens its resonance, and so on. A drawn dynamics curve takes the place of the profile's envelope; left-right space draws the glyph lower or higher; depth draws it smaller and fainter. The curves describe: they do not change the sound. The energy category lists the factors (`factors`: id, names, the two ends, a neutral value, and an `effect` for those Projet applies itself); each energy names its own (`factors`: ids). `glyphs.js` reads them as `f ("vitesse", t)`.
 
 Edit `framework.json` to rename, translate or add values, then *Framework > Reload frameworks*.
 )HELP",

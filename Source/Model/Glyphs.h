@@ -29,7 +29,18 @@ namespace Glyphs
         float alpha = 1.0f, width = 1.0f;
     };
 
-    /** The runtime appended to every glyphs.js (ids, envelope, seeded rand). */
+    /** A box's variation factors for one glyph (stage 8): each factor's
+        values at evenly spaced points along the box (the script reads them
+        through f (id, t)); `shift` and `depth`, when drawn, are applied by
+        Projet itself after the shape is made. */
+    struct FactorValues
+    {
+        std::vector<std::pair<juce::String, juce::Array<float>>> curves;
+        juce::Array<float> shift, depth;
+        bool isEmpty() const noexcept               { return curves.empty() && shift.isEmpty() && depth.isEmpty(); }
+    };
+
+    /** The runtime appended to every glyphs.js (ids, envelope, factors, seeded rand). */
     juce::String runtime();
     /** Projet's own glyphs: the ten energy models, revised 9 November. */
     juce::String builtinSource();
@@ -52,7 +63,7 @@ namespace Glyphs
             shapes (grain clouds) deterministically. */
         juce::Result run (const juce::String& id, float w, float h,
                           const juce::Array<float>& envPairs, int seed,
-                          juce::Array<Stroke>& out) const;
+                          juce::Array<Stroke>& out, const FactorValues& factors = {}) const;
 
     private:
         mutable std::unique_ptr<juce::JavascriptEngine> engine;

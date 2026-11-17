@@ -491,6 +491,27 @@ void Project::cutContent (juce::ValueTree box, juce::ValueTree right, double sta
         else if (leftText != box[alongId].toString()) box.setProperty (alongId, leftText, &undoManager);
     }
 
+    // Factor curves (stage 8) are proportions of the box too: each part keeps its stretch.
+    juce::Array<juce::Identifier> factorFields;
+    for (int i = 0; i < box.getNumProperties(); ++i)
+    {
+        const auto name = box.getPropertyName (i).toString();
+        if (name.startsWith ("fw.") && name.endsWith (".factors")) factorFields.add (box.getPropertyName (i));
+    }
+    for (auto& fieldId : factorFields)
+    {
+        Factors::Curves left, rightCurves;
+        for (auto& [id, curve] : Factors::parse (box[fieldId].toString()))
+        {
+            left[id] = Factors::section (curve, 0.0, cut);
+            rightCurves[id] = Factors::section (curve, cut, 1.0);
+        }
+        const auto leftText = Factors::format (left), rightText = Factors::format (rightCurves);
+        if (rightText.isEmpty()) right.removeProperty (fieldId, rightUndo); else right.setProperty (fieldId, rightText, rightUndo);
+        if (leftText.isEmpty()) box.removeProperty (fieldId, &undoManager);
+        else if (leftText != box[fieldId].toString()) box.setProperty (fieldId, leftText, &undoManager);
+    }
+
     // Stage 4c: the join with the box before stays with the left part (the
     // right one now follows it closely); how the box ends goes with the right.
     if (framework != nullptr)
@@ -2124,6 +2145,14 @@ void Project::setFrameworkValue (juce::ValueTree target, const Framework::Catego
 {
     if (value.isVoid() || value.toString().isEmpty()) target.removeProperty (c.property(), &undoManager);
     else if (! (target[c.property()] == value)) target.setProperty (c.property(), value, &undoManager);
+}
+
+void Project::setFactorCurve (juce::ValueTree box, const Framework::Category& c, const juce::String& factorId, const Factors::Curve& curve)
+{
+    const auto text = Factors::withCurve (box[c.factorsProperty()].toString(), factorId, curve);
+    if (text == box[c.factorsProperty()].toString()) return;
+    if (text.isEmpty()) box.removeProperty (c.factorsProperty(), &undoManager);
+    else box.setProperty (c.factorsProperty(), text, &undoManager);
 }
 
 void Project::setChangesAlong (juce::ValueTree box, const Framework::Category& c, const juce::Array<Along::Change>& changes)

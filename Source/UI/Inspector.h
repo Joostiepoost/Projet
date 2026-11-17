@@ -58,6 +58,9 @@ public:
     /** New takes from sound files (stage 7): MainComponent asks for them. */
     std::function<void (juce::ValueTree box)> onAddSoundTakes;
     std::function<void()> onToggleShowTakes;
+    /** Stage 8: a factor's curve to draw over the box on the timeline ("" "": stop). */
+    std::function<void (const juce::String& categoryKey, const juce::String& factorId)> onDrawFactor;
+    void stopDrawingFactor()                        { frameworkPanel.setDrawingFactor ({}, {}); }
 
 private:
     enum class Mode { project, sound, text, container, several, ruler, display, packages };

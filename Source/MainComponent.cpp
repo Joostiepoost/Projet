@@ -95,6 +95,17 @@ MainComponent::MainComponent()
     inspector.onExpandNotes = [this] { openNotesWindow(); };
     inspector.onAddSoundTakes = [this] (juce::ValueTree box) { addSoundTakes (box); };
     inspector.onToggleShowTakes = [this] { commandManager.invokeDirectly (cmdShowTakes, false); };
+    inspector.onDrawFactor = [this] (const juce::String& key, const juce::String& id)
+    {
+        timeline.setFactorDrawing (key, id);
+        magnifier.setFactorDrawing (key, id);
+        if (id.isNotEmpty())
+            if (auto* c = framework.findCategory (key))
+                if (auto* f = framework.findFactor (*c, id))
+                    transport.setStatus ("Drawing " + framework.text (f->name) + " over the selected box: click to add points, drag them, double-click to remove, "
+                                         "Alt-drag to draw freely; the pen in the Framework tab stops it.");
+        if (id.isEmpty()) transport.setStatus ({});
+    };
     inspector.getRulerPanel().getPlayhead = [this] { return playheadInLevel(); };
     inspector.getRulerPanel().setProperties (properties.getUserSettings());
     inspector.getRulerPanel().onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
@@ -502,6 +513,9 @@ void MainComponent::afterProjectLoaded()
     timeline.resetLevels();
     levelBar.setLevel ({});
     outline.setLevels ({}, {});
+    inspector.stopDrawingFactor();          // stage 8
+    timeline.setFactorDrawing ({}, {});
+    magnifier.setFactorDrawing ({}, {});
     auto& s = project.getState();
     timeline.setView (s.getProperty (IDs::viewStart, 0.0), s.getProperty (IDs::pixelsPerSecond, 20.0));
     outline.refresh();

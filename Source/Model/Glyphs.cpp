@@ -13,13 +13,59 @@ function __projetGlyphIds()
 {
     return (typeof glyphs === "object" && glyphs !== null) ? Object.keys (glyphs) : null;
 }
-function __projetGlyph (id, w, h, env, seed)
+function __projetSample (a, t)
+{
+    if (! a || a.length < 1) return 0.5;
+    t = Math.max (0, Math.min (1, t));
+    var x = t * (a.length - 1), i = Math.floor (x);
+    if (i >= a.length - 1) return a[a.length - 1];
+    return a[i] + (a[i + 1] - a[i]) * (x - i);
+}
+function __projetGlyph (id, w, h, env, seed, fac, shift, depth)
 {
     var fn = glyphs[id];
     if (typeof fn !== "function") return null;
     var s = ((seed * 2654435761) + 104729) >>> 0;
     var rand = function() { s = ((s * 1664525) + 1013904223) >>> 0; return s / 4294967296; };
-    var strokes = fn (w, h, rand) || [];
+    // f (factor, t): the box's variation factor at t along it (stage 8).
+    var f = function (name, t) { return (fac && fac[name]) ? __projetSample (fac[name], t) : 0.5; };
+    var strokes = fn (w, h, rand, f) || [];
+    strokes = __projetEnvelope (strokes, w, h, env);
+
+    // A "shift" factor moves the shape up or down (high: up), a "depth"
+    // factor draws it smaller and fainter (high: far).
+    if (shift || depth)
+    {
+        var cy = h / 2;
+        for (var k = 0; k < strokes.length; ++k)
+        {
+            var st = strokes[k], sum = 0, count = 0;
+            var move = function (x, y)
+            {
+                var t = x / w;
+                if (depth) { var d = __projetSample (depth, t); y = cy + (y - cy) * (1 - 0.45 * d); sum += d; ++count; }
+                if (shift) y -= (__projetSample (shift, t) - 0.5) * h * 0.45;
+                return Math.max (0, Math.min (h, y));
+            };
+            if (st.pts)
+                for (var i = 0; i + 1 < st.pts.length; i += 2) st.pts[i + 1] = move (st.pts[i], st.pts[i + 1]);
+            if (st.dots)
+                for (var i = 0; i + 2 < st.dots.length; i += 3)
+                {
+                    st.dots[i + 1] = move (st.dots[i], st.dots[i + 1]);
+                    if (depth) st.dots[i + 2] *= 1 - 0.5 * __projetSample (depth, st.dots[i] / w);
+                }
+            if (depth && count > 0)
+            {
+                var base = (st.alpha !== undefined) ? st.alpha : (st.faint ? 0.35 : 1);
+                st.alpha = base * (1 - 0.6 * sum / count);
+            }
+        }
+    }
+    return strokes;
+}
+function __projetEnvelope (strokes, w, h, env)
+{
 
     // The profile: scale everything vertically around the band's centre by
     // the envelope at that point.
@@ -112,7 +158,7 @@ namespace
 
 juce::Result Script::run (const juce::String& id, float w, float h,
                           const juce::Array<float>& envPairs, int seed,
-                          juce::Array<Stroke>& out) const
+                          juce::Array<Stroke>& out, const FactorValues& factors) const
 {
     out.clear();
     if (engine == nullptr) return juce::Result::fail ("the script did not load");
@@ -123,8 +169,22 @@ juce::Result Script::run (const juce::String& id, float w, float h,
         env << (i > 0 ? "," : "") << "[" << juce::String (envPairs[i], 4) << "," << juce::String (envPairs[i + 1], 4) << "]";
     env << "]";
 
+    // The factors (stage 8): { "vitesse": [values], ... }, and the shift and depth curves.
+    auto numbers = [] (const juce::Array<float>& values)
+    {
+        if (values.isEmpty()) return juce::String ("null");
+        juce::String a ("[");
+        for (int i = 0; i < values.size(); ++i) a << (i > 0 ? "," : "") << juce::String (values[i], 3);
+        return a + "]";
+    };
+    juce::String fac ("{");
+    for (size_t i = 0; i < factors.curves.size(); ++i)
+        fac << (i > 0 ? "," : "") << juce::JSON::toString (juce::var (factors.curves[i].first), true) << ":" << numbers (factors.curves[i].second);
+    fac << "}";
+
     const auto call = "__projetGlyph(" + juce::JSON::toString (juce::var (id), true) + ","
-                      + juce::String (w, 2) + "," + juce::String (h, 2) + "," + env + "," + juce::String (seed) + ")";
+                      + juce::String (w, 2) + "," + juce::String (h, 2) + "," + env + "," + juce::String (seed) + ","
+                      + fac + "," + numbers (factors.shift) + "," + numbers (factors.depth) + ")";
     auto err = juce::Result::ok();
     const auto result = engine->evaluate (call, &err);
     if (err.failed()) return juce::Result::fail (id + ": " + err.getErrorMessage().trim());

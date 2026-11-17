@@ -130,6 +130,7 @@ namespace IDs
     PROJET_ID (takeNote)              // a take's one-line note
     PROJET_ID (sharedNotes)           // a box whose active take is a text: its own notes meanwhile
     PROJET_ID (showTakes)             // view setting: takes drawn stacked in their boxes
+    PROJET_ID (laneFactor)            // an overview lane showing one variation factor across the boxes (stage 8)
     // Framework values: fw.<package>.<category> (Framework::Category::property()),
     // never "type", which names the node in the project file.
 

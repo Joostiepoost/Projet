@@ -825,7 +825,8 @@ void testFramework()
     check (fw.valueColours (*energy, "rebond").colour == 0xffb9707eu, "rebond takes its first family's colour");
     check (fw.valueColours (*type, "Tx").colour == 0xff7a7d85u && fw.valueColours (*level, "ison").colour == 0xff4c8fd6u, "zone colours, level colours");
     check (fw.valueDetails (*fw.findValue (*role, "F")).size() == 11 && fw.valueDetails (*fw.findValue (*role, "B")).size() == 11
-           && fw.valueDetails (*fw.findValue (*energy, "rebond")).size() == 3, "figure and ground traits, variation factors");
+           && fw.factorsOf (*energy, "rebond").size() == 4 && fw.factorsOf (*fw.findCategory ("composition.energy2"), "rebond").size() == 4,
+           "figure and ground traits; variation factors (stage 8: dynamics, speed, halo, matter), also for the second energy");
     check (fw.valueName (*role, "F") == "F premier plan / figure", "both names: " + fw.valueName (*role, "F"));
     fw.setLanguage ("en");
     fw.setNaming ("composition.role", "first");
@@ -919,7 +920,8 @@ void testFramework()
             const auto& x = builtin.valuesOf (a)[k];
             const auto& y = converted.valuesOf (b)[k];
             if (x.id != y.id || x.label != y.label || x.name.fr != y.name.fr || x.name.en != y.name.en || x.name2.fr != y.name2.fr
-                || x.colours.colour != y.colours.colour || x.groups != y.groups || x.detailsFr != y.detailsFr || x.detailsEn != y.detailsEn
+                || x.colours.colour != y.colours.colour || x.groups != y.groups
+                || (x.factors.isEmpty() && (x.detailsFr != y.detailsFr || x.detailsEn != y.detailsEn))     // since composition v6 the energies' factors are curves (stage 8)
                 || x.row != y.row || x.col != y.col || x.weight != y.weight || x.glyph != y.glyph || x.fill != y.fill || x.about.en != y.about.en
                 || x.env != y.env)
                 differ ("value " + x.id);
@@ -1008,7 +1010,7 @@ void testFramework()
     auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetFrameworks").getNonexistentSibling();
     const auto lib = tmp.getChildFile ("Library");
     for (auto& b : Framework::builtins()) check (Framework::writeBuiltin (lib, b.id).wasOk(), "writes " + b.id);
-    check (Framework::packageFolders (lib).size() == 5 && Framework::folderVersion (lib.getChildFile ("composition")) == 5
+    check (Framework::packageFolders (lib).size() == 5 && Framework::folderVersion (lib.getChildFile ("composition")) == 6
            && lib.getChildFile ("schaeffer").getChildFile ("help.md").existsAsFile(), "the library: 5 packages with their help");
     check (lib.getChildFile ("composition").getChildFile ("glyphs.js").existsAsFile()
            && ! lib.getChildFile ("schaeffer").getChildFile ("glyphs.js").exists(),
@@ -2173,6 +2175,88 @@ void testTakes()
     line();
 }
 
+void testFactors()
+{
+    line ("## 21. Variation factors as curves (stage 8)");
+    line();
+    auto near = [] (double x, double y, double tol = 1.0e-6) { return std::abs (x - y) < tol; };
+
+    // == Curves
+    Factors::Curve c;
+    c.add ({ 0.0, 0.2, false });
+    c.add ({ 0.5, 0.9, false });
+    c.add ({ 1.0, 0.4, true });
+    const auto text = Factors::format ({ { "vitesse", c } });
+    check (text == "vitesse=0:0.2 0.5:0.9 1:0.4L", "a curve as text: " + text);
+    const auto back = Factors::curveOf (text + ";densite=0:0.1 1:0.8", "vitesse");
+    check (back.size() == 3 && back[2].straight && near (back[1].v, 0.9), "and back");
+    check (near (Factors::valueAt (c, 0.5, 0.5), 0.9) && near (Factors::valueAt ({}, 0.3, 0.7), 0.7), "at its points; without points, the neutral value");
+    bool monotone = true;
+    double previous = -1.0;
+    for (int i = 0; i <= 50; ++i)
+    {
+        const double v = Factors::valueAt (c, i / 100.0, 0.5);
+        monotone = monotone && v >= previous - 1.0e-12 && v <= 0.9 + 1.0e-9;
+        previous = v;
+    }
+    check (monotone, "smooth, but never beyond its points (monotone between them)");
+    Factors::Curve line2;
+    line2.add ({ 0.0, 0.0, true });
+    line2.add ({ 1.0, 1.0, false });
+    check (near (Factors::valueAt (line2, 0.25, 0.5), 0.25), "a straight stretch is a line");
+    const auto left = Factors::section (line2, 0.0, 0.5), right = Factors::section (line2, 0.5, 1.0);
+    check (near (Factors::valueAt (left, 1.0, 0.5), 0.5) && near (Factors::valueAt (right, 0.0, 0.5), 0.5) && near (Factors::valueAt (right, 0.5, 0.5), 0.75),
+           "sections, as a split leaves them");
+    check (Factors::withCurve (text, "vitesse", {}).isEmpty(), "an empty curve removes it");
+
+    // == On boxes: undo, takes, splits
+    Project p;
+    p.resetToDefault ("Factors", 48000.0);
+    auto fw = Framework::builtIn();
+    p.setFramework (&fw);
+    const auto* energy = fw.findCategory ("composition.energy");
+    check (energy != nullptr && fw.factorsOf (*energy, "oscillation").size() == 8 && fw.findFactor (*energy, "profondeur")->effect == "depth"
+           && near (fw.findFactor (*energy, "direction")->neutral, 1.0), "composition v6: oscillation's eight factors; depth and direction");
+    auto box = p.addTextBox (p.getTrack (0), 0.0, 4.0);
+    box.setProperty (energy->property(), "oscillation", nullptr);
+    p.getUndoManager().beginNewTransaction ("Curve");
+    p.setFactorCurve (box, *energy, "vitesse", line2);
+    check (Project::factorCurve (box, *energy, "vitesse").size() == 2, "a box's curve for a factor");
+    p.getUndoManager().undo();
+    check (Project::factorCurve (box, *energy, "vitesse").isEmpty(), "undone");
+    p.getUndoManager().redo();
+    p.addTake (box, Project::NewTake::text);
+    check (Project::factorCurve (box, *energy, "vitesse").isEmpty(), "a new empty take has no curves");
+    p.setActiveTake (box, Project::takesOf (box)[0]);
+    check (Project::factorCurve (box, *energy, "vitesse").size() == 2, "they belong to the take");
+    auto rightPart = p.splitBox (box, 2.0);
+    check (near (Factors::valueAt (Project::factorCurve (box, *energy, "vitesse"), 1.0, 0.5), 0.5)
+           && near (Factors::valueAt (Project::factorCurve (rightPart, *energy, "vitesse"), 0.0, 0.5), 0.5),
+           "a split: each part keeps its stretch of the curve");
+
+    // == Glyphs follow them
+    Glyphs::Script script;
+    check (script.load (Glyphs::builtinSource(), "projet").wasOk(), "the glyphs load");
+    const juce::Array<float> flat { 0.0f, 1.0f, 1.0f, 1.0f };
+    auto count = [] (const juce::Array<Glyphs::Stroke>& strokes) { int n = 0; for (auto& st : strokes) n += st.points.size(); return n; };
+    juce::Array<Glyphs::Stroke> neutral, fast, far;
+    Glyphs::FactorValues none, quick, distant;
+    quick.curves.push_back ({ "vitesse", Factors::sample (Factors::preset ("flat", 1.0), 32, 0.5) });
+    for (int i = 0; i <= 32; ++i) distant.depth.add (1.0f);
+    script.run ("oscillation", 240.0f, 28.0f, flat, 1, neutral, none);
+    script.run ("oscillation", 240.0f, 28.0f, flat, 1, fast, quick);
+    script.run ("oscillation", 240.0f, 28.0f, flat, 1, far, distant);
+    check (count (fast) > count (neutral) * 2, "a fast oscillation swings more often: " + juce::String (count (fast)) + " against " + juce::String (count (neutral)));
+    float spanNeutral = 0.0f, spanFar = 0.0f;
+    for (auto& st : neutral) for (int i = 1; i < st.points.size(); i += 2) spanNeutral = juce::jmax (spanNeutral, std::abs (st.points[i] - 14.0f));
+    for (auto& st : far) for (int i = 1; i < st.points.size(); i += 2) spanFar = juce::jmax (spanFar, std::abs (st.points[i] - 14.0f));
+    check (spanFar < spanNeutral * 0.7f && far.getLast().alpha < neutral.getLast().alpha, "far away: smaller and fainter");
+    juce::Array<Glyphs::Stroke> plain;
+    script.run ("percussion-resonance", 240.0f, 28.0f, flat, 1, plain);
+    check (plain.size() == 1 && plain[0].filled, "without factors, the shapes are as before (one filled resonance)");
+    line();
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
@@ -2182,7 +2266,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -2219,6 +2303,7 @@ int main (int argc, char** argv)
     std::cout << "Sections..." << std::endl;           testSections();
     std::cout << "Magnifier..." << std::endl;          testMagnifier();
     std::cout << "Takes..." << std::endl;              testTakes();
+    std::cout << "Factors..." << std::endl;            testFactors();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

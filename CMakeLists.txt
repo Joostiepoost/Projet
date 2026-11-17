@@ -47,6 +47,7 @@ set(PROJET_CORE_SOURCES
     Source/Model/FrameworkBuiltin.cpp
     Source/Model/FrameworkLegacy.cpp
     Source/Model/Glyphs.cpp
+    Source/Model/Factors.cpp
     Source/Model/GlyphsBuiltin.cpp
     Source/Model/ProjectFolder.cpp)
 
@@ -80,6 +81,7 @@ target_sources(Projet PRIVATE
     Source/UI/LevelBar.cpp
     Source/UI/MagnifierBar.cpp
     Source/UI/TakesMenu.cpp
+    Source/UI/FactorCurves.cpp
     Source/UI/OutlinePanel.cpp
     Source/UI/RulerPanel.cpp
     Source/UI/FrameworkPanel.cpp

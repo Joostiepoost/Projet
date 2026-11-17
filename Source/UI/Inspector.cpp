@@ -280,6 +280,7 @@ Inspector::Inspector (Project& p, projet::SoundPool& sp, const ProjectFolder& f,
     };
     frameworkPanel.onShowFrameworks = [this] { if (onShowFrameworks) onShowFrameworks(); };
     frameworkPanel.onShowDisplay = [this] { showDisplay(); };
+    frameworkPanel.onDrawFactor = [this] (const juce::String& key, const juce::String& id) { if (onDrawFactor) onDrawFactor (key, id); };
     addAndMakeVisible (notes);
 
     formatBox.addItem ("Ogg Vorbis (small)", 1);

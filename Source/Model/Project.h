@@ -13,6 +13,7 @@
 #include "Identifiers.h"
 #include "Proportion.h"
 #include "Framework.h"
+#include "Factors.h"
 
 enum class FadeShape { linear = 0, equalPower, sCurve };
 constexpr int numFadeShapes = 3;
@@ -505,6 +506,11 @@ public:
     static juce::Array<Along::Change> changesAlong (const juce::ValueTree& box, const Framework::Category& c)
                                                     { return Along::parse (box[c.alongProperty()].toString()); }
     void setChangesAlong (juce::ValueTree box, const Framework::Category&, const juce::Array<Along::Change>&);
+    /** Stage 8: a box's curve for one factor of the category's value (empty: none, the factor sits at its neutral value). */
+    static Factors::Curve factorCurve (const juce::ValueTree& box, const Framework::Category& c, const juce::String& factorId)
+                                                    { return Factors::curveOf (box[c.factorsProperty()].toString(), factorId); }
+    /** Sets it (an empty curve removes it). Undoable. */
+    void setFactorCurve (juce::ValueTree box, const Framework::Category&, const juce::String& factorId, const Factors::Curve&);
     /** Every value a box shows for a category: its value (own, folder's or
         default), those it changes to along the box, or each of its tags. */
     juce::StringArray valuesShown (const juce::ValueTree& box, const Framework::Category&);

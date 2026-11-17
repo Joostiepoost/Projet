@@ -628,6 +628,18 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         else
             m.addSectionHeader (layer[IDs::name].toString() + " (not in this project's frameworks)");
         m.addItem (44, "Show all (clear the highlight)", highlight.isActive());
+        // Stage 8: one variation factor across the boxes, instead of the rows.
+        if (auto* lane = framework.findLane (layer[IDs::lane].toString()); lane != nullptr && lane->kind == Framework::Lane::Kind::rows)
+            if (auto* cat = framework.findCategory (lane->category); cat != nullptr && ! framework.allFactors (*cat).isEmpty())
+            {
+                juce::PopupMenu factorsMenu;
+                const auto current = layer[IDs::laneFactor].toString();
+                factorsMenu.addItem (1500, "Off: " + framework.text (lane->name).toLowerCase(), true, current.isEmpty());
+                const auto& all = framework.allFactors (*cat);
+                for (int i = 0; i < all.size() && i < 90; ++i)
+                    factorsMenu.addItem (1501 + i, framework.text (all[i].name), true, current == all[i].id);
+                m.addSubMenu ("Show a variation factor", factorsMenu);
+            }
         m.addSubMenu ("Size", laneSize, laneSize.getNumItems() > 0);
         m.addItem (4, "Hide");
         m.addItem (5, "Add a proportion layer below");
@@ -823,6 +835,16 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
             return;
         }
         if (r == 44) { safe->clearHighlight(); if (safe->onHighlightChanged) safe->onHighlightChanged(); return; }
+        if (r >= 1500 && r < 1600)
+        {
+            juce::String id;
+            if (auto* lane = safe->framework.findLane (layer[IDs::lane].toString()))
+                if (auto* cat = safe->framework.findCategory (lane->category); cat != nullptr && r > 1500)
+                    id = safe->framework.allFactors (*cat)[r - 1501].id;
+            if (id.isEmpty()) layer.removeProperty (IDs::laneFactor, nullptr); else layer.setProperty (IDs::laneFactor, id, nullptr);
+            safe->repaint();
+            return;
+        }
         if (r >= 1 && r <= 3) layer.setProperty (IDs::height, r == 1 ? sizeSmall : (r == 2 ? sizeMedium : sizeLarge), nullptr);
         else if (r == 4) layer.setProperty (IDs::visible, false, nullptr);
         else if (r == 5)
@@ -1173,6 +1195,74 @@ const TimelineView::LaneCache& TimelineView::laneData (const Framework::Lane& la
     return c;
 }
 
+void TimelineView::paintFactorLane (juce::Graphics& g, const LayerRow& row, const Framework::Lane& lane, const juce::String& factorId, int nameW)
+{
+    // Stage 8: one variation factor across the boxes of the level, each box
+    // its curve over its own time (the second energy fainter), low at the
+    // bottom, high at the top; a box without a curve shows its neutral value dotted.
+    auto* cat = framework.findCategory (lane.category);
+    if (cat == nullptr) return;
+    auto* factor = framework.findFactor (*cat, factorId);
+    if (factor == nullptr) return;
+    const int y0 = row.y, h = row.h;
+    const float top = (float) y0 + 3.0f, avail = (float) h - 6.0f;
+    g.setColour (Theme::textMuted);
+    g.setFont (Theme::font (10.0f));
+    g.drawText (framework.text (factor->name), 12 + nameW, y0 + 1, headerWidth - 18 - nameW, 14, juce::Justification::centredRight, true);
+    g.setColour (Theme::textMuted.withAlpha (0.7f));
+    g.setFont (Theme::font (9.5f));
+    if (h >= 34)
+    {
+        g.drawText (framework.text (factor->high), 12, y0 + 15, headerWidth - 18, 12, juce::Justification::centredRight, true);
+        g.drawText (framework.text (factor->low), 12, y0 + h - 14, headerWidth - 18, 12, juce::Justification::centredRight, true);
+    }
+    juce::Graphics::ScopedSaveState ss (g);
+    g.reduceClipRegion (headerWidth, y0, getWidth() - headerWidth, h);
+    g.setColour (Theme::line.withAlpha (0.6f));
+    g.fillRect ((float) headerWidth, top, (float) (getWidth() - headerWidth), 1.0f);
+    g.fillRect ((float) headerWidth, top + avail, (float) (getWidth() - headerWidth), 1.0f);
+
+    auto drawBox = [&] (const juce::ValueTree& box, const Framework::Category& c, float alpha)
+    {
+        const auto value = project.frameworkValue (box, c).value;
+        bool has = false;
+        for (auto* f : framework.factorsOf (c, value)) has = has || f->id == factorId;
+        if (! has) return;
+        const float x0 = timeToX (Project::boxStart (box)), x1 = timeToX (Project::boxEnd (box));
+        if (x1 < (float) headerWidth || x0 > (float) getWidth() || x1 - x0 < 1.0f) return;
+        const auto colours = framework.valueColours (c, value);
+        const auto colour = (colours.light != 0 ? juce::Colour (colours.light) : juce::Colour (0xffc9c6bd)).withAlpha (alpha);
+        const auto curve = Project::factorCurve (box, c, factorId);
+        if (curve.isEmpty())
+        {
+            const float y = top + avail - (float) factor->neutral * avail;
+            g.setColour (colour.withMultipliedAlpha (0.5f));
+            for (float x = x0; x < x1; x += 6.0f) g.fillRect (x, y - 0.5f, juce::jmin (3.0f, x1 - x), 1.0f);
+            return;
+        }
+        const int n = juce::jlimit (2, 400, (int) ((x1 - x0) / 3.0f));
+        const auto values = Factors::sample (curve, n, factor->neutral);
+        juce::Path p;
+        for (int i = 0; i <= n; ++i)
+        {
+            const float x = x0 + (x1 - x0) * (float) i / (float) n, y = top + avail - values[i] * avail;
+            if (i == 0) p.startNewSubPath (x, y); else p.lineTo (x, y);
+        }
+        g.setColour (colour);
+        g.strokePath (p, juce::PathStrokeType (1.5f));
+    };
+    auto* second = framework.findCategory (lane.second);
+    for (auto t : project.getTracks())
+    {
+        if (Project::isFolder (t) || project.effectiveMute (t)) continue;
+        for (auto b : t)
+        {
+            if (second != nullptr) drawBox (b, *second, 0.45f);
+            drawBox (b, *cat, 0.95f);
+        }
+    }
+}
+
 void TimelineView::paintLaneLayer (juce::Graphics& g, const LayerRow& row)
 {
     const int y0 = row.y, h = row.h;
@@ -1213,6 +1303,11 @@ void TimelineView::paintLaneLayer (juce::Graphics& g, const LayerRow& row)
     }
 
     if (lane->kind == Framework::Lane::Kind::drawn) { paintDrawnLane (g, row, *lane); return; }
+    if (lane->kind == Framework::Lane::Kind::rows && row.layer[IDs::laneFactor].toString().isNotEmpty())
+    {
+        paintFactorLane (g, row, *lane, row.layer[IDs::laneFactor].toString(), nameW);
+        return;
+    }
 
     const auto& data = laneData (*lane);
     const float top = (float) y0 + 2.0f, avail = (float) h - 4.0f;

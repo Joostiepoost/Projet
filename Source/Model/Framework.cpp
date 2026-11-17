@@ -126,6 +126,7 @@ namespace
         }
         if (v.hasProperty ("fadeAt")) x.fadeX = (float) (double) v["fadeAt"];
         x.onlyWith = readCondition (v["onlyWith"]);
+        x.factors = readStrings (v["factors"]);         // stage 8
         x.impliesCategory = v["implies"]["category"].toString().trim();
         x.impliesValue = cleanValueId (v["implies"]["value"].toString());
         if (x.impliesValue.isEmpty()) x.impliesCategory = {};
@@ -232,6 +233,23 @@ namespace
                 c.notes.add ({ (double) n.getProperty ("from", 0.0), (double) n.getProperty ("to", 0.0), readName (n["text"]) });
         c.onlyWith = readCondition (v["onlyWith"]);
         c.envelope = v["envelope"].toString().trim().toLowerCase();
+
+        // Stage 8: the variation factors its values can name.
+        if (auto* fa = v["factors"].getArray())
+            for (auto& f : *fa)
+            {
+                Framework::Factor factor;
+                factor.id = cleanValueId (f["id"].toString());
+                if (factor.id.isEmpty()) continue;
+                factor.name = readName (f["name"]);
+                if (factor.name.isEmpty()) factor.name = { factor.id, factor.id };
+                factor.low = readName (f["low"]);
+                factor.high = readName (f["high"]);
+                factor.about = readName (f["about"]);
+                factor.neutral = juce::jlimit (0.0, 1.0, (double) f.getProperty ("neutral", 0.5));
+                factor.effect = f["effect"].toString().trim().toLowerCase();
+                c.factors.add (factor);
+            }
 
         if (auto* a = v["values"].getArray())
         {
@@ -629,6 +647,22 @@ const Framework::Category& Framework::source (const Category& c) const
     if (c.valuesFrom.isNotEmpty())
         if (auto* s = findCategory (c.valuesFrom)) return *s;
     return c;
+}
+
+const Framework::Factor* Framework::findFactor (const Category& c, const juce::String& factorId) const
+{
+    for (auto& f : source (c).factors)
+        if (f.id == factorId) return &f;
+    return nullptr;
+}
+
+juce::Array<const Framework::Factor*> Framework::factorsOf (const Category& c, const juce::String& valueId) const
+{
+    juce::Array<const Factor*> out;
+    if (auto* v = findValue (c, valueId))
+        for (auto& id : v->factors)
+            if (auto* f = findFactor (c, id)) out.add (f);
+    return out;
 }
 
 const Framework::Value* Framework::findValue (const Category& c, const juce::String& id) const

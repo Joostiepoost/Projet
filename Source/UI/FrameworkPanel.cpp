@@ -1,6 +1,7 @@
 // FrameworkPanel.cpp
 
 #include "FrameworkPanel.h"
+#include "FactorCurves.h"
 #include "Theme.h"
 
 namespace
@@ -206,6 +207,8 @@ public:
                 if (t->hasKeyboardFocus (false)) return true;
             if (auto* s = dynamic_cast<juce::Slider*> (c))
                 if (s->isMouseButtonDown()) return true;
+            if (auto* e = dynamic_cast<FactorCurves::Editor*> (c))
+                if (e->isDragging()) return true;
         }
         return false;
     }
@@ -420,7 +423,53 @@ private:
         };
         y += 28;
         y = describe (c, eff, effMixed, y, w, true);
-        return alongOrHint (c, y, w);
+        y = alongOrHint (c, y, w);
+        return factorEditors (c, eff, effMixed, y, w);
+    }
+
+    //== Variation factors as curves along the box (stage 8) ===================
+    int factorEditors (const Framework::Category& c, const Project::FrameworkValue& eff, bool mixed, int y, int w)
+    {
+        auto& fw = owner.framework;
+        const auto factors = fw.factorsOf (c, eff.value);
+        if (factors.isEmpty() || mixed) return y;
+        if (owner.boxes.size() > 1) return note ("Variation factors: select one box to draw them.", y, w);
+        auto box = owner.boxes.getFirst();
+        y = note ("Variation factors, along the box (they reshape its glyph; they do not change the sound):", y + 2, w);
+        const auto colours = fw.valueColours (c, eff.value);
+        const auto colour = colours.light != 0 ? juce::Colour (colours.light) : col (colours.colour, Theme::accent);
+        const auto key = c.key();
+        for (auto* factor : factors)
+        {
+            auto* editor = place (std::make_unique<FactorCurves::Editor> (fw.text (factor->name), fw.text (factor->low), fw.text (factor->high),
+                                                                          factor->neutral, colour),
+                                  0, y, w - 30, FactorCurves::Editor::preferredHeight);
+            editor->setCurve (Project::factorCurve (box, c, factor->id));
+            if (! factor->about.isEmpty()) editor->setTooltip (fw.text (factor->name) + ": " + fw.text (factor->about)
+                                                                + ". Click to add a point, drag to move one, double-click to remove it, Alt-drag to draw freely; right-click for shapes.");
+            const auto factorId = factor->id;
+            editor->onChange = [this, box, key, factorId] (const Factors::Curve& curve, bool starting)
+            {
+                auto* cat = owner.framework.findCategory (key);
+                if (cat == nullptr) return;
+                if (starting) owner.project.getUndoManager().beginNewTransaction ("Variation factor");
+                owner.project.setFactorCurve (box, *cat, factorId, curve);
+            };
+            const bool drawing = owner.drawingKey == key && owner.drawingFactor == factorId;
+            auto* pen = place (std::make_unique<juce::TextButton> (juce::String::fromUTF8 ("\xe2\x9c\x8e")), w - 26, y + 15, 26, 26);
+            pen->setTooltip (drawing ? "Stop drawing it over the box" : "Draw it over the box on the timeline (in its lower band)");
+            pen->setColour (juce::TextButton::buttonColourId, drawing ? Theme::accent.withAlpha (0.35f) : Theme::background);
+            pen->setColour (juce::TextButton::textColourOffId, drawing ? Theme::accent : Theme::textMuted);
+            pen->onClick = [this, key, factorId, drawing]
+            {
+                owner.drawingKey = drawing ? juce::String() : key;
+                owner.drawingFactor = drawing ? juce::String() : factorId;
+                if (owner.onDrawFactor) owner.onDrawFactor (owner.drawingKey, owner.drawingFactor);
+                juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<FrameworkPanel> (&owner)] { if (safe != nullptr) safe->rebuildNow(); });
+            };
+            y += FactorCurves::Editor::preferredHeight + 4;
+        }
+        return y;
     }
 
     //== A choice as buttons ======================================================

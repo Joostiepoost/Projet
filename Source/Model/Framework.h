@@ -80,9 +80,24 @@ public:
         float size = -1.0f;                     // a height's share of the row (low 0.6, high 1)
         float early = -1.0f;                    // a goal's: the main slope arrives this early (a blunted goal)
         juce::String signFill;                  // a filled part of the sign (an SVG path, beside the stroked `sign`)
+        juce::StringArray factors;              // (stage 8) the ids of its variation factors, declared on the category
     };
 
     struct Axis { juce::String id; Name name; };
+
+    /** A variation factor (stage 8, framework layer 4): something a value's
+        sound can have more or less of (Vande Gorne's speed, density, grain
+        ...), drawn as a curve along a box from `low` (0) to `high` (1). */
+    struct Factor
+    {
+        juce::String id;
+        Name name, low, high, about;
+        double neutral = 0.5;                   // where it sits without a curve
+        /** What Projet does with it itself: "" (the glyph script reads it),
+            "envelope" (the glyph's envelope, in place of the profile),
+            "shift" (moves the glyph up or down), "depth" (fainter and smaller). */
+        juce::String effect;
+    };
 
     enum class Kind { choice, tags, number, text };
     enum class Mark { none, strip, badge, label, glyph, seam, end };
@@ -112,6 +127,8 @@ public:
         juce::Identifier property() const       { return "fw." + key(); }
         /** Changes along a box: fw.composition.level.along */
         juce::Identifier alongProperty() const  { return "fw." + key() + ".along"; }
+        /** Its factors' curves on a box (stage 8): fw.composition.energy.factors */
+        juce::Identifier factorsProperty() const { return "fw." + key() + ".factors"; }
 
         Name name, about, groupsName, detailsLabel, chartCaption;
         Name firstNames, secondNames;           // what the two names are (e.g. Thoresen, Vande Gorne)
@@ -149,6 +166,8 @@ public:
         bool forSections() const noexcept       { return foldersOnly; }
         /** Its values' labels make a container's typological formula (Schaeffer's types). */
         bool formula = false;
+        // Stage 8
+        juce::Array<Factor> factors;            // the variation factors its values can name
     };
 
     /** A value one category gives another in the boxes of a folder: a
@@ -229,6 +248,12 @@ public:
     const juce::Array<Value>& valuesOf (const Category& c) const        { return source (c).values; }
     const juce::Array<Group>& groupsOf (const Category& c) const        { return source (c).groups; }
     const Value* findValue (const Category&, const juce::String& id) const;
+    /** Stage 8: a factor of the category (or of the one whose values it uses). */
+    const Factor* findFactor (const Category&, const juce::String& factorId) const;
+    /** The factors of one of its values, in the value's order. */
+    juce::Array<const Factor*> factorsOf (const Category&, const juce::String& valueId) const;
+    /** Every factor the category declares (for the overview lane). */
+    const juce::Array<Factor>& allFactors (const Category& c) const     { return source (c).factors; }
     const Group* findGroup (const Category&, const juce::String& id) const;
     /** Categories that share `c`'s values (c's source and every category using it). */
     juce::Array<const Category*> sharing (const Category& c) const;

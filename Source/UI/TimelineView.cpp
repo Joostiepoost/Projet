@@ -657,6 +657,7 @@ void TimelineView::paint (juce::Graphics& g)
     }
 
     paintWindowEdges (g);
+    paintFactorOverlay (g);                 // a factor's curve over the selected box (stage 8)
 
     // The container magnified below (stage 6): its span across the tracks.
     if (magnified.isValid() && Project::containerOf (magnified) == level && magnified.getParent().isValid())
@@ -945,6 +946,70 @@ void TimelineView::paintBoxIn (juce::Graphics& g, const juce::ValueTree& box, co
     paintFrameworkMarks (g, box, r, alpha);
     g.setColour (selected ? Theme::accent : (wm.emphasis ? base.brighter (0.25f) : base).withAlpha (alpha));
     g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected ? 2.0f : (wm.emphasis ? 1.8f : 1.0f));
+}
+
+//== Factor curves over a box (stage 8) ========================================
+
+juce::Rectangle<float> TimelineView::factorArea (juce::ValueTree& box)
+{
+    box = {};
+    if (factorKey.isEmpty() || selectedBoxIds.size() != 1) return {};
+    auto* c = framework.findCategory (factorKey);
+    if (c == nullptr) return {};
+    auto b = getSelectedBox();
+    if (! b.isValid()) return {};
+    bool has = false;
+    for (auto* f : framework.factorsOf (*c, project.frameworkValue (b, *c).value)) has = has || f->id == factorId_;
+    if (! has) return {};
+    for (auto& row : rows())
+        if (row.track == b.getParent())
+        {
+            const auto r = boxBounds (b, row);
+            const float h = juce::jmax (24.0f, r.getHeight() * 0.62f);
+            box = b;
+            return { r.getX(), r.getBottom() - h - 1.0f, r.getWidth(), h };
+        }
+    return {};
+}
+
+void TimelineView::paintFactorOverlay (juce::Graphics& g)
+{
+    juce::ValueTree box;
+    const auto area = factorArea (box);
+    if (area.isEmpty()) return;
+    auto* c = framework.findCategory (factorKey);
+    auto* factor = framework.findFactor (*c, factorId_);
+    if (factor == nullptr) return;
+    juce::Graphics::ScopedSaveState s (g);
+    g.reduceClipRegion (headerWidth, tracksTop(), getWidth() - headerWidth, getHeight() - tracksTop());
+    g.setColour (Theme::background.withAlpha (0.78f));
+    g.fillRoundedRectangle (area, 3.0f);
+    g.setColour (Theme::accent.withAlpha (0.7f));
+    g.drawRoundedRectangle (area.reduced (0.5f), 3.0f, 1.0f);
+    const auto curve = factorEdit.dragging >= 0 || factorEdit.freehand ? factorEdit.curve : Project::factorCurve (box, *c, factorId_);
+    const auto inner = area.reduced (2.0f, 4.0f);
+    FactorCurves::paint (g, inner, curve, factor->neutral, Theme::accent, true);
+    if (factorEdit.freehand && factorEdit.trail.size() > 1)
+    {
+        juce::Path p;
+        p.startNewSubPath (factorEdit.trail[0]);
+        for (int i = 1; i < factorEdit.trail.size(); ++i) p.lineTo (factorEdit.trail[i]);
+        g.setColour (Theme::accent.withAlpha (0.6f));
+        g.strokePath (p, juce::PathStrokeType (1.2f));
+    }
+    g.setColour (Theme::accent);
+    g.setFont (Theme::font (10.5f, true));
+    g.drawText (framework.text (factor->name) + "  (" + framework.text (factor->low) + " - " + framework.text (factor->high) + ")",
+                area.reduced (5.0f, 2.0f), juce::Justification::topLeft, true);
+}
+
+void TimelineView::setFactorFromEdit()
+{
+    auto* c = framework.findCategory (factorKey);
+    if (c == nullptr || ! factorBox.isValid()) return;
+    if (! factorStarted) project.getUndoManager().beginNewTransaction ("Variation factor");
+    factorStarted = true;
+    project.setFactorCurve (factorBox, *c, factorId_, factorEdit.curve);
 }
 
 //== Takes (stage 7) ===========================================================
@@ -1423,15 +1488,40 @@ void TimelineView::paintGlyphs (juce::Graphics& g, const juce::ValueTree& box, j
         const auto found = glyphs.find (val->glyph, { val->from, c.package });
         if (found.script == nullptr) continue;
 
+        // The variation factors (stage 8): the box's curves for this value's
+        // factors; a drawn envelope factor (dynamique) takes the profile's place.
+        Glyphs::FactorValues factorValues;
+        auto glyphEnv = env;
+        const auto curvesText = box[c.factorsProperty()].toString();
+        {
+            const auto curves = Factors::parse (curvesText);
+            for (auto* factor : framework.factorsOf (c, v.value))
+            {
+                auto it = curves.find (factor->id);
+                const auto curve = it != curves.end() ? it->second : Factors::Curve();
+                if (factor->effect == "envelope")
+                {
+                    if (curve.isEmpty()) continue;
+                    const auto samples = Factors::sample (curve, 32, factor->neutral);
+                    glyphEnv.clearQuick();
+                    for (int i = 0; i < samples.size(); ++i) glyphEnv.addArray ({ (float) i / 32.0f, juce::jmax (0.04f, samples[i]) });
+                }
+                else if (factor->effect == "shift") { if (! curve.isEmpty()) factorValues.shift = Factors::sample (curve, 32, factor->neutral); }
+                else if (factor->effect == "depth") { if (! curve.isEmpty()) factorValues.depth = Factors::sample (curve, 32, factor->neutral); }
+                else factorValues.curves.push_back ({ factor->id, Factors::sample (curve, 32, factor->neutral) });
+            }
+        }
+
         const auto key = found.owner + "|" + val->glyph + "|" + juce::String (wB) + "x" + juce::String (hB)
-                         + "|" + envKey + "|" + juce::String (seed);
+                         + "|" + envKey + "|" + juce::String (seed)
+                         + (curvesText.isEmpty() ? juce::String() : "|" + juce::String::toHexString (curvesText.hashCode64()));
         auto it = glyphCache.find (key);
         if (it == glyphCache.end())
         {
             if (glyphCache.size() > 400) glyphCache.clear();
             CachedGlyph built;
             juce::Array<Glyphs::Stroke> strokes;
-            if (found.script->run (val->glyph, (float) wB, (float) hB, env, seed, strokes).wasOk())
+            if (found.script->run (val->glyph, (float) wB, (float) hB, glyphEnv, seed, strokes, factorValues).wasOk())
                 for (auto& stroke : strokes)
                 {
                     if (stroke.points.size() >= 4)
@@ -2167,6 +2257,41 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
         }
     }
 
+    // A factor's curve over the selected box (stage 8).
+    {
+        juce::ValueTree fbox;
+        const auto area = factorArea (fbox);
+        if (! area.isEmpty() && area.contains (e.position))
+        {
+            auto* c = framework.findCategory (factorKey);
+            factorBox = fbox;
+            factorStarted = false;
+            factorEdit.area = area.reduced (2.0f, 4.0f);
+            factorEdit.curve = Project::factorCurve (fbox, *c, factorId_);
+            if (e.mods.isPopupMenu())
+            {
+                juce::Component::SafePointer<TimelineView> safe (this);
+                const auto key = factorKey, fid = factorId_;
+                FactorCurves::showMenu (factorEdit.curve, factorEdit.pointAt (e.position), framework.findFactor (*c, factorId_)->neutral, this,
+                                        [safe, fbox, key, fid] (const Factors::Curve& curve)
+                {
+                    if (safe == nullptr) return;
+                    if (auto* cat = safe->framework.findCategory (key))
+                    {
+                        safe->project.getUndoManager().beginNewTransaction ("Variation factor");
+                        safe->project.setFactorCurve (fbox, *cat, fid, curve);
+                    }
+                    safe->repaint();
+                });
+                return;
+            }
+            dragMode = DragMode::factorCurve;
+            if (factorEdit.down (e.position, e.mods.isAltDown())) setFactorFromEdit();
+            repaint();
+            return;
+        }
+    }
+
     // Takes (stage 7): the badge opens their list; a take's lane, shown stacked, makes it active.
     if (! e.mods.isPopupMenu() && ! e.mods.isShiftDown() && ! e.mods.isCommandDown())
         if (auto hit = takeAt (e.position); hit.box.isValid())
@@ -2255,6 +2380,12 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
 {
     const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (rulerMouseDrag (e)) return;
+    if (dragMode == DragMode::factorCurve)
+    {
+        if (factorEdit.drag (e.position)) setFactorFromEdit();
+        repaint();
+        return;
+    }
     if (dragMode == DragMode::trackHeight)
     {
         const int h = juce::jlimit (minTrackHeight, maxTrackHeight, dragLayerStartHeight + e.getDistanceFromDragStartY());
@@ -2421,6 +2552,7 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         case DragMode::nodeStart:
         case DragMode::nodeEnd:     // drawn lanes and nodes (TimelineDrawn.cpp)
         case DragMode::trackHeight: // above
+        case DragMode::factorCurve:
         case DragMode::none:
             break;
     }
@@ -2430,6 +2562,14 @@ void TimelineView::mouseUp (const juce::MouseEvent& e)
 {
     const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (drawnMouseUp (e)) return;                   // drawn lanes and nodes (4d.2)
+    if (dragMode == DragMode::factorCurve)
+    {
+        if (factorEdit.up()) setFactorFromEdit();
+        factorEdit.dragging = -1;
+        dragMode = DragMode::none;
+        repaint();
+        return;
+    }
     if (clickedSelectedBox && ! e.mouseWasDraggedSinceMouseDown() && dragBox.isValid())
         selectBox (dragBox);
     clickedSelectedBox = false;
@@ -2480,6 +2620,20 @@ void TimelineView::mouseDoubleClick (const juce::MouseEvent& e)
     const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
     if (rulerDoubleClick (e)) return;
     if (e.y < tracksTop()) return;
+    {
+        juce::ValueTree fbox;                                                   // a factor curve's point (stage 8)
+        const auto area = factorArea (fbox);
+        if (! area.isEmpty() && area.contains (e.position))
+        {
+            factorBox = fbox;
+            factorStarted = false;
+            factorEdit.area = area.reduced (2.0f, 4.0f);
+            factorEdit.curve = Project::factorCurve (fbox, *framework.findCategory (factorKey), factorId_);
+            if (factorEdit.doubleClick (e.position)) setFactorFromEdit();
+            repaint();
+            return;
+        }
+    }
     if (auto edgeTrack = trackEdgeAt (e.y); edgeTrack.isValid())            // back to the usual height
     {
         edgeTrack.setProperty (IDs::height, defaultTrackHeight, nullptr);

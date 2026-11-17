@@ -24,6 +24,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "FactorCurves.h"
 #include <map>
 #include "../Model/Project.h"
 #include "../Engine/SoundData.h"
@@ -120,6 +121,9 @@ public:
     std::function<void (juce::ValueTree box)> onAddSoundTakes;
     std::function<void (const juce::StringArray& files, juce::ValueTree box)> onFilesDroppedAsTakes;
     std::function<void()> onToggleShowTakes;
+    /** Stage 8: the factor whose curve is drawn over the selected box ("" "": none). */
+    void setFactorDrawing (const juce::String& categoryKey, const juce::String& factorId)
+                                                    { factorKey = categoryKey; factorId_ = factorId; repaint(); }
     std::function<void (juce::ValueTree track, double seconds)> onAddTextBox;
     std::function<void (juce::ValueTree box)> onEditNotes, onSplitAtPlayhead, onOpenNotesWindow;
     /** Go inside a container (stage 5b). */
@@ -166,7 +170,8 @@ private:
                           span, frameStart, frameEnd, track, layerHeight, mark,
                           drawSpan, itemMove, itemStart, itemEnd, itemGoal, itemGoalEnd,   // drawn lanes (4d.2)
                           drawNode, nodeMove, nodeStart, nodeEnd,
-                          trackHeight };                                                     // a track's lower edge (after stage 7)
+                          trackHeight,                                                       // a track's lower edge (after stage 7)
+                          factorCurve };                                                     // a factor's curve over a box (stage 8)
     enum class Zone { none, body, startEdge, endEdge, fadeInHandle, fadeOutHandle };
 
     struct TrackRow { juce::ValueTree track; int y = 0, h = 0, depth = 0; bool folder = false; };
@@ -257,6 +262,15 @@ private:
     TakeHit takeAt (juce::Point<float>);
     void showTakesMenu (juce::ValueTree box);
     static constexpr int takesMenuBase = 200000;
+    //== Factor curves over a box (stage 8) ====================================
+    juce::String factorKey, factorId_;
+    FactorCurves::Edit factorEdit;
+    juce::ValueTree factorBox;
+    bool factorStarted = false;
+    /** The area over the selected box where the armed factor's curve is drawn (empty: none); the box in `box`. */
+    juce::Rectangle<float> factorArea (juce::ValueTree& box);
+    void paintFactorOverlay (juce::Graphics&);
+    void setFactorFromEdit();
     void paintFades (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>);
     void paintFadeHandles (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>);
     /** A container (stage 5a): header, miniature of the inside, fades, double edge. */
@@ -289,6 +303,7 @@ private:
     std::map<juce::String, LaneCache> laneCache;            // by lane key
     const LaneCache& laneData (const Framework::Lane&);
     void paintLaneLayer (juce::Graphics&, const LayerRow&);
+    void paintFactorLane (juce::Graphics&, const LayerRow&, const Framework::Lane&, const juce::String& factorId, int nameW);   // stage 8
     /** Clicking a lane highlights what it shows there (a family, a zone, a level). */
     void laneClicked (const LayerRow&, const juce::MouseEvent&);
 
