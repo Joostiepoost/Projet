@@ -1,0 +1,355 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj4a",
+  "sampleRate": 96000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 33.27684306231604,
+  "playhead": 0.0,
+  "activeLayer": "6787a7cd19124155930d27aa39282a06",
+  "fwLanguage": "en",
+  "frameLength": 31.092351711340086,
+  "children": [
+    {
+      "type": "SOUNDS"
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "87ddecf701754f9d881146b9dc3aa5f9",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "152b70f303a342598f768ccabd5e1881",
+              "kind": "container",
+              "name": "Bell_scape_01",
+              "start": 4.068995368909734,
+              "length": 6.844097002329602,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": 0.0,
+              "fadeIn": 0.0,
+              "fadeOut": 0.0,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "innerLength": 6.844097002329602,
+              "fw.vandegorne.writing": "complex",
+              "children": [
+                {
+                  "type": "TIMELINE",
+                  "activeLayer": "815ae800955d49e7bc9c108fada628f6",
+                  "children": [
+                    {
+                      "type": "TRACKS",
+                      "children": [
+                        {
+                          "type": "TRACK",
+                          "id": "93781fb1659b43fcafc9bf53fe5a9b7f",
+                          "name": "Track 1",
+                          "colour": 0,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false
+                        }
+                      ]
+                    },
+                    {
+                      "type": "MARKS"
+                    },
+                    {
+                      "type": "DRAWN"
+                    },
+                    {
+                      "type": "NODES"
+                    },
+                    {
+                      "type": "RULERS",
+                      "children": [
+                        {
+                          "type": "LAYER",
+                          "id": "a0adc873efd1423d859e917dec24a5fc",
+                          "kind": "time",
+                          "name": "Time",
+                          "height": 30,
+                          "visible": true,
+                          "frame": "piece"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "815ae800955d49e7bc9c108fada628f6",
+                          "kind": "proportion",
+                          "name": "Proportion",
+                          "height": 22,
+                          "visible": true,
+                          "snap": true,
+                          "frame": "piece",
+                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                          "autoDivisions": true
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "9389583c79c744838dff3fd33e6cdfa4",
+              "kind": "container",
+              "name": "Bell_scape_continuation",
+              "start": 13.329056756748265,
+              "length": 10.486655486925184,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": 0.0,
+              "fadeIn": 0.0,
+              "fadeOut": 0.0,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "innerLength": 4.808148408200117,
+              "children": [
+                {
+                  "type": "TIMELINE",
+                  "activeLayer": "798b56a088a440b0992975f2e7391580",
+                  "children": [
+                    {
+                      "type": "TRACKS",
+                      "children": [
+                        {
+                          "type": "TRACK",
+                          "id": "c7a8b1e5a13442cbbd3e61bd41ec80c2",
+                          "name": "Track 1",
+                          "colour": 0,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "6eca57149f284475bf84536b24de19e1",
+                              "kind": "container",
+                              "name": "Text",
+                              "start": 0.560470704996762,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": "",
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "innerLength": 2.0,
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "865202b647244810838efd72ddefdd1a",
+                                          "name": "Track 1",
+                                          "colour": 0,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "87fb7e0bfa634dfbbf8defd0cf330224",
+                              "kind": "container",
+                              "name": "Text",
+                              "start": 2.28303087037385,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": "",
+                              "fw.example.density": 10.0,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "innerLength": 2.0,
+                              "fw.composition.role.along": "0.5:B:0",
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "b1e255f4c77f40d9b8bb0a0136de90eb",
+                                          "name": "Track 1",
+                                          "colour": 0,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "c7981e149db441ada0e7d58772e6a0b2",
+                          "name": "Track 2",
+                          "colour": 1,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "4ed20eb791d548d0bc36e42b701e5b70",
+                              "kind": "text",
+                              "name": "Text",
+                              "start": 1.933939606709187,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": ""
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "MARKS"
+                    },
+                    {
+                      "type": "DRAWN"
+                    },
+                    {
+                      "type": "NODES",
+                      "children": [
+                        {
+                          "type": "NODE",
+                          "id": "6797cc79bef041b3a7249fb361853b93",
+                          "folderId": "9389583c79c744838dff3fd33e6cdfa4",
+                          "start": 1.373756688057176,
+                          "length": 2.060635032085765
+                        }
+                      ]
+                    },
+                    {
+                      "type": "RULERS",
+                      "children": [
+                        {
+                          "type": "LAYER",
+                          "id": "a297e28c30f845f1a4800c6371db48d7",
+                          "kind": "time",
+                          "name": "Time",
+                          "height": 30,
+                          "visible": true,
+                          "frame": "piece"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "798b56a088a440b0992975f2e7391580",
+                          "kind": "proportion",
+                          "name": "Proportion",
+                          "height": 90,
+                          "visible": true,
+                          "snap": true,
+                          "frame": "piece",
+                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                          "autoDivisions": true
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "id": "0e283e7586f34018b9c5744d2ed993f3",
+          "kind": "time",
+          "name": "Time",
+          "height": 30,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "002a4fc541114efb8217754d03f8b902",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "piece",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true,
+          "series": "fibonacci:13"
+        },
+        {
+          "type": "LAYER",
+          "id": "6787a7cd19124155930d27aa39282a06",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 71,
+          "visible": true,
+          "snap": true,
+          "frame": "9389583c79c744838dff3fd33e6cdfa4",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        }
+      ]
+    },
+    {
+      "type": "MARKS"
+    },
+    {
+      "type": "DRAWN"
+    },
+    {
+      "type": "NODES"
+    }
+  ]
+}
