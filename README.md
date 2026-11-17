@@ -175,7 +175,7 @@ Below the time ruler is the **proportion strip**: it divides a **frame** into fr
 - Renaming a mark renames it in every proportion; deleting it leaves the boxes where they are.
 - **Colour**: right-click a mark > *Colour* (amber, the rulers', by default; red, orange, green, teal, blue, purple, pink, white), or the swatch beside it in the ruler panel. The mark's pill and its line through the tracks take it.
 
-**Ratio splits of boxes**: right-click a box > *Split by a ratio...*: cut it into parts (3:8, 1:1:1, 2:3:5:8 ...) or put marks in it.
+**Ratio splits of boxes**: right-click a box > *Split by a ratio...*: cut it into parts (3:8, 1:1:1, 2:3:5:8 ...) or put marks in it. Marks in a box show on a proportion layer framed by that box: if there is none yet, one is added below the others (or a hidden one is shown again).
 
 **Ratio checking**: select two or more boxes; the panel shows them in time order with their **lengths as a ratio** (*3 : 8 : 5*, or *≈ 8 : 13* when only close), what fraction one is of the other, the gaps or overlaps between them, and where they sit in the active layer's frame.
 
@@ -335,6 +335,11 @@ A **container** is a box whose content is a timeline of its own: tracks, folders
 - Overlapping boxes simply add up; their fades make the crossfade. Containers play what they hold, at every depth (stage 5a). For a crossfade between unrelated sounds use **equal power** on both sides; for two copies of the same sound use **linear** or **S-curve**.
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
+- **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing after 5a**:
+- Right-click a box > *Split by a ratio...* > *Marks in the box*: a new proportion layer framed by the box shows the marks (with the dashed lines through the tracks). Do it again on the same box: the marks join that layer. Hide the layer, split again: it comes back.
+- The **Audio** button: off (the button goes grey, the meters go flat), Play turns it on and plays; off again, quit, reopen: still off; *Audio > Audio settings* turns it on. Check the Activity Monitor's CPU column for Projet with it on and off.
 
 **Worth testing in stage 5a**:
 - Select boxes on two or three tracks (one inside a folder) and Cmd-G: one container on the first track, its miniature showing the boxes where they were. Play: it sounds as before. Undo, redo.

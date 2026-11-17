@@ -54,6 +54,7 @@ MainComponent::MainComponent()
     transport.onZoomOut = [this] { timeline.zoomBy (1.0 / 1.5, engine.getPositionSeconds()); };
     transport.onZoomFit = [this] { timeline.zoomToFit(); };
     transport.onImport = [this] { importDialog(); };
+    transport.onToggleAudio = [this] { setAudioOn (! audioOn); };
 
     timeline.onLocate = [this] (double t) { locate (t); };
     timeline.onSelectionChanged = [this] { selectionChanged(); };
@@ -122,6 +123,8 @@ MainComponent::MainComponent()
     if (err.isNotEmpty()) transport.setStatus ("Audio: " + err, true);
     deviceManager.addAudioCallback (&engine);
     deviceManager.addChangeListener (this);
+    // Off when it was off at the last quit.
+    if (! settings->getBoolValue ("audioOn", true)) setAudioOn (false, false);
 
     commandManager.registerAllCommandsForTarget (this);
     commandManager.setFirstCommandTarget (this);
@@ -147,7 +150,7 @@ MainComponent::MainComponent()
 
     setWantsKeyboardFocus (true);
     setSize (1400, 860);
-    startTimerHz (30);
+    startTimerHz (audioOn ? 30 : 10);
 }
 
 MainComponent::~MainComponent()
@@ -690,8 +693,40 @@ void MainComponent::paste()
 void MainComponent::playStop()
 {
     if (engine.isPlaying()) engine.stop();
-    else engine.play();
+    else
+    {
+        if (! audioOn) setAudioOn (true);        // Play turns the engine on
+        engine.play();
+    }
     transport.setPlaying (engine.isPlaying());
+}
+
+void MainComponent::setAudioOn (bool on, bool announce)
+{
+    if (on == audioOn) return;
+    if (on)
+    {
+        audioOn = true;
+        deviceManager.restartLastAudioDevice();
+        startTimerHz (30);
+        if (deviceManager.getCurrentAudioDevice() == nullptr)
+            transport.setStatus ("The audio device could not be opened again (Audio > Audio settings).", true);
+        else if (announce)
+            transport.setStatus ("Audio engine on.");
+    }
+    else
+    {
+        if (engine.isPlaying()) engine.stop();
+        audioOn = false;
+        deviceManager.closeAudioDevice();
+        startTimerHz (10);                       // nothing moves: a slower clock is enough
+        transport.setPeaks (0.0f, 0.0f);
+        if (announce) transport.setStatus ("Audio engine off: the audio device is closed. Play or the Audio button turns it on again.");
+    }
+    transport.setAudioOn (audioOn);
+    transport.setPlaying (engine.isPlaying());
+    properties.getUserSettings()->setValue ("audioOn", audioOn);
+    commandManager.commandStatusChanged();
 }
 
 void MainComponent::locate (double seconds)
@@ -714,7 +749,7 @@ void MainComponent::timerCallback()
     timeline.setPlayhead (t);
     transport.setTime (t);
     transport.setPlaying (engine.isPlaying());
-    transport.setPeaks (engine.getPeak (0), engine.getPeak (1));
+    if (audioOn) transport.setPeaks (engine.getPeak (0), engine.getPeak (1));
     if (engine.isPlaying()) timeline.followPlayhead (t);
 
     // A reminder when the device runs at another rate than the project.
@@ -735,6 +770,8 @@ void MainComponent::timerCallback()
 
 void MainComponent::changeListenerCallback (juce::ChangeBroadcaster*)
 {
+    // Closing the device to save CPU is not a new setup to remember.
+    if (! audioOn) return;
     if (auto xml = deviceManager.createStateXml())
     {
         properties.getUserSettings()->setValue ("audioState", xml.get());
@@ -745,6 +782,8 @@ void MainComponent::changeListenerCallback (juce::ChangeBroadcaster*)
 
 void MainComponent::showAudioSettings()
 {
+    if (! audioOn) setAudioOn (true);        // choosing a device means using it
+
     auto* selector = new juce::AudioDeviceSelectorComponent (deviceManager, 0, 0, 2, 2, false, false, true, false);
     selector->setSize (520, 420);
     juce::DialogWindow::LaunchOptions o;
@@ -764,7 +803,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& c)
     c.addArray ({ cmdNewProject, cmdOpenProject, cmdSaveProject, cmdRevealFolder, cmdImport,
                   cmdUndo, cmdRedo, cmdDelete, cmdDuplicate, cmdDeselect,
                   cmdPlayStop, cmdToStart, cmdZoomIn, cmdZoomOut, cmdZoomFit,
-                  cmdAddTrack, cmdAudioSettings, cmdShortcuts,
+                  cmdAddTrack, cmdAudioSettings, cmdAudioEngine, cmdShortcuts,
                   cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel,
                   cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap });
 }
@@ -821,6 +860,7 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
 
         case cmdAddTrack:      info.setInfo ("Add track", "Add a track below the selected one", "Track", 0); info.addDefaultKeypress ('n', cmd | shift); info.setActive (open); break;
         case cmdAudioSettings: info.setInfo ("Audio settings...", "Output device and sample rate", "Audio", 0); info.addDefaultKeypress (',', cmd); break;
+        case cmdAudioEngine:   info.setInfo ("Audio engine on", "Turn the audio engine on or off (off closes the device, saving CPU and battery)", "Audio", 0); info.setTicked (audioOn); break;
         case cmdShortcuts:     info.setInfo ("Keyboard shortcuts", "List the shortcuts", "Help", 0); info.addDefaultKeypress ('/', cmd); break;
         case cmdNewTextBox:    info.setInfo ("New text box", "A text box on the selected track at the playhead", "Edit", 0); info.addDefaultKeypress ('b', cmd); info.setActive (open); break;
         case cmdSplit:         info.setInfo ("Split at playhead", "Cut the selected boxes at the playhead (every box under it if none is selected)", "Edit", 0); info.addDefaultKeypress ('t', cmd); info.setActive (open); break;
@@ -848,7 +888,7 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
 bool MainComponent::perform (const InvocationInfo& info)
 {
     if (! hasProject() && info.commandID != cmdNewProject && info.commandID != cmdOpenProject
-        && info.commandID != cmdAudioSettings && info.commandID != cmdShortcuts && info.commandID != cmdTogglePanel)
+        && info.commandID != cmdAudioSettings && info.commandID != cmdAudioEngine && info.commandID != cmdShortcuts && info.commandID != cmdTogglePanel)
         return true;
 
     switch (info.commandID)
@@ -925,6 +965,7 @@ bool MainComponent::perform (const InvocationInfo& info)
             break;
         }
         case cmdAudioSettings: showAudioSettings(); break;
+        case cmdAudioEngine:   setAudioOn (! audioOn); break;
         case cmdShortcuts:     showShortcuts(); break;
         default: return false;
     }
@@ -1072,7 +1113,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             m.addItem (6203, "Show the library folder");
             break;
         }
-        case 6: add ({ cmdAudioSettings }); break;
+        case 6: add ({ cmdAudioEngine, cmdAudioSettings }); break;
         case 7: add ({ cmdShortcuts }); break;
         default: break;
     }
