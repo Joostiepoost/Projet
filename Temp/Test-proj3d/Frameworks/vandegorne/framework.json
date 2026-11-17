@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "vandegorne",
-  "version": 3,
+  "version": 4,
   "order": 40,
   "name": {"fr": "Vande Gorne : écriture", "en": "Vande Gorne: writing"},
   "about": {
@@ -69,8 +69,8 @@
       "id": "writing",
       "name": {"fr": "Type d'écriture", "en": "Writing type"},
       "about": {
-        "fr": "comment les voix du dossier se mêlent (Vande Gorne, ch. 3) ; certains impliquent une relation de mélange pour les chevauchements du dossier",
-        "en": "how the voices of the folder mix (Vande Gorne, chapter 3); some imply a mixing relation for the overlaps in the folder"
+        "fr": "comment les voix de la section (un dossier ou un conteneur) se mêlent (Vande Gorne, ch. 3) ; certains impliquent une relation de mélange pour ses chevauchements",
+        "en": "how the voices of the section (a folder or a container) mix (Vande Gorne, chapter 3); some imply a mixing relation for its overlaps"
       },
       "kind": "choice",
       "control": "menu",

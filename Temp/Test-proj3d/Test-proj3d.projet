@@ -5,10 +5,10 @@
   "sampleRate": 48000.0,
   "placeholderFormat": "ogg",
   "vorbisQuality": 7,
-  "viewStart": 22.750048363517696,
-  "pixelsPerSecond": 35.816641197055617,
-  "playhead": 29.943951239265274,
-  "activeLayer": "2718cdbf610642b38c2fcc39f7c89701",
+  "viewStart": 23.068116452131601,
+  "pixelsPerSecond": 68.179201125851733,
+  "playhead": 37.394422111511282,
+  "activeLayer": "556eb68da60e4930837b7b249cf51325",
   "fwLanguage": "en",
   "frameLength": 210.099004712476187,
   "spanStart": 3.514880149435655,
@@ -225,8 +225,8 @@
               "id": "3672daa5ec0342a5a5af8236294ab94d",
               "kind": "container",
               "name": "Start geste (repetitie)",
-              "start": 23.736679790421196,
-              "length": 7.37518524519194,
+              "start": 19.242946536868853,
+              "length": 11.234333133880856,
               "gainDb": 0.0,
               "fadeIn": 0.005,
               "fadeOut": 0.378657283340662,
@@ -236,12 +236,16 @@
               "innerLength": 2.991409732977127,
               "innerOffset": 2.17500011201196,
               "notes": "",
+              "fw.vandegorne.timefelt": "short",
+              "fw.vandegorne.timemove": "fixed",
+              "fw.vandegorne.writing": "rhythms",
+              "fw.composition.level": "ison",
               "children": [
                 {
                   "type": "TIMELINE",
-                  "activeLayer": "1d744486566f4eb08511ed310ed16974",
-                  "spanStart": 3.25557804415479,
-                  "spanEnd": 4.606226495156661,
+                  "activeLayer": "08a6842ee3ce41f9aaf90bbbda42cd8c",
+                  "spanStart": 2.173131951735962,
+                  "spanEnd": 4.424874242408904,
                   "children": [
                     {
                       "type": "TRACKS",
@@ -270,7 +274,8 @@
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
                               "opacity": 1.0,
-                              "notes": ""
+                              "notes": "",
+                              "fw.schaeffer.type": "Hx"
                             },
                             {
                               "type": "BOX",
@@ -287,7 +292,11 @@
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
                               "opacity": 1.0,
-                              "notes": ""
+                              "notes": "",
+                              "fw.schaeffer.type": "En",
+                              "fw.composition.energy": "percussion-resonance",
+                              "fw.composition.level": "ison",
+                              "fw.composition.energy2": "rotation"
                             },
                             {
                               "type": "BOX",
@@ -304,7 +313,9 @@
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
                               "opacity": 1.0,
-                              "notes": ""
+                              "notes": "",
+                              "fw.schaeffer.type": "P",
+                              "fw.composition.energy": "percussion-resonance"
                             }
                           ]
                         },
@@ -332,7 +343,8 @@
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
                               "opacity": 1.0,
-                              "notes": ""
+                              "notes": "",
+                              "fw.schaeffer.type": "Y''"
                             },
                             {
                               "type": "BOX",
@@ -349,7 +361,9 @@
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
                               "opacity": 1.0,
-                              "notes": ""
+                              "notes": "",
+                              "fw.schaeffer.type": "En",
+                              "fw.composition.energy": "rotation"
                             },
                             {
                               "type": "BOX",
@@ -366,7 +380,9 @@
                               "fadeInShape": 2,
                               "fadeOutShape": 2,
                               "opacity": 1.0,
-                              "notes": ""
+                              "notes": "",
+                              "fw.schaeffer.type": "Tx",
+                              "fw.composition.energy": "rotation"
                             }
                           ]
                         },
@@ -385,7 +401,7 @@
                               "kind": "container",
                               "name": "Test-block",
                               "start": 2.206673438245348,
-                              "length": 2.838486516256786,
+                              "length": 2.634002438229936,
                               "gainDb": 0.0,
                               "fadeIn": 0.0,
                               "fadeOut": 0.0,
@@ -395,6 +411,8 @@
                               "innerLength": 4.0,
                               "innerOffset": 0.0,
                               "notes": "",
+                              "fw.vandegorne.writing": "weaving",
+                              "fw.schaeffer.type": "N",
                               "children": [
                                 {
                                   "type": "TIMELINE",
@@ -539,7 +557,45 @@
                       "type": "MARKS"
                     },
                     {
-                      "type": "DRAWN"
+                      "type": "DRAWN",
+                      "children": [
+                        {
+                          "type": "ITEM",
+                          "id": "5c23763947d548e8857e5d7b1dbe71ea",
+                          "lane": "thoresen.dynamic",
+                          "kind": "span",
+                          "start": 2.378565157068932,
+                          "end": 3.015488094901417,
+                          "value": "backward",
+                          "emphasis": "emphasised"
+                        },
+                        {
+                          "type": "ITEM",
+                          "id": "b9747fa7a4a44ea9b63109dd7ad2ecfe",
+                          "lane": "thoresen.dynamic",
+                          "kind": "span",
+                          "start": 4.069605427279707,
+                          "end": 4.568712260919793,
+                          "value": "backward",
+                          "emphasis": "emphasised"
+                        },
+                        {
+                          "type": "ITEM",
+                          "id": "03f56e4f26544b5e9c055fc0811affe5",
+                          "lane": "thoresen.dynamic",
+                          "kind": "point",
+                          "start": 2.378565157068932,
+                          "value": "accent"
+                        },
+                        {
+                          "type": "ITEM",
+                          "id": "46a5dacc63af439ca8c0610156ba8fa2",
+                          "lane": "thoresen.dynamic",
+                          "kind": "point",
+                          "start": 4.069605427279707,
+                          "value": "accent"
+                        }
+                      ]
                     },
                     {
                       "type": "NODES"
@@ -558,10 +614,28 @@
                         },
                         {
                           "type": "LAYER",
-                          "id": "1d744486566f4eb08511ed310ed16974",
+                          "id": "583253f674a6444f866951084631fa92",
+                          "kind": "lane",
+                          "lane": "thoresen.dynamic",
+                          "name": "Dynamic form",
+                          "height": 134,
+                          "visible": true
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "2bc67df860544e2ca0410ab98de660a7",
+                          "kind": "lane",
+                          "lane": "composition.energies",
+                          "name": "Energies",
+                          "height": 156,
+                          "visible": true
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "08a6842ee3ce41f9aaf90bbbda42cd8c",
                           "kind": "proportion",
                           "name": "Proportion",
-                          "height": 90,
+                          "height": 22,
                           "visible": true,
                           "snap": true,
                           "frame": "span",
@@ -576,39 +650,10 @@
             },
             {
               "type": "BOX",
-              "id": "584df016516e4af1b7c9ebd9a2880e51",
-              "kind": "sound",
-              "name": "Untitled capture 2026-11-07 143018",
-              "start": 34.039914284088056,
-              "length": 3.68764715198968,
-              "opacity": 1.0,
-              "notes": "",
-              "gainDb": -10.799999999999997,
-              "offset": 0.0,
-              "fadeIn": 0.01,
-              "fadeOut": 0.01,
-              "fadeInShape": 2,
-              "fadeOutShape": 2,
-              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
-              "fw.composition.profile": "resonance"
-            }
-          ]
-        },
-        {
-          "type": "TRACK",
-          "id": "8859bfbf53154d22957aac9e410f6232",
-          "name": "Track 5",
-          "colour": 5,
-          "height": 72,
-          "mute": false,
-          "solo": false,
-          "children": [
-            {
-              "type": "BOX",
               "id": "c96001f843a045a686e1bcb1b559ad29",
               "kind": "container",
               "name": "Start geste (repetitie)",
-              "start": 30.082886378625734,
+              "start": 30.007952325933086,
               "length": 5.946408467907229,
               "gainDb": 3.996802888650564e-15,
               "fadeIn": 0.305645215599679,
@@ -619,6 +664,11 @@
               "innerLength": 2.17500011201196,
               "innerOffset": 0.0,
               "notes": "",
+              "fw.vandegorne.writing": "complex",
+              "fw.vandegorne.timefelt": "suspended",
+              "fw.vandegorne.timemove": "slowing",
+              "fw.thoresen.junction": "overlapping",
+              "fw.vandegorne.mixing": "fusion",
               "children": [
                 {
                   "type": "TIMELINE",
@@ -772,14 +822,14 @@
                           "name": "Time",
                           "height": 30,
                           "visible": true,
-                          "frame": "piece"
+                          "frame": "absolute"
                         },
                         {
                           "type": "LAYER",
                           "id": "eea0a57fd4f743dc8acbb3d802b65784",
                           "kind": "proportion",
                           "name": "Proportion",
-                          "height": 22,
+                          "height": 90,
                           "visible": true,
                           "snap": true,
                           "frame": "piece",
@@ -791,6 +841,35 @@
                   ]
                 }
               ]
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "8859bfbf53154d22957aac9e410f6232",
+          "name": "Track 5",
+          "colour": 5,
+          "height": 72,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "584df016516e4af1b7c9ebd9a2880e51",
+              "kind": "sound",
+              "name": "Untitled capture 2026-11-07 143018",
+              "start": 33.837613074923816,
+              "length": 4.850391483933869,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": -10.799999999999997,
+              "offset": 0.0,
+              "fadeIn": 0.01,
+              "fadeOut": 0.01,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "soundId": "f95c9e25c7724fd7b5183ccf7fda38ff",
+              "fw.composition.profile": "resonance"
             }
           ]
         }
@@ -873,12 +952,36 @@
         },
         {
           "type": "LAYER",
+          "id": "880920a7855a4788ba0e0ba08f0f4ba8",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "3672daa5ec0342a5a5af8236294ab94d",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "556eb68da60e4930837b7b249cf51325",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 90,
+          "visible": true,
+          "snap": true,
+          "frame": "584df016516e4af1b7c9ebd9a2880e51",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
           "id": "9f8b1b5824434d2986be1eb3d3890db0",
           "kind": "lane",
           "lane": "thoresen.dynamic",
           "name": "Dynamic form",
-          "height": 53,
-          "visible": false
+          "height": 192,
+          "visible": true
         },
         {
           "type": "LAYER",
@@ -1173,6 +1276,23 @@
           "kind": "point",
           "start": 15.776212754871306,
           "value": "separation"
+        },
+        {
+          "type": "ITEM",
+          "id": "0e57ff539814459ea924be4b43efc42e",
+          "lane": "thoresen.dynamic",
+          "kind": "span",
+          "start": 23.123897983118603,
+          "end": 29.864497863447117,
+          "value": "forward"
+        },
+        {
+          "type": "ITEM",
+          "id": "3f1f34c50a534a51825d862da46ffb0b",
+          "lane": "thoresen.dynamic",
+          "kind": "point",
+          "start": 30.082886378625734,
+          "value": "goal"
         }
       ]
     },

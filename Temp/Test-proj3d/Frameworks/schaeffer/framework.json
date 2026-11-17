@@ -1,7 +1,7 @@
 {
   "projet": "framework package",
   "id": "schaeffer",
-  "version": 3,
+  "version": 4,
   "order": 20,
   "name": {"fr": "Schaeffer", "en": "Schaeffer"},
   "about": {
@@ -19,6 +19,7 @@
       "kind": "choice",
       "control": "chart",
       "mark": "badge",
+      "formula": true,
       "groups": {
         "name": {"fr": "zone", "en": "zone"},
         "list": [
