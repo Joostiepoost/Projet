@@ -615,6 +615,7 @@
                               "children": [
                                 {
                                   "type": "TIMELINE",
+                                  "activeLayer": "f13aa707524a4fadb17ca882cef38dcf",
                                   "children": [
                                     {
                                       "type": "TRACKS",
@@ -638,6 +639,32 @@
                                     },
                                     {
                                       "type": "NODES"
+                                    },
+                                    {
+                                      "type": "RULERS",
+                                      "children": [
+                                        {
+                                          "type": "LAYER",
+                                          "id": "0964651a242b4b8a83204acd1fecd965",
+                                          "kind": "time",
+                                          "name": "Time",
+                                          "height": 30,
+                                          "visible": true,
+                                          "frame": "piece"
+                                        },
+                                        {
+                                          "type": "LAYER",
+                                          "id": "f13aa707524a4fadb17ca882cef38dcf",
+                                          "kind": "proportion",
+                                          "name": "Proportion",
+                                          "height": 22,
+                                          "visible": true,
+                                          "snap": true,
+                                          "frame": "piece",
+                                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                          "autoDivisions": true
+                                        }
+                                      ]
                                     }
                                   ]
                                 }
@@ -663,6 +690,7 @@
                               "children": [
                                 {
                                   "type": "TIMELINE",
+                                  "activeLayer": "87590a4128da464d8e464d19ecdd6919",
                                   "children": [
                                     {
                                       "type": "TRACKS",
@@ -686,6 +714,32 @@
                                     },
                                     {
                                       "type": "NODES"
+                                    },
+                                    {
+                                      "type": "RULERS",
+                                      "children": [
+                                        {
+                                          "type": "LAYER",
+                                          "id": "0e91b37c17f644b6998fc2510f932d39",
+                                          "kind": "time",
+                                          "name": "Time",
+                                          "height": 30,
+                                          "visible": true,
+                                          "frame": "piece"
+                                        },
+                                        {
+                                          "type": "LAYER",
+                                          "id": "87590a4128da464d8e464d19ecdd6919",
+                                          "kind": "proportion",
+                                          "name": "Proportion",
+                                          "height": 22,
+                                          "visible": true,
+                                          "snap": true,
+                                          "frame": "piece",
+                                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                          "autoDivisions": true
+                                        }
+                                      ]
                                     }
                                   ]
                                 }
@@ -742,6 +796,7 @@
                               "children": [
                                 {
                                   "type": "TIMELINE",
+                                  "activeLayer": "fa904837ae0344d5a75339f77db82b56",
                                   "children": [
                                     {
                                       "type": "TRACKS",
@@ -765,6 +820,32 @@
                                     },
                                     {
                                       "type": "NODES"
+                                    },
+                                    {
+                                      "type": "RULERS",
+                                      "children": [
+                                        {
+                                          "type": "LAYER",
+                                          "id": "3d4b2a85a987412b83eb932e5d2bb975",
+                                          "kind": "time",
+                                          "name": "Time",
+                                          "height": 30,
+                                          "visible": true,
+                                          "frame": "piece"
+                                        },
+                                        {
+                                          "type": "LAYER",
+                                          "id": "fa904837ae0344d5a75339f77db82b56",
+                                          "kind": "proportion",
+                                          "name": "Proportion",
+                                          "height": 22,
+                                          "visible": true,
+                                          "snap": true,
+                                          "frame": "piece",
+                                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                          "autoDivisions": true
+                                        }
+                                      ]
                                     }
                                   ]
                                 }
@@ -971,6 +1052,7 @@
                               "children": [
                                 {
                                   "type": "TIMELINE",
+                                  "activeLayer": "f25dbbd9c2f7413cb6942672e10393f9",
                                   "children": [
                                     {
                                       "type": "TRACKS",
@@ -994,6 +1076,32 @@
                                     },
                                     {
                                       "type": "NODES"
+                                    },
+                                    {
+                                      "type": "RULERS",
+                                      "children": [
+                                        {
+                                          "type": "LAYER",
+                                          "id": "cea69aa5846b4f67b7e9a7251d2d013f",
+                                          "kind": "time",
+                                          "name": "Time",
+                                          "height": 30,
+                                          "visible": true,
+                                          "frame": "piece"
+                                        },
+                                        {
+                                          "type": "LAYER",
+                                          "id": "f25dbbd9c2f7413cb6942672e10393f9",
+                                          "kind": "proportion",
+                                          "name": "Proportion",
+                                          "height": 22,
+                                          "visible": true,
+                                          "snap": true,
+                                          "frame": "piece",
+                                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                          "autoDivisions": true
+                                        }
+                                      ]
                                     }
                                   ]
                                 }
@@ -1100,6 +1208,7 @@
                               "children": [
                                 {
                                   "type": "TIMELINE",
+                                  "activeLayer": "0384b566a7454ef1b673a46b4d86827d",
                                   "children": [
                                     {
                                       "type": "TRACKS",
@@ -1123,6 +1232,32 @@
                                     },
                                     {
                                       "type": "NODES"
+                                    },
+                                    {
+                                      "type": "RULERS",
+                                      "children": [
+                                        {
+                                          "type": "LAYER",
+                                          "id": "adc6b3e85bd4411ea344eb0b432410a8",
+                                          "kind": "time",
+                                          "name": "Time",
+                                          "height": 30,
+                                          "visible": true,
+                                          "frame": "piece"
+                                        },
+                                        {
+                                          "type": "LAYER",
+                                          "id": "0384b566a7454ef1b673a46b4d86827d",
+                                          "kind": "proportion",
+                                          "name": "Proportion",
+                                          "height": 22,
+                                          "visible": true,
+                                          "snap": true,
+                                          "frame": "piece",
+                                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                          "autoDivisions": true
+                                        }
+                                      ]
                                     }
                                   ]
                                 }
@@ -1208,6 +1343,7 @@
               "children": [
                 {
                   "type": "TIMELINE",
+                  "activeLayer": "0701c9cee54d4331aca6058424482373",
                   "children": [
                     {
                       "type": "TRACKS",
@@ -1231,6 +1367,41 @@
                     },
                     {
                       "type": "NODES"
+                    },
+                    {
+                      "type": "RULERS",
+                      "children": [
+                        {
+                          "type": "LAYER",
+                          "id": "08fe671af26347e8ab8851fb0f153316",
+                          "kind": "time",
+                          "name": "Time",
+                          "height": 30,
+                          "visible": true,
+                          "frame": "piece"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "0701c9cee54d4331aca6058424482373",
+                          "kind": "proportion",
+                          "name": "Proportion",
+                          "height": 22,
+                          "visible": true,
+                          "snap": true,
+                          "frame": "piece",
+                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                          "autoDivisions": true
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "862ecf94a0e5497bb1323fed3c8c697f",
+                          "kind": "lane",
+                          "lane": "composition.energies",
+                          "name": "Energies",
+                          "height": 113,
+                          "visible": true
+                        }
+                      ]
                     }
                   ]
                 }
