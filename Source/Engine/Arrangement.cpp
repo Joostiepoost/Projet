@@ -1,6 +1,7 @@
 // Arrangement.cpp
 
 #include "Arrangement.h"
+#include "../Model/Board.h"
 
 namespace projet
 {
@@ -20,6 +21,63 @@ namespace
     FadeShape shapeOf (const juce::ValueTree& box, const juce::Identifier& id)
     {
         return (FadeShape) juce::jlimit (0, numFadeShapes - 1, (int) box.getProperty (id, (int) FadeShape::sCurve));
+    }
+
+    /** The windows of the containers around, as clip windows: the clip
+        sounds only inside them, cut with a short fade at an edge. */
+    bool applyWindows (Clip& c, const std::vector<Level::Edge>& edges, double rate)
+    {
+        auto samples = [rate] (double seconds) { return (int64_t) std::llround (seconds * rate); };
+        c.playFrom = c.start;
+        c.playTo = c.end();
+        const int64_t cut = samples (Arrangement::cutFade);
+        for (auto& e : edges)
+        {
+            Window w;
+            w.start = samples (e.start);
+            w.end = samples (e.end);
+            w.fadeIn = samples (e.fadeIn);
+            w.fadeOut = samples (e.fadeOut);
+            w.inShape = e.inShape;
+            w.outShape = e.outShape;
+            if (c.start < w.start && w.fadeIn < cut) { w.fadeIn = cut; w.inShape = FadeShape::linear; }
+            if (c.end() > w.end && w.fadeOut < cut)   { w.fadeOut = cut; w.outShape = FadeShape::linear; }
+            c.playFrom = juce::jmax (c.playFrom, w.start);
+            c.playTo = juce::jmin (c.playTo, w.end);
+            if (w.fadeIn > 0 || w.fadeOut > 0) c.windows.push_back (w);
+        }
+        return c.playTo > c.playFrom;
+    }
+
+    /** A board box's temporal outs (stage 9b): its sound cards marked out,
+        each from its offset in the box, never stretched, cut off at the
+        box's end (and by the containers around it). */
+    void addTemporalOuts (const juce::ValueTree& box, const Level& level, const Arrangement::Lookup& pool, Arrangement& a)
+    {
+        const double rate = a.sampleRate;
+        auto samples = [rate] (double seconds) { return (int64_t) std::llround (seconds * rate); };
+        const double boxStart = level.a + level.b * Project::boxStart (box);
+        const double boxEnd = boxStart + level.b * Project::boxLength (box);
+        for (auto card : Board::temporalOuts (Project::boardOf (box)))
+        {
+            auto sound = pool (card[IDs::soundId].toString());
+            if (sound == nullptr) continue;
+            Clip c;
+            c.sound = sound;
+            // Its place in the box moves with the box (and scales with a stretched container); its sound does not.
+            c.start = samples (boxStart + level.b * juce::jmax (0.0, (double) card.getProperty (IDs::outStart, 0.0)));
+            c.offset = juce::jlimit ((int64_t) 0, sound->length(), samples (Board::cardIn (card)));
+            c.length = juce::jmin (samples (Board::cardOut (card, sound->seconds())) - c.offset, sound->length() - c.offset);
+            if (c.length <= 0) continue;
+            c.gain = level.gain * (float) juce::Decibels::decibelsToGain ((double) card.getProperty (IDs::gainDb, 0.0), -100.0);
+            c.fadeIn = juce::jlimit ((int64_t) 0, c.length, samples ((double) card.getProperty (IDs::fadeIn, 0.0)));
+            c.fadeOut = juce::jlimit ((int64_t) 0, c.length, samples ((double) card.getProperty (IDs::fadeOut, 0.0)));
+            auto edges = level.windows;
+            edges.push_back ({ boxStart, boxEnd, 0.0, 0.0, FadeShape::linear, FadeShape::linear });   // cut off at the box's end
+            if (! applyWindows (c, edges, rate)) continue;
+            a.end = juce::jmax (a.end, c.playTo);
+            a.clips.push_back (std::move (c));
+        }
     }
 
     void addTimeline (const juce::ValueTree& tracks, const Level& level, Project& project, const Arrangement::Lookup& pool, Arrangement& a)
@@ -57,6 +115,12 @@ namespace
                     continue;
                 }
 
+                if (Project::isBoard (box))
+                {
+                    addTemporalOuts (box, level, pool, a);
+                    continue;
+                }
+
                 if (! Project::isSound (box)) continue;
                 auto sound = pool (box[IDs::soundId].toString());
                 if (sound == nullptr) continue;
@@ -76,25 +140,7 @@ namespace
                 c.outShape = shapeOf (box, IDs::fadeOutShape);
 
                 // Inside every container around it; a short fade where an edge cuts it.
-                c.playFrom = c.start;
-                c.playTo = c.end();
-                const int64_t cut = samples (Arrangement::cutFade);
-                for (auto& e : level.windows)
-                {
-                    Window w;
-                    w.start = samples (e.start);
-                    w.end = samples (e.end);
-                    w.fadeIn = samples (e.fadeIn);
-                    w.fadeOut = samples (e.fadeOut);
-                    w.inShape = e.inShape;
-                    w.outShape = e.outShape;
-                    if (c.start < w.start && w.fadeIn < cut) { w.fadeIn = cut; w.inShape = FadeShape::linear; }
-                    if (c.end() > w.end && w.fadeOut < cut)   { w.fadeOut = cut; w.outShape = FadeShape::linear; }
-                    c.playFrom = juce::jmax (c.playFrom, w.start);
-                    c.playTo = juce::jmin (c.playTo, w.end);
-                    if (w.fadeIn > 0 || w.fadeOut > 0) c.windows.push_back (w);
-                }
-                if (c.playTo <= c.playFrom) continue;
+                if (! applyWindows (c, level.windows, rate)) continue;
 
                 a.end = juce::jmax (a.end, c.playTo);
                 a.clips.push_back (std::move (c));

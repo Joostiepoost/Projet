@@ -23,12 +23,14 @@
 #include "UI/OutlinePanel.h"
 #include "UI/MagnifierBar.h"
 #include "UI/BoardView.h"
+#include "Engine/Previewer.h"
 #include "UI/TransportBar.h"
 #include "UI/ImportPanel.h"
 #include "UI/StartPanel.h"
 #include "UI/NotesWindow.h"
 
 class MainComponent : public juce::Component,
+                      public juce::DragAndDropContainer,     // sound cards onto tracks, boxes onto boards (9b)
                       public juce::ApplicationCommandTarget,
                       public juce::MenuBarModel,
                       private juce::Timer,
@@ -142,6 +144,8 @@ private:
     {
         juce::String trackId;
         juce::String takeBoxId;            // stage 7: the sounds become takes of this box
+        juce::String boardBoxId;           // 9b: the sounds become sound cards on this box's board
+        juce::Point<float> boardPoint;
         bool firstTakeMade = false;
         double cursor = 0.0;
         int next = 0;
@@ -182,6 +186,7 @@ private:
     projet::SoundPool pool;
     projet::Importer importer;
     projet::PlaybackEngine engine;
+    projet::Previewer previewer;              // a sound card heard on its board (9b)
     juce::AudioDeviceManager deviceManager;
     /** The audio engine on or off (off: the device is closed, saving CPU and battery). */
     bool audioOn = true;
@@ -238,7 +243,7 @@ private:
     // (one of the two at a time), or filling the area. Clicked, it is the one
     // worked on: the panel shows what is selected on it, and the editing
     // commands (delete, copy, paste, select all, zoom) go to it.
-    BoardView board { project, framework, folder };
+    BoardView board { project, framework, folder, pool };
     MagnifierBar boardBar;
     bool boardShown = false, boardFilled = false, boardActive = false;
     double boardShare = 0.55, boardShareAtDragStart = 0.55;
@@ -249,6 +254,12 @@ private:
     void setBoardFilled (bool);
     /** The editing commands the board takes while it is worked on. */
     bool boardTakes (juce::CommandID) const;
+    // 9b
+    void playCard (juce::ValueTree card);
+    void showBox (juce::ValueTree box);
+    void importSoundCards (const juce::StringArray& files, juce::Point<float> boardPoint);
+    void dropSoundCard (const juce::String& boardBoxId, const juce::String& cardId, juce::ValueTree track, double start);
+    bool previewWasPlaying = false;
     ImportPanel importPanel;
     std::unique_ptr<NotesWindow> notesWindow;
     StartPanel startPanel;

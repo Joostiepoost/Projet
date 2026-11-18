@@ -1352,7 +1352,7 @@ void Project::followIds (juce::ValueTree node, const std::map<juce::String, juce
 {
     for (auto child : node)
     {
-        for (auto* property : { &IDs::folderId, &IDs::propFrame, &IDs::frame, &IDs::activeLayer, &IDs::fromItem, &IDs::toItem })
+        for (auto* property : { &IDs::folderId, &IDs::propFrame, &IDs::frame, &IDs::activeLayer, &IDs::fromItem, &IDs::toItem, &IDs::targetBox, &IDs::targetTake })
         {
             auto it = ids.find (child[*property].toString());
             if (it != ids.end()) child.setProperty (*property, it->second, nullptr);

@@ -15,7 +15,7 @@
 
 namespace Board
 {
-    enum class Kind { card, arrow, shape, stroke, image, unknown };
+    enum class Kind { card, arrow, shape, stroke, image, soundCard, link, unknown };
     Kind kindOf (const juce::ValueTree& item);
     /** "card", "arrow" ... for the panel and undo names. */
     juce::String kindName (const juce::ValueTree& item);
@@ -58,6 +58,22 @@ namespace Board
     juce::ValueTree makeArrow (juce::Point<float> a, juce::Point<float> b, const juce::String& fromId, const juce::String& toId, int colour);
     juce::ValueTree makeStroke (const juce::Array<juce::Point<float>>& points, int colour, float width);
     juce::ValueTree makeImage (const juce::String& file, juce::Rectangle<float>);
+    /** A sound card (9b): the whole sound, playing on the board only. */
+    juce::ValueTree makeSoundCard (const juce::String& soundId, juce::Rectangle<float>, int colour);
+    /** A timeline link (9b) to a box, and the take it has now. */
+    juce::ValueTree makeLink (const juce::ValueTree& box, juce::Rectangle<float>);
+
+    //== Sound cards and links (9b) ===========================================
+    /** The fragment of the sound a card plays, in seconds into the sound
+        (`soundSeconds`: its whole length; 0 if unknown). */
+    double cardIn (const juce::ValueTree& card);
+    double cardOut (const juce::ValueTree& card, double soundSeconds);
+    bool isTemporalOut (const juce::ValueTree& card);
+    /** The sound cards of a board that play in the piece. */
+    juce::Array<juce::ValueTree> temporalOuts (const juce::ValueTree& board);
+    /** "0:01.250" (minutes when needed); and back (seconds, or -1 if unreadable). */
+    juce::String formatSeconds (double seconds);
+    double parseSeconds (const juce::String&);
 
     /** Moves an item (an arrow: its free ends). */
     void moveBy (juce::ValueTree item, juce::Point<float> delta, juce::UndoManager*);

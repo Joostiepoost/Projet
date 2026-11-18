@@ -40,6 +40,7 @@ set(PROJET_CORE_SOURCES
     Source/Engine/Importer.cpp
     Source/Engine/Arrangement.cpp
     Source/Engine/PlaybackEngine.cpp
+    Source/Engine/Previewer.cpp
     Source/Model/Project.cpp
     Source/Model/Proportion.cpp
     Source/Model/Lanes.cpp

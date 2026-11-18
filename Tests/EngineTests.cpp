@@ -2402,6 +2402,99 @@ void testBoards()
     line();
 }
 
+void testSoundCards()
+{
+    line ("## 23. Sound cards, temporal outs, links (stage 9b)");
+    line();
+    const double rate = 48000.0;
+    auto nearS = [rate] (int64_t samples, double seconds) { return std::abs ((double) samples - seconds * rate) < 2.0; };
+    Project p;
+    p.resetToDefault ("Cards", rate);
+    auto track = p.getTrack (0);
+    juce::ValueTree rec (IDs::SOUND);
+    rec.setProperty (IDs::id, "s1", nullptr);
+    rec.setProperty (IDs::name, "tone", nullptr);
+    rec.setProperty (IDs::lengthSamples, (juce::int64) (4.0 * rate), nullptr);
+    p.addSound (rec);
+    auto tone = constantSound (rate, 4.0, 0.5f);
+    const Arrangement::Lookup lookup = [&tone] (const juce::String& id) { return id == "s1" ? tone : std::shared_ptr<const SoundData>(); };
+    auto& um = p.getUndoManager();
+
+    um.beginNewTransaction ("Board");
+    auto box = p.addBoardBox (track, 2.0, 3.0);                  // 2 s to 5 s
+    auto board = Project::boardOf (box);
+    auto card = Board::makeSoundCard ("s1", { 0.0f, 0.0f, 240.0f, 92.0f }, 0);
+    board.appendChild (card, &um);
+    check (Board::cardIn (card) == 0.0 && Board::cardOut (card, 4.0) == 4.0 && ! Board::isTemporalOut (card), "a new sound card: the whole sound, on the board only");
+    check (Arrangement::build (p, lookup)->clips.empty(), "a sound card that is not out stays silent in the piece");
+
+    card.setProperty (IDs::temporalOut, true, &um);
+    card.setProperty (IDs::outStart, 1.0, &um);
+    card.setProperty (IDs::srcIn, 0.5, &um);
+    card.setProperty (IDs::srcOut, 3.5, &um);
+    card.setProperty (IDs::gainDb, -6.0, &um);
+    auto arr = Arrangement::build (p, lookup);
+    check (arr->clips.size() == 1, "marked out, it plays");
+    if (arr->clips.size() == 1)
+    {
+        const auto& c = arr->clips[0];
+        check (nearS (c.start, 3.0) && nearS (c.offset, 0.5) && nearS (c.length, 3.0), "from its offset in the box (2 + 1 s), its fragment (0.5 to 3.5 s)");
+        check (nearS (c.playTo, 5.0) && c.playTo < c.end(), "cut off at the box's end (5 s)");
+        check (std::abs (c.gain - juce::Decibels::decibelsToGain (-6.0f)) < 1.0e-4f, "with its own gain");
+    }
+    check (Board::summary (board) == "1 sound card, 1 playing in the piece", "summary: " + Board::summary (board));
+
+    // Inside a stretched container: its place in the box scales, its sound does not.
+    um.beginNewTransaction ("Group");
+    auto container = p.groupIntoContainer ({ box });
+    container.setProperty (IDs::length, Project::boxLength (container) * 2.0, &um);
+    arr = Arrangement::build (p, lookup);
+    check (arr->clips.size() == 1 && nearS (arr->clips[0].start, 2.0 + 2.0 * 1.0) && nearS (arr->clips[0].length, 3.0),
+           "in a container stretched twice: it starts 2 s into the box, still 3 s long");
+    um.undo();
+    check (Project::isBoard (track.getChild (0)), "undone");
+    box = track.getChild (0);
+    board = Project::boardOf (box);
+    card = board.getChild (0);
+
+    // A muted track silences its board's outs too.
+    track.setProperty (IDs::mute, true, nullptr);
+    check (Arrangement::build (p, lookup)->clips.empty(), "a muted track's board is silent");
+    track.setProperty (IDs::mute, false, nullptr);
+
+    // Times typed in the panel.
+    check (std::abs (Board::parseSeconds ("1:02.5") - 62.5) < 1.0e-9 && std::abs (Board::parseSeconds ("3.25") - 3.25) < 1.0e-9
+           && Board::parseSeconds ("abc") < 0.0 && Board::formatSeconds (62.5) == "1:02.500", "times read and written (1:02.500)");
+
+    // == Links
+    auto other = p.addTextBox (track, 10.0, 2.0);
+    other.setProperty (IDs::name, "Return", nullptr);
+    um.beginNewTransaction ("Link");
+    auto link = Board::makeLink (other, { 300.0f, 0.0f, 240.0f, 56.0f });
+    board.appendChild (link, &um);
+    check (link[IDs::targetBox] == other[IDs::id] && ! link.hasProperty (IDs::targetTake), "a link to a box with one take");
+    p.addTake (other, Project::NewTake::text);
+    auto link2 = Board::makeLink (other, { 300.0f, 100.0f, 240.0f, 56.0f });
+    check (link2[IDs::targetTake] == other[IDs::activeTake], "a link to a box with takes records the take");
+
+    // Copied together (a container around both), the link follows the copy.
+    um.beginNewTransaction ("Group both");
+    auto both = p.groupIntoContainer ({ box, other });
+    um.beginNewTransaction ("Duplicate");
+    auto dup = p.duplicateBox (both);
+    juce::ValueTree dupBoard, dupOther;
+    for (auto t : Project::innerTracks (dup))
+        for (auto b : t)
+        {
+            if (Project::isBoard (b)) dupBoard = Project::boardOf (b);
+            if (b[IDs::name].toString() == "Return") dupOther = b;
+        }
+    auto dupLink = dupBoard.isValid() ? dupBoard.getChildWithName (IDs::LINK) : juce::ValueTree();
+    check (dupLink.isValid() && dupOther.isValid() && dupLink[IDs::targetBox] == dupOther[IDs::id] && dupOther[IDs::id] != other[IDs::id],
+           "duplicated with its box, a link points to the copy");
+    line();
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
@@ -2411,7 +2504,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); testSoundCards(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -2450,6 +2543,7 @@ int main (int argc, char** argv)
     std::cout << "Takes..." << std::endl;              testTakes();
     std::cout << "Factors..." << std::endl;            testFactors();
     std::cout << "Boards..." << std::endl;             testBoards();
+    std::cout << "Sound cards..." << std::endl;        testSoundCards();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

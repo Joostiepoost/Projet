@@ -576,6 +576,19 @@ void TimelineView::paint (juce::Graphics& g)
         for (auto& r : rs)
             if (! r.folder) paintSeams (g, r);
 
+        // Where a sound card from a board would land (9b).
+        if (dropTrackId.isNotEmpty())
+            for (auto& r : rs)
+                if (r.track[IDs::id].toString() == dropTrackId)
+                {
+                    const float x0 = timeToX (dropStart), x1 = juce::jmax (x0 + 4.0f, timeToX (dropStart + dropLength));
+                    const juce::Rectangle<float> area (x0, (float) r.y + 3.0f, x1 - x0, (float) r.h - 6.0f);
+                    g.setColour (juce::Colour (0xff4ea597).withAlpha (0.3f));
+                    g.fillRoundedRectangle (area, 4.0f);
+                    g.setColour (juce::Colour (0xff8fd6c9));
+                    g.drawRoundedRectangle (area, 4.0f, 1.5f);
+                }
+
         if (project.getContentEnd() <= 0.0)
         {
             g.setColour (Theme::textMuted);
@@ -1018,10 +1031,121 @@ void TimelineView::paintBoardBox (juce::Graphics& g, const juce::ValueTree& box,
         g.setColour (base.withAlpha (alpha));
         g.fillRect (r.withWidth (5.0f));
     }
+    if (! Board::temporalOuts (board).isEmpty() && r.getHeight() > 30.0f)
+        paintOutsStrip (g, box, r.withTrimmedTop (r.getHeight() - juce::jmin (16.0f, r.getHeight() * 0.3f)).reduced (1.0f, 2.0f));
     paintFrameworkMarks (g, box, r, alpha);
     const bool open = box == openBoard;
     g.setColour (selected ? Theme::accent : (open ? Theme::magnifier : (colourMode ? base : edge).withAlpha (alpha)));
     g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, selected || open ? 2.0f : (emphasis ? 1.8f : 1.0f));
+}
+
+void TimelineView::paintOutsStrip (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> strip)
+{
+    // What the board box plays in the piece (9b): each temporal out's
+    // waveform where it sounds, cut off at the box's end.
+    juce::Graphics::ScopedSaveState s (g);
+    g.reduceClipRegion (strip.toNearestInt());
+    g.setColour (juce::Colour (0xff1f403b).withAlpha (0.85f));
+    g.fillRect (strip);
+    const double boxStart = Project::boxStart (box), boxEnd = Project::boxEnd (box);
+    const float mid = strip.getCentreY(), half = strip.getHeight() * 0.5f;
+    for (auto card : Board::temporalOuts (Project::boardOf (box)))
+    {
+        auto sound = pool.get (card[IDs::soundId].toString());
+        if (sound == nullptr || sound->peakMin.empty()) continue;
+        const double from = Board::cardIn (card), to = Board::cardOut (card, sound->seconds());
+        const double t0 = boxStart + juce::jmax (0.0, (double) card.getProperty (IDs::outStart, 0.0));
+        const double t1 = juce::jmin (boxEnd, t0 + (to - from));
+        const float gain = juce::Decibels::decibelsToGain ((float) (double) card.getProperty (IDs::gainDb, 0.0));
+        const auto blocks = (int64_t) sound->peakMin.size();
+        g.setColour (juce::Colour (0xff8fd6c9).withAlpha (0.85f));
+        const int x0 = juce::jmax ((int) timeToX (t0), headerWidth), x1 = juce::jmin ((int) timeToX (t1), getWidth());
+        for (int x = x0; x < x1; ++x)
+        {
+            const double a = xToTime ((float) x) - t0 + from, b = xToTime ((float) x + 1.0f) - t0 + from;
+            auto b0 = juce::jlimit ((int64_t) 0, blocks - 1, (int64_t) (a * sound->sampleRate) / projet::SoundData::peakBlock);
+            auto b1 = juce::jlimit (b0 + 1, blocks, (int64_t) (b * sound->sampleRate) / projet::SoundData::peakBlock + 1);
+            float lo = 0.0f, hi = 0.0f;
+            for (auto k = b0; k < b1; ++k) { lo = juce::jmin (lo, sound->peakMin[(size_t) k]); hi = juce::jmax (hi, sound->peakMax[(size_t) k]); }
+            lo = juce::jlimit (-1.0f, 1.0f, lo * gain);
+            hi = juce::jlimit (-1.0f, 1.0f, hi * gain);
+            g.fillRect ((float) x, mid - hi * half, 1.0f, juce::jmax (1.0f, (hi - lo) * half));
+        }
+    }
+}
+
+//== Sound cards from a board, boxes into view (9b) ============================
+
+bool TimelineView::dropAt (const SourceDetails& d, juce::ValueTree& track, double& start, double& length) const
+{
+    const auto desc = d.description.toString();
+    if (! desc.startsWith ("projet:soundcard:")) return false;
+    length = desc.fromLastOccurrenceOf (":", false, false).getDoubleValue();
+    const int y = d.localPosition.y;
+    for (auto& r : rows())
+        if (! r.folder && y >= r.y && y < r.y + r.h && y >= tracksTop()) { track = r.track; break; }
+    if (! track.isValid()) return false;
+    start = juce::jmax (0.0, xToTime ((float) juce::jmax (headerWidth, d.localPosition.x)));
+    start = snap (start, {}, true);
+    return true;
+}
+
+bool TimelineView::isInterestedInDragSource (const SourceDetails& d)
+{
+    return d.description.toString().startsWith ("projet:soundcard:");
+}
+
+void TimelineView::itemDragMove (const SourceDetails& d)
+{
+    const Project::ScopedFocus levelScope (project, level);
+    juce::ValueTree track;
+    double start = 0.0, length = 0.0;
+    const auto was = dropTrackId;
+    const double wasStart = dropStart;
+    if (dropAt (d, track, start, length)) { dropTrackId = track[IDs::id].toString(); dropStart = start; dropLength = length; }
+    else dropTrackId.clear();
+    if (was != dropTrackId || std::abs (wasStart - dropStart) > 1.0e-6) repaint();
+}
+
+void TimelineView::itemDragExit (const SourceDetails&)
+{
+    dropTrackId.clear();
+    repaint();
+}
+
+void TimelineView::itemDropped (const SourceDetails& d)
+{
+    const Project::ScopedFocus levelScope (project, level);
+    dropTrackId.clear();
+    juce::ValueTree track;
+    double start = 0.0, length = 0.0;
+    if (dropAt (d, track, start, length) && onDropSoundCard)
+    {
+        const auto parts = juce::StringArray::fromTokens (d.description.toString().fromFirstOccurrenceOf ("projet:soundcard:", false, false), ":", {});
+        if (parts.size() >= 2) onDropSoundCard (parts[0], parts[1], track, start);
+    }
+    repaint();
+}
+
+void TimelineView::revealBox (const juce::ValueTree& box)
+{
+    const Project::ScopedFocus levelScope (project, level);
+    const float x0 = timeToX (Project::boxStart (box)), x1 = timeToX (Project::boxEnd (box));
+    if (x0 < (float) headerWidth || x1 > (float) getWidth())
+    {
+        const double span = (getWidth() - headerWidth) / juce::jmax (0.5, pps);
+        setView (juce::jmax (0.0, Project::boxStart (box) - span * 0.15), pps);
+    }
+    for (auto& r : rows())
+        if (r.track == box.getParent())
+        {
+            if (r.y < tracksTop() || r.y + r.h > getHeight())
+            {
+                scrollY = juce::jmax (0, scrollY + r.y - tracksTop() - 10);
+                repaint();
+            }
+            break;
+        }
 }
 
 //== Factor curves over a box (stage 8) ========================================
@@ -2447,7 +2571,12 @@ void TimelineView::mouseDown (const juce::MouseEvent& e)
         case Zone::endEdge:       dragMode = DragMode::trimEnd;   project.getUndoManager().beginNewTransaction ("Trim box"); break;
         case Zone::fadeInHandle:  dragMode = DragMode::fadeIn;    project.getUndoManager().beginNewTransaction ("Fade in"); break;
         case Zone::fadeOutHandle: dragMode = DragMode::fadeOut;   project.getUndoManager().beginNewTransaction ("Fade out"); break;
-        case Zone::body:          dragMode = DragMode::move;      project.getUndoManager().beginNewTransaction ("Move box"); break;
+        case Zone::body:
+            // Alt-drag: the box onto a board, as a link (9b).
+            if (e.mods.isAltDown()) { dragMode = DragMode::linkOut; break; }
+            dragMode = DragMode::move;
+            project.getUndoManager().beginNewTransaction ("Move box");
+            break;
         case Zone::none:          break;
     }
 }
@@ -2467,6 +2596,25 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         const int h = juce::jlimit (minTrackHeight, maxTrackHeight, dragLayerStartHeight + e.getDistanceFromDragStartY());
         if (h != (int) dragLayer.getProperty (IDs::height, defaultTrackHeight)) dragLayer.setProperty (IDs::height, h, nullptr);
         repaint();
+        return;
+    }
+    if (dragMode == DragMode::linkOut)
+    {
+        if (e.getDistanceFromDragStart() < 4 || ! dragBox.isValid()) return;
+        dragMode = DragMode::none;
+        if (auto* container = juce::DragAndDropContainer::findParentDragContainerFor (this))
+        {
+            juce::Image image (juce::Image::ARGB, 180, 26, true);
+            {
+                juce::Graphics ig (image);
+                ig.setColour (Theme::magnifier.withAlpha (0.85f));
+                ig.fillRoundedRectangle (image.getBounds().toFloat().reduced (1.0f), 4.0f);
+                ig.setColour (juce::Colours::white);
+                ig.setFont (Theme::font (12.0f, true));
+                ig.drawText (juce::String::fromUTF8 ("\xe2\x86\x97 ") + dragBox[IDs::name].toString(), image.getBounds().reduced (8, 0), juce::Justification::centredLeft, true);
+            }
+            container->startDragging ("projet:box:" + dragBox[IDs::id].toString(), this, juce::ScaledImage (image), true);
+        }
         return;
     }
     const bool snapping = ! e.mods.isShiftDown();
@@ -2629,6 +2777,7 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         case DragMode::nodeEnd:     // drawn lanes and nodes (TimelineDrawn.cpp)
         case DragMode::trackHeight: // above
         case DragMode::factorCurve:
+        case DragMode::linkOut:     // above
         case DragMode::none:
             break;
     }

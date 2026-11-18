@@ -19,14 +19,19 @@ namespace
         return f.hasFileExtension ("png;jpg;jpeg;gif");
     }
 
+    bool isSoundFile (const juce::File& f)
+    {
+        return f.hasFileExtension ("wav;wave;aif;aiff;flac;ogg;mp3;m4a;caf;aac");
+    }
+
     juce::Path iconPath (const char* svg)
     {
         return juce::Drawable::parseSVGPath (svg);
     }
 }
 
-BoardView::BoardView (Project& p, const Framework& f, const ProjectFolder& pf)
-    : project (p), framework (f), folder (pf)
+BoardView::BoardView (Project& p, const Framework& f, const ProjectFolder& pf, const projet::SoundPool& sp)
+    : project (p), framework (f), folder (pf), pool (sp)
 {
     setWantsKeyboardFocus (true);
     setMouseClickGrabsKeyboardFocus (true);
@@ -91,6 +96,10 @@ BoardPainter::Context BoardView::context() const
     c.projectFolder = folder.getFolder();
     c.fills = project.getState()[IDs::fwFills].toString() != "off";
     if (editing.isValid() && editingField == IDs::notes) c.skipText = editing[IDs::id].toString();
+    c.project = &project;
+    c.pool = &pool;
+    if (previewingCard) c.previewCard = previewingCard();
+    if (c.previewCard.isNotEmpty() && previewSeconds) c.previewSeconds = previewSeconds();
     return c;
 }
 
@@ -166,10 +175,13 @@ std::vector<BoardView::ToolButton> BoardView::toolButtons() const
 {
     std::vector<ToolButton> b;
     int y = 10;
+    // Closer together when the board is low.
+    const int step = juce::jlimit (30, 42, (getHeight() - 14) / 8);
+    const int size = juce::jmin (36, step - 4);
     auto add = [&] (Tool t, const char* name, const char* key)
     {
-        b.push_back ({ t, { 6, y, 36, 36 }, name, key });
-        y += 42;
+        b.push_back ({ t, { 6 + (36 - size) / 2, y, size, size }, name, key });
+        y += step;
     };
     add (Tool::select, "Select and move", "V");
     add (Tool::card, "Text card", "T");
@@ -177,6 +189,8 @@ std::vector<BoardView::ToolButton> BoardView::toolButtons() const
     add (Tool::shape, "Shape", "S");
     add (Tool::pen, "Pen", "P");
     add (Tool::image, "Image", "I");
+    add (Tool::sound, "Sound card", "O");
+    add (Tool::link, "Timeline link", "L");
     return b;
 }
 
@@ -192,6 +206,8 @@ void BoardView::setTool (Tool t)
         case Tool::arrow:  status ("Arrow: drag from a card (or anywhere) to another; its ends stay attached to the cards."); break;
         case Tool::shape:  status ("Shape (" + juce::String (shapeKind == "rect" ? "rectangle" : shapeKind) + "): drag to draw it; S again for the next shape."); break;
         case Tool::pen:    status ("Pen: draw freely; Esc or V to stop."); break;
+        case Tool::sound:  status ("Sound card: click where it goes, then choose a sound of the project (or a file). Or drop sound files on the board."); break;
+        case Tool::link:   status ("Timeline link: click where it goes, then choose the box. Or Alt-drag a box from the timeline onto the board."); break;
         case Tool::image:  break;
     }
     repaint();
@@ -227,13 +243,15 @@ void BoardView::paintToolStrip (juce::Graphics& g)
                 break;
             case Tool::pen:    icon = iconPath ("M3 15 C 5 11, 7 13, 9 9 C 11 5, 13 7, 15 3"); break;
             case Tool::image:  icon = iconPath ("M3 4 H15 V14 H3 Z M3 12 L7 8 L10 11 L12 9 L15 12"); break;
+            case Tool::sound:  icon = iconPath ("M4 7 V11 M7 4 V14 M10 6 V12 M13 8 V10"); break;
+            case Tool::link:   icon = iconPath ("M3 9 H10 M7 5.5 L10.5 9 L7 12.5 M12 4 H15 V14 H12"); break;
         }
-        icon.applyTransform (juce::AffineTransform::translation (r.getX() + 9.0f, r.getY() + 9.0f));
+        icon.applyTransform (juce::AffineTransform::translation (r.getCentreX() - 9.0f, r.getCentreY() - 9.0f));
         g.setColour (on ? juce::Colour (0xfff0cf8e) : Theme::textMuted.brighter (0.2f));
         g.strokePath (icon, juce::PathStrokeType (1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setFont (Theme::font (8.5f));
         g.setColour (Theme::textMuted.withAlpha (0.7f));
-        g.drawText (b.key, b.area.withTrimmedLeft (25).withTrimmedTop (24), juce::Justification::centred, false);
+        g.drawText (b.key, b.area.withTrimmedLeft (b.area.getWidth() - 11).withTrimmedTop (b.area.getHeight() - 12), juce::Justification::centred, false);
     }
 }
 
@@ -473,16 +491,24 @@ bool BoardView::isInterestedInFileDrag (const juce::StringArray& files)
 {
     if (! getBoard().isValid()) return false;
     for (auto& f : files)
-        if (isImageFile (juce::File (f))) return true;
+        if (isImageFile (juce::File (f)) || isSoundFile (juce::File (f))) return true;
     return false;
 }
 
 void BoardView::filesDropped (const juce::StringArray& files, int x, int y)
 {
-    juce::Array<juce::File> list;
-    for (auto& f : files) list.add (juce::File (f));
+    juce::Array<juce::File> images;
+    juce::StringArray sounds;
+    for (auto& f : files)
+    {
+        const juce::File file (f);
+        if (isSoundFile (file)) sounds.add (f);
+        else images.add (file);
+    }
     if (onActivate) onActivate();
-    addImages (list, toBoard ({ (float) x, (float) y }));
+    const auto at = toBoard ({ (float) x, (float) y });
+    if (! images.isEmpty()) addImages (images, at);
+    if (! sounds.isEmpty() && onImportSounds) onImportSounds (sounds, snapPoint (at, true));     // sound cards when imported (9b)
 }
 
 //== Words typed in place ======================================================
@@ -492,6 +518,7 @@ void BoardView::editText (juce::ValueTree item)
     commitEdit();
     if (! item.isValid() || ! item.getParent().isValid()) return;
     const auto kind = Board::kindOf (item);
+    if (kind == Board::Kind::link || kind == Board::Kind::stroke) return;
     editing = item;
     editingField = kind == Board::Kind::card ? IDs::notes : (kind == Board::Kind::image ? IDs::caption : IDs::label);
     setSelectedIds ({ item[IDs::id].toString() });
@@ -500,7 +527,8 @@ void BoardView::editText (juce::ValueTree item)
     editor->setMultiLine (multi, true);
     editor->setReturnKeyStartsNewLine (multi);
     editor->setScrollbarsShown (multi);
-    editor->setText (item[editingField].toString(), false);
+    editor->setText (kind == Board::Kind::soundCard && item[IDs::label].toString().isEmpty() ? BoardPainter::soundCardName (item, &project)
+                                                                                                : item[editingField].toString(), false);
     editor->setColour (juce::TextEditor::backgroundColourId, multi ? BoardPainter::cardPaper (Board::colourOf (item)) : juce::Colour (0xff17181b));
     editor->setColour (juce::TextEditor::outlineColourId, Theme::accent.withAlpha (0.6f));
     editor->setColour (juce::TextEditor::focusedOutlineColourId, Theme::accent);
@@ -528,6 +556,13 @@ void BoardView::positionEditor()
         auto card = Board::rect (editing);
         const float labelH = editing[IDs::label].toString().trim().isNotEmpty() ? 27.0f : 9.0f;
         r = toScreen (juce::Rectangle<float> (card.getX() + 8.0f, card.getY() + labelH, card.getWidth() - 12.0f, juce::jmax (40.0f, card.getHeight() - labelH - 4.0f)));
+    }
+    else if (editing.hasType (IDs::SOUNDCARD))
+    {
+        const auto play = BoardPainter::playButton (editing);
+        const auto card = Board::rect (editing);
+        r = toScreen (juce::Rectangle<float> (play.getRight() + 6.0f, card.getY() + 6.0f, card.getRight() - play.getRight() - 16.0f, 26.0f));
+        fontSize = 13.0f;
     }
     else if (editingField == IDs::caption)
     {
@@ -557,10 +592,14 @@ void BoardView::commitEdit()
     keep->setVisible (false);
     removeChildComponent (keep.get());
     juce::MessageManager::callAsync ([doomed = keep.release()] { delete doomed; });
-    if (item.isValid() && item.getParent().isValid() && text != item[field].toString())
+    // A sound card named as its sound needs no label of its own.
+    auto newText = text;
+    if (item.hasType (IDs::SOUNDCARD) && field == IDs::label && text.trim() == project.findSound (item[IDs::soundId].toString())[IDs::name].toString())
+        newText = {};
+    if (item.isValid() && item.getParent().isValid() && newText != item[field].toString())
     {
         project.getUndoManager().beginNewTransaction (field == IDs::notes ? "Write in a card" : (field == IDs::caption ? "Caption" : "Label"));
-        item.setProperty (field, field == IDs::notes ? text : text.trim(), um());
+        item.setProperty (field, field == IDs::notes ? newText : newText.trim(), um());
         // A card grows to show what was written in it.
         if (field == IDs::notes)
         {
@@ -719,8 +758,8 @@ void BoardView::paintOverlay (juce::Graphics& g, const juce::ValueTree& board, j
         g.setColour (Theme::textMuted.withAlpha (0.8f));
         g.setFont (Theme::font (13.0f));
         g.drawFittedText ("An empty board. Double-click to write a card, or pick a tool on the left:\n"
-                          "T card,  A arrow,  S shape (S again: ellipse, line),  P pen,  I image (or drop images here).\n"
-                          "Scroll to move around, Cmd-scroll or pinch to zoom.",
+                          "T card,  A arrow,  S shape (S again: ellipse, line),  P pen,  I image,  O sound card,  L link to a box.\n"
+                          "Drop images or sounds here; Alt-drag a box from the timeline for a link. Scroll to move around, Cmd-scroll or pinch to zoom.",
                           canvas.reduced (40), juce::Justification::centred, 4);
     }
 
@@ -728,6 +767,13 @@ void BoardView::paintOverlay (juce::Graphics& g, const juce::ValueTree& board, j
     {
         g.setColour (Theme::magnifier);
         g.fillRect (canvas.getX(), canvas.getY(), canvas.getWidth(), 2);
+    }
+    if (linkDragOver)
+    {
+        g.setColour (Theme::magnifier);
+        g.drawRect (canvas, 3);
+        g.setFont (Theme::font (13.0f, true));
+        g.drawText ("Drop to link to this box", canvas.reduced (12).removeFromTop (22), juce::Justification::centredRight, false);
     }
 }
 
@@ -829,8 +875,42 @@ void BoardView::mouseDown (const juce::MouseEvent& e)
             trail.clearQuick();
             trail.add (downBoard);
             return;
+        case Tool::sound:
+            showSoundMenu (snapPoint (downBoard, snapOn));
+            return;
+        case Tool::link:
+            showLinkMenu (snapPoint (downBoard, snapOn));
+            return;
         case Tool::image: case Tool::select:
             break;
+    }
+
+    // A sound card's play button and fragment ends; a link's button (9b).
+    if (auto hit = Board::itemAt (board, downBoard, tolerance()); hit.isValid())
+    {
+        if (hit.hasType (IDs::SOUNDCARD))
+        {
+            if (BoardPainter::playButton (hit).expanded (2.0f).contains (downBoard))
+            {
+                setSelectedIds ({ hit[IDs::id].toString() });
+                if (onPlayCard) onPlayCard (hit);
+                return;
+            }
+            if (const int end = trimHandleAt (hit, e.position); end >= 0)
+            {
+                setSelectedIds ({ hit[IDs::id].toString() });
+                dragItem = hit;
+                drag = end == 0 ? Drag::trimIn : Drag::trimOut;
+                project.getUndoManager().beginNewTransaction ("Trim the sound card");
+                return;
+            }
+        }
+        if (hit.hasType (IDs::LINK) && BoardPainter::goButton (hit).expanded (2.0f).contains (downBoard))
+        {
+            setSelectedIds ({ hit[IDs::id].toString() });
+            if (auto target = BoardPainter::linkedBox (hit, &project); target.isValid() && onGoToBox) onGoToBox (target);
+            return;
+        }
     }
 
     int kind = -1;
@@ -904,8 +984,42 @@ void BoardView::mouseDrag (const juce::MouseEvent& e)
             origin -= (e.position - lastScreen) / zoom;
             positionEditor();
             break;
+        case Drag::trimIn: case Drag::trimOut:
+        {
+            const double seconds = soundSeconds (dragItem);
+            if (seconds <= 0.0) break;
+            const auto wave = BoardPainter::waveArea (dragItem);
+            double t = seconds * juce::jlimit (0.0, 1.0, (double) ((current.x - wave.getX()) / wave.getWidth()));
+            const double in = Board::cardIn (dragItem), out = Board::cardOut (dragItem, seconds);
+            if (drag == Drag::trimIn)
+            {
+                t = juce::jlimit (0.0, juce::jmax (0.0, out - 0.01), t);
+                dragItem.setProperty (IDs::srcIn, t < 0.0005 ? 0.0 : t, um());
+            }
+            else
+            {
+                t = juce::jlimit (in + 0.01, seconds, t);
+                if (t > seconds - 0.0005) dragItem.removeProperty (IDs::srcOut, um());
+                else dragItem.setProperty (IDs::srcOut, t, um());
+            }
+            status ("The fragment: " + Board::formatSeconds (Board::cardIn (dragItem)) + juce::String::fromUTF8 (" \xe2\x80\x93 ")
+                    + Board::formatSeconds (Board::cardOut (dragItem, seconds)) + " of " + Board::formatSeconds (seconds) + ".");
+            break;
+        }
+        case Drag::dragOut:
+            break;
         case Drag::move:
         {
+            // A sound card pulled up out of the board, onto a track (9b).
+            if (e.y < 0 && moved.size() == 1 && moved.front().first.hasType (IDs::SOUNDCARD) && canDragOut && canDragOut())
+            {
+                auto card = moved.front().first;
+                project.getUndoManager().undoCurrentTransactionOnly();     // it stays where it was on the board
+                moved.clear();
+                drag = Drag::dragOut;
+                startDragOut (card);
+                break;
+            }
             auto d = current - downBoard;
             // The first item lands on the grid (a free arrow: its start).
             if (snapOn && ! moved.empty())
@@ -1058,6 +1172,7 @@ void BoardView::mouseUp (const juce::MouseEvent& e)
             setMouseCursor (juce::MouseCursor::NormalCursor);
             break;
         case Drag::move: case Drag::corner: case Drag::bend: case Drag::rubber: case Drag::none:
+        case Drag::trimIn: case Drag::trimOut: case Drag::dragOut:
             break;
     }
     drag = Drag::none;
@@ -1071,6 +1186,15 @@ void BoardView::mouseUp (const juce::MouseEvent& e)
 void BoardView::mouseMove (const juce::MouseEvent& e)
 {
     if (e.x < toolStripWidth || ! getBoard().isValid()) { setMouseCursor (juce::MouseCursor::NormalCursor); return; }
+    if (tool == Tool::select)
+        if (auto hit = Board::itemAt (getBoard(), toBoard (e.position), tolerance()); hit.isValid())
+        {
+            const auto p = toBoard (e.position);
+            if ((hit.hasType (IDs::SOUNDCARD) && BoardPainter::playButton (hit).expanded (2.0f).contains (p))
+                || (hit.hasType (IDs::LINK) && BoardPainter::goButton (hit).expanded (2.0f).contains (p)))
+            { setMouseCursor (juce::MouseCursor::PointingHandCursor); return; }
+            if (hit.hasType (IDs::SOUNDCARD) && trimHandleAt (hit, e.position) >= 0) { setMouseCursor (juce::MouseCursor::LeftRightResizeCursor); return; }
+        }
     int kind = -1;
     const int h = handleAt (e.position, kind);
     if (h >= 0) setMouseCursor (kind == 0 ? ((h == 0 || h == 2) ? juce::MouseCursor::TopLeftCornerResizeCursor : juce::MouseCursor::TopRightCornerResizeCursor)
@@ -1087,7 +1211,12 @@ void BoardView::mouseDoubleClick (const juce::MouseEvent& e)
     auto item = Board::itemAt (getBoard(), p, tolerance());
     if (item.isValid())
     {
-        if (! item.hasType (IDs::STROKE)) editText (item);
+        if (item.hasType (IDs::LINK))
+        {
+            if (auto target = BoardPainter::linkedBox (item, &project); target.isValid() && onGoToBox) onGoToBox (target);
+            else showLinkMenu (Board::rect (item).getTopLeft(), item);
+        }
+        else if (! item.hasType (IDs::STROKE)) editText (item);
         return;
     }
     addCardAt (p, true);
@@ -1128,6 +1257,8 @@ bool BoardView::keyPressed (const juce::KeyPress& key)
         if (c == 'a') { setTool (Tool::arrow); return true; }
         if (c == 'p') { setTool (Tool::pen); return true; }
         if (c == 'i') { setTool (Tool::image); return true; }
+        if (c == 'o') { setTool (Tool::sound); return true; }
+        if (c == 'l') { setTool (Tool::link); return true; }
         if (c == 's')
         {
             if (tool == Tool::shape) shapeKind = shapeKind == "rect" ? "ellipse" : (shapeKind == "ellipse" ? "line" : "rect");
@@ -1183,6 +1314,25 @@ void BoardView::showItemMenu (juce::ValueTree item)
     if (one && kind == Board::Kind::card) m.addItem (1, "Write in the card (double-click, Return)");
     if (one && (kind == Board::Kind::shape || kind == Board::Kind::arrow)) m.addItem (1, "Label (double-click)");
     if (one && kind == Board::Kind::image) m.addItem (1, "Caption (double-click)");
+    if (one && kind == Board::Kind::soundCard)
+    {
+        const bool hearing = previewingCard && previewingCard() == item[IDs::id].toString();
+        m.addItem (70, hearing ? "Stop" : "Play (its button, Space)");
+        m.addItem (71, "Plays in the piece (temporal out)", true, Board::isTemporalOut (item));
+        m.addItem (72, "The whole sound", Board::cardIn (item) > 0.0 || item.hasProperty (IDs::srcOut));
+        m.addItem (73, "Name (double-click)");
+    }
+    juce::ValueTree linked;
+    if (one && kind == Board::Kind::link)
+    {
+        linked = BoardPainter::linkedBox (item, &project);
+        m.addItem (80, "Go there (its button, double-click)", linked.isValid());
+        m.addItem (81, "Point it elsewhere...");
+        const auto takeId = item[IDs::targetTake].toString();
+        if (linked.isValid() && takeId.isNotEmpty() && linked[IDs::activeTake].toString() != takeId)
+            if (auto take = linked.getChildWithName (IDs::TAKES).getChildWithProperty (IDs::id, takeId); take.isValid())
+                m.addItem (82, "Switch the box to take " + take[IDs::name].toString());
+    }
     juce::PopupMenu colours;
     for (int i = 0; i < Board::palette().size(); ++i)
     {
@@ -1223,13 +1373,32 @@ void BoardView::showItemMenu (juce::ValueTree item)
     m.addItem (60, one ? "Show it on the box" : "Show them on the box");
 
     juce::Component::SafePointer<BoardView> safe (this);
-    m.showMenuAsync (juce::PopupMenu::Options(), [safe, item] (int r) mutable
+    m.showMenuAsync (juce::PopupMenu::Options(), [safe, item, linked] (int r) mutable
     {
         if (safe == nullptr || r == 0) return;
         auto& um = safe->project.getUndoManager();
         auto items = safe->getSelectedItems();
         if (items.isEmpty()) items.add (item);
-        if (r == 1) safe->editText (item);
+        if (r == 1 || r == 73) safe->editText (item);
+        else if (r == 70) { if (safe->onPlayCard) safe->onPlayCard (item); }
+        else if (r == 71)
+        {
+            um.beginNewTransaction (Board::isTemporalOut (item) ? "Plays on the board only" : "Plays in the piece");
+            item.setProperty (IDs::temporalOut, ! Board::isTemporalOut (item), safe->um());
+        }
+        else if (r == 72)
+        {
+            um.beginNewTransaction ("The whole sound");
+            item.removeProperty (IDs::srcIn, safe->um());
+            item.removeProperty (IDs::srcOut, safe->um());
+        }
+        else if (r == 80) { if (safe->onGoToBox && linked.isValid()) safe->onGoToBox (linked); }
+        else if (r == 81) safe->showLinkMenu (Board::rect (item).getTopLeft(), item);
+        else if (r == 82 && linked.isValid())
+        {
+            um.beginNewTransaction ("Switch take");
+            safe->project.setActiveTake (linked, linked.getChildWithName (IDs::TAKES).getChildWithProperty (IDs::id, item[IDs::targetTake].toString()));
+        }
         else if (r >= 10 && r < 10 + Board::palette().size())
         {
             um.beginNewTransaction ("Colour");
@@ -1277,6 +1446,8 @@ void BoardView::showBoardMenu (juce::Point<float> p)
     m.addItem (1, "New card here");
     m.addItem (2, "Paste here", canPaste());
     m.addItem (3, "Add images...");
+    m.addItem (8, "Sound card here...");
+    m.addItem (9, "Link to a box here...");
     m.addSeparator();
     m.addItem (4, "Show what is in view on the box");
     m.addItem (5, "Show nothing on the box", ! Board::shownPart (getBoard()).isEmpty());
@@ -1301,9 +1472,186 @@ void BoardView::showBoardMenu (juce::Point<float> p)
             }
         }
         else if (r == 3) safe->chooseImages();
+        else if (r == 8) safe->showSoundMenu (safe->snapPoint (p, true));
+        else if (r == 9) safe->showLinkMenu (safe->snapPoint (p, true));
         else if (r == 4) { safe->deselect(); safe->showOnBox(); }
         else if (r == 5) safe->clearShownPart();
         else if (r == 6) safe->selectAll();
         else if (r == 7) safe->zoomToFit();
     });
+}
+
+//== Sound cards and links (9b) ================================================
+
+juce::ValueTree BoardView::singleSelected() const
+{
+    const auto items = getSelectedItems();
+    return items.size() == 1 ? items[0] : juce::ValueTree();
+}
+
+double BoardView::soundSeconds (const juce::ValueTree& card) const
+{
+    const auto id = card[IDs::soundId].toString();
+    if (auto s = pool.get (id)) return s->seconds();
+    return project.soundSeconds (id);
+}
+
+int BoardView::trimHandleAt (const juce::ValueTree& card, juce::Point<float> screen) const
+{
+    const double seconds = soundSeconds (card);
+    if (seconds <= 0.0) return -1;
+    const auto wave = toScreen (BoardPainter::waveArea (card));
+    if (! wave.expanded (0.0f, 2.0f).contains (screen)) return -1;
+    const float xIn = wave.getX() + wave.getWidth() * (float) (Board::cardIn (card) / seconds);
+    const float xOut = wave.getX() + wave.getWidth() * (float) (Board::cardOut (card, seconds) / seconds);
+    const float dIn = std::abs (screen.x - xIn), dOut = std::abs (screen.x - xOut);
+    if (juce::jmin (dIn, dOut) > 6.0f) return -1;
+    return dIn < dOut ? 0 : 1;
+}
+
+juce::ValueTree BoardView::addSoundCard (const juce::String& soundId, juce::Point<float> p, bool undoable)
+{
+    auto board = getBoard();
+    if (! board.isValid() || ! project.findSound (soundId).isValid()) return {};
+    auto card = Board::makeSoundCard (soundId, { p.x, p.y, 240.0f, 92.0f }, (int) Board::palette()[2].getARGB());
+    if (undoable) project.getUndoManager().beginNewTransaction ("New sound card");
+    board.appendChild (card, um());
+    setSelectedIds ({ card[IDs::id].toString() });
+    tool = Tool::select;
+    status ("Click its button (or Space) to hear it; drag the ends of the waveform for a fragment; mark it out in the panel to hear it in the piece.");
+    return card;
+}
+
+void BoardView::showSoundMenu (juce::Point<float> p)
+{
+    juce::PopupMenu m;
+    juce::Array<juce::ValueTree> sounds;
+    for (auto s : project.getSounds()) sounds.add (s);
+    std::sort (sounds.begin(), sounds.end(), [] (const juce::ValueTree& a, const juce::ValueTree& b)
+               { return a[IDs::name].toString().compareNatural (b[IDs::name].toString()) < 0; });
+    m.addSectionHeader ("A sound card here");
+    m.addItem (1, "From a file...");
+    if (! sounds.isEmpty()) m.addSeparator();
+    for (int i = 0; i < sounds.size() && i < 500; ++i)
+        m.addItem (100 + i, sounds[i][IDs::name].toString() + "   " + Board::formatSeconds (project.soundSeconds (sounds[i][IDs::id].toString())));
+    juce::Component::SafePointer<BoardView> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options(), [safe, p, sounds] (int r)
+    {
+        if (safe == nullptr || r == 0) return;
+        if (r == 1) { if (safe->onChooseSoundFiles) safe->onChooseSoundFiles (p); safe->tool = Tool::select; safe->repaint(); return; }
+        if (r >= 100 && r - 100 < sounds.size()) safe->addSoundCard (sounds[r - 100][IDs::id].toString(), p);
+    });
+}
+
+void BoardView::showLinkMenu (juce::Point<float> p, juce::ValueTree relink)
+{
+    // The piece's boxes as its outline: a container's inside as a submenu.
+    auto boxes = std::make_shared<juce::Array<juce::ValueTree>>();
+    const auto thisBox = box;
+    std::function<void (juce::PopupMenu&, const juce::ValueTree&)> fill = [&] (juce::PopupMenu& menu, const juce::ValueTree& tracks)
+    {
+        for (auto track : tracks)
+        {
+            if (Project::isFolder (track)) continue;
+            for (auto b : track)
+            {
+                if (! b.hasType (IDs::BOX) || boxes->size() > 600) continue;
+                auto name = b[IDs::name].toString();
+                if (name.isEmpty()) name = Project::isContainer (b) ? "Container" : (Project::isSound (b) ? "Sound" : (Project::isBoard (b) ? "Board" : "Text"));
+                if (Project::isContainer (b))
+                {
+                    juce::PopupMenu inside;
+                    boxes->add (b);
+                    inside.addItem (1000 + boxes->size() - 1, "This container");
+                    inside.addSeparator();
+                    fill (inside, Project::innerTracks (b));
+                    menu.addSubMenu (name, inside);
+                }
+                else
+                {
+                    boxes->add (b);
+                    menu.addItem (1000 + boxes->size() - 1, name, b != thisBox);
+                }
+            }
+        }
+    };
+    juce::PopupMenu m;
+    m.addSectionHeader (relink.isValid() ? "Point the link to" : "A link here, to");
+    fill (m, project.getRootTracks());
+    if (boxes->isEmpty()) m.addItem (1, "(no boxes yet)", false);
+    juce::Component::SafePointer<BoardView> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options(), [safe, p, boxes, relink] (int r) mutable
+    {
+        if (safe == nullptr || r < 1000 || r - 1000 >= boxes->size()) { if (safe != nullptr) safe->tool = Tool::select; return; }
+        auto target = (*boxes)[r - 1000];
+        safe->tool = Tool::select;
+        if (relink.isValid() && relink.getParent().isValid())
+        {
+            safe->project.getUndoManager().beginNewTransaction ("Point the link elsewhere");
+            relink.setProperty (IDs::targetBox, target[IDs::id].toString(), safe->um());
+            if (target.getChildWithName (IDs::TAKES).isValid()) relink.setProperty (IDs::targetTake, target[IDs::activeTake].toString(), safe->um());
+            else relink.removeProperty (IDs::targetTake, safe->um());
+            relink.setProperty (IDs::name, target[IDs::name].toString(), safe->um());
+            safe->repaint();
+            return;
+        }
+        auto link = Board::makeLink (target, { p.x, p.y, 240.0f, 56.0f });
+        link.setProperty (IDs::name, target[IDs::name].toString(), nullptr);
+        safe->addItem (link, "New link");
+        safe->status ("Its button (or a double-click) goes to the box.");
+        safe->repaint();
+    });
+}
+
+void BoardView::startDragOut (const juce::ValueTree& card)
+{
+    auto* container = juce::DragAndDropContainer::findParentDragContainerFor (this);
+    if (container == nullptr) return;
+    const double seconds = soundSeconds (card);
+    const double length = juce::jmax (0.05, Board::cardOut (card, seconds) - Board::cardIn (card));
+    const auto name = BoardPainter::soundCardName (card, &project);
+    juce::Image image (juce::Image::ARGB, 180, 26, true);
+    {
+        juce::Graphics g (image);
+        g.setColour (Board::colourOf (card).withAlpha (0.85f));
+        g.fillRoundedRectangle (image.getBounds().toFloat().reduced (1.0f), 4.0f);
+        g.setColour (juce::Colours::white);
+        g.setFont (Theme::font (12.0f, true));
+        g.drawText (name, image.getBounds().reduced (8, 0), juce::Justification::centredLeft, true);
+    }
+    status ("Drop it on a track for a sound box with this fragment.");
+    container->startDragging ("projet:soundcard:" + box[IDs::id].toString() + ":" + card[IDs::id].toString() + ":" + juce::String (length, 6),
+                              this, juce::ScaledImage (image), true);
+}
+
+bool BoardView::isInterestedInDragSource (const SourceDetails& d)
+{
+    return getBoard().isValid() && d.description.toString().startsWith ("projet:box:");
+}
+
+void BoardView::itemDragEnter (const SourceDetails&)
+{
+    linkDragOver = true;
+    repaint();
+}
+
+void BoardView::itemDragExit (const SourceDetails&)
+{
+    linkDragOver = false;
+    repaint();
+}
+
+void BoardView::itemDropped (const SourceDetails& d)
+{
+    linkDragOver = false;
+    const auto id = d.description.toString().fromFirstOccurrenceOf ("projet:box:", false, false);
+    auto target = project.findBoxInPiece (id);
+    if (! target.isValid() || ! getBoard().isValid()) { repaint(); return; }
+    if (onActivate) onActivate();
+    const auto at = snapPoint (toBoard (d.localPosition.toFloat()), true);
+    auto link = Board::makeLink (target, { at.x, at.y, 240.0f, 56.0f });
+    link.setProperty (IDs::name, target[IDs::name].toString(), nullptr);
+    addItem (link, "New link");
+    status ("A link to " + target[IDs::name].toString() + ": its button (or a double-click) goes there.");
+    repaint();
 }

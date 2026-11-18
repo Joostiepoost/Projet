@@ -24,15 +24,23 @@ public:
 
     std::function<void()> onShowOnBox, onClearShown, onFit, onAddImages, onFront, onBack, onDelete, onClose, onFill;
     std::function<bool()> isFilled;
+    // 9b
+    std::function<void (juce::ValueTree card)> onPlayCard;
+    std::function<juce::String()> previewingCard;
+    std::function<void (juce::ValueTree box)> onGoToBox;
+    std::function<void (juce::ValueTree link)> onRelink;
+    std::function<double (const juce::ValueTree& card)> soundSeconds;
 
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
-    enum class Mode { board, card, shape, arrow, stroke, image, several };
+    enum class Mode { board, card, shape, arrow, stroke, image, soundCard, link, several };
     Mode mode = Mode::board;
     void setMode (Mode);
     void commitWords();
+    /** A sound card's times typed in (9b). */
+    void commitTime (juce::TextEditor&, const juce::Identifier&, const juce::String& undoName);
     void setOnAll (const juce::Identifier&, const juce::var&, const juce::String& undoName);
     juce::UndoManager* um()                         { return project.um(); }
 
@@ -64,6 +72,13 @@ private:
     juce::ComboBox shapeBox;
     juce::ToggleButton dashed { "Dashed" }, filled { "Filled" };
     juce::TextButton straight { "Straight" };
+    // Sound cards and links (9b)
+    juce::Label fromLabel { {}, "Fragment: from" }, toLabel { {}, "to" }, gainLabel { {}, "Gain (dB)" },
+                fadeInLabel { {}, "Fade in (s)" }, fadeOutLabel { {}, "Fade out (s)" }, startLabel { {}, "Starts in the box at" };
+    juce::TextEditor fromEdit, toEdit, fadeInEdit, fadeOutEdit, startEdit;
+    juce::Slider gain;
+    juce::ToggleButton outToggle { "Plays in the piece (temporal out)" };
+    juce::TextButton playButton { "Play" }, wholeButton { "Whole sound" }, goButton { "Go there" }, relinkButton { "Point it elsewhere..." }, takeButton;
     juce::TextButton showOnBox { "Show on the box" }, clearShown { "Show nothing on the box" }, fit { "Fit" }, addImages { "Add images..." },
                      front { "To front" }, back { "To back" }, remove { "Delete" }, close { "Close the board" }, fill { "Fill the area" };
 

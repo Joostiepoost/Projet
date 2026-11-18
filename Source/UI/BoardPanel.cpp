@@ -133,6 +133,66 @@ BoardPanel::BoardPanel (Project& p, const Framework& f)
     }
     addChildComponent (straight);
 
+    // Sound cards and links (9b)
+    for (auto* l : { &fromLabel, &toLabel, &gainLabel, &fadeInLabel, &fadeOutLabel, &startLabel })
+    {
+        styleLabel (*l);
+        addChildComponent (*l);
+    }
+    auto timeField = [this] (juce::TextEditor& ed, const juce::Identifier& id, const juce::String& undoName)
+    {
+        ed.setFont (Theme::font (13.0f));
+        ed.setJustification (juce::Justification::centredLeft);
+        ed.onReturnKey = [this, &ed, id, undoName] { commitTime (ed, id, undoName); };
+        ed.onFocusLost = [this, &ed, id, undoName] { commitTime (ed, id, undoName); };
+        addChildComponent (ed);
+    };
+    timeField (fromEdit, IDs::srcIn, "Fragment");
+    timeField (toEdit, IDs::srcOut, "Fragment");
+    timeField (fadeInEdit, IDs::fadeIn, "Fade in");
+    timeField (fadeOutEdit, IDs::fadeOut, "Fade out");
+    timeField (startEdit, IDs::outStart, "Start in the box");
+    gain.setSliderStyle (juce::Slider::LinearHorizontal);
+    gain.setTextBoxStyle (juce::Slider::TextBoxRight, false, 56, 22);
+    gain.setRange (-48.0, 12.0, 0.1);
+    gain.setDoubleClickReturnValue (true, 0.0);
+    gain.onDragStart = [this] { project.getUndoManager().beginNewTransaction ("Gain"); };
+    gain.onValueChange = [this]
+    {
+        if (updating || items.size() != 1) return;
+        if (! gain.isMouseButtonDown()) project.getUndoManager().beginNewTransaction ("Gain");
+        items[0].setProperty (IDs::gainDb, gain.getValue(), um());
+    };
+    addChildComponent (gain);
+    outToggle.setColour (juce::ToggleButton::textColourId, Theme::text);
+    outToggle.onClick = [this] { setOnAll (IDs::temporalOut, outToggle.getToggleState(), outToggle.getToggleState() ? "Plays in the piece" : "Plays on the board only"); };
+    addChildComponent (outToggle);
+    playButton.onClick = [this] { if (onPlayCard && items.size() == 1) onPlayCard (items[0]); };
+    wholeButton.onClick = [this]
+    {
+        if (items.size() != 1) return;
+        project.getUndoManager().beginNewTransaction ("The whole sound");
+        items[0].removeProperty (IDs::srcIn, um());
+        items[0].removeProperty (IDs::srcOut, um());
+    };
+    goButton.onClick = [this]
+    {
+        if (items.size() != 1) return;
+        if (auto target = BoardPainter::linkedBox (items[0], &project); target.isValid() && onGoToBox) onGoToBox (target);
+    };
+    relinkButton.onClick = [this] { if (onRelink && items.size() == 1) onRelink (items[0]); };
+    takeButton.onClick = [this]
+    {
+        if (items.size() != 1) return;
+        auto target = BoardPainter::linkedBox (items[0], &project);
+        auto take = target.getChildWithName (IDs::TAKES).getChildWithProperty (IDs::id, items[0][IDs::targetTake].toString());
+        if (! target.isValid() || ! take.isValid()) return;
+        project.getUndoManager().beginNewTransaction ("Switch take");
+        project.setActiveTake (target, take);
+    };
+    for (auto* b : { &playButton, &wholeButton, &goButton, &relinkButton, &takeButton })
+        addChildComponent (*b);
+
     showOnBox.onClick = [this] { if (onShowOnBox) onShowOnBox(); };
     clearShown.onClick = [this] { if (onClearShown) onClearShown(); };
     fit.onClick = [this] { if (onFit) onFit(); };
@@ -182,6 +242,21 @@ void BoardPanel::commitWords()
     item.setProperty (id, text, um());
 }
 
+void BoardPanel::commitTime (juce::TextEditor& ed, const juce::Identifier& id, const juce::String& undoName)
+{
+    if (updating || items.size() != 1 || ! items[0].hasType (IDs::SOUNDCARD)) return;
+    auto card = items[0];
+    const double seconds = soundSeconds ? soundSeconds (card) : 0.0;
+    double v = Board::parseSeconds (ed.getText());
+    if (v < 0.0) { refresh(); return; }        // not a time: back to what it was
+    if (id == IDs::srcIn) v = juce::jlimit (0.0, juce::jmax (0.0, Board::cardOut (card, seconds) - 0.01), v);
+    if (id == IDs::srcOut) v = seconds > 0.0 ? juce::jlimit (Board::cardIn (card) + 0.01, seconds, v) : v;
+    if (std::abs (v - (double) card.getProperty (id, id == IDs::srcOut ? seconds : 0.0)) < 1.0e-4) { refresh(); return; }
+    project.getUndoManager().beginNewTransaction (undoName);
+    if (id == IDs::srcOut && seconds > 0.0 && v > seconds - 0.0005) card.removeProperty (IDs::srcOut, um());
+    else card.setProperty (id, v, um());
+}
+
 void BoardPanel::setMode (Mode m)
 {
     mode = m;
@@ -189,6 +264,13 @@ void BoardPanel::setMode (Mode m)
     const bool board = m == Mode::board;
     labelLabel.setVisible (card);
     labelBox.setVisible (card);
+    const bool sound = m == Mode::soundCard, link = m == Mode::link;
+    for (auto* c : std::initializer_list<juce::Component*> { &fromLabel, &toLabel, &gainLabel, &fadeInLabel, &fadeOutLabel, &startLabel,
+                                                             &fromEdit, &toEdit, &fadeInEdit, &fadeOutEdit, &startEdit, &gain, &outToggle, &playButton, &wholeButton })
+        c->setVisible (sound);
+    goButton.setVisible (link);
+    relinkButton.setVisible (link);
+    takeButton.setVisible (false);
     colourLabel.setVisible (! board && m != Mode::image);
     colours.setVisible (colourLabel.isVisible());
     auto* fc = BoardPainter::fillCategory (framework);
@@ -196,7 +278,7 @@ void BoardPanel::setMode (Mode m)
     levelBox.setVisible (levelLabel.isVisible());
     textLabel.setVisible (card);
     notes.setVisible (card);
-    wordsLabel.setVisible (m == Mode::shape || m == Mode::arrow || m == Mode::image);
+    wordsLabel.setVisible (m == Mode::shape || m == Mode::arrow || m == Mode::image || m == Mode::soundCard);
     words.setVisible (wordsLabel.isVisible());
     widthLabel.setVisible (lines);
     width.setVisible (lines);
@@ -235,6 +317,8 @@ void BoardPanel::refresh()
             case Board::Kind::arrow:  m = Mode::arrow; break;
             case Board::Kind::stroke: m = Mode::stroke; break;
             case Board::Kind::image:  m = Mode::image; break;
+            case Board::Kind::soundCard: m = Mode::soundCard; break;
+            case Board::Kind::link:   m = Mode::link; break;
             case Board::Kind::unknown: break;
         }
     setMode (m);
@@ -252,7 +336,8 @@ void BoardPanel::refresh()
                                   : "The box on the timeline shows the part outlined in blue.")
               << "\n\nTools on the left, or their keys:\n"
                  "V select and move,  T text card,  A arrow (from card to card),\n"
-                 "S shape (S again: ellipse, line),  P pen,  I image.\n"
+                 "S shape (S again: ellipse, line),  P pen,  I image,\n"
+                 "O sound card,  L link to a box (or Alt-drag a box from the timeline onto the board).\n"
                  "Double-click: write in a card (on the empty board: a new card), a label, a caption.\n"
                  "Scroll to move around, Cmd-scroll or pinch to zoom, Cmd-0 to fit. Items snap to the grid unless Cmd is held; Shift keeps proportions.\n"
                  "Right-click an item for its colour, label, dashes and order.";
@@ -270,7 +355,7 @@ void BoardPanel::refresh()
             showOnBox.setButtonText ("Show them on the box");
             break;
         }
-        case Mode::card: case Mode::shape: case Mode::arrow: case Mode::stroke: case Mode::image:
+        case Mode::card: case Mode::shape: case Mode::arrow: case Mode::stroke: case Mode::image: case Mode::soundCard: case Mode::link:
         {
             title.setText (Theme::capitals (Board::kindName (item)), juce::dontSendNotification);
             info.setText ({}, juce::dontSendNotification);
@@ -309,10 +394,48 @@ void BoardPanel::refresh()
         }
         else notes.refresh();
     }
-    if (m == Mode::shape || m == Mode::arrow || m == Mode::image)
+    if (m == Mode::shape || m == Mode::arrow || m == Mode::image || m == Mode::soundCard)
     {
-        wordsLabel.setText (m == Mode::image ? "Caption" : "Label", juce::dontSendNotification);
+        wordsLabel.setText (m == Mode::image ? "Caption" : (m == Mode::soundCard ? "Name (empty: the sound's)" : "Label"), juce::dontSendNotification);
         if (! words.hasKeyboardFocus (true)) words.setText (item[m == Mode::image ? IDs::caption : IDs::label].toString(), false);
+        words.setTextToShowWhenEmpty (m == Mode::soundCard ? BoardPainter::soundCardName (item, &project) : juce::String(), Theme::textMuted);
+    }
+    if (m == Mode::soundCard)
+    {
+        const double seconds = soundSeconds ? soundSeconds (item) : 0.0;
+        auto setIfFree = [] (juce::TextEditor& ed, const juce::String& t) { if (! ed.hasKeyboardFocus (true)) ed.setText (t, false); };
+        setIfFree (fromEdit, Board::formatSeconds (Board::cardIn (item)));
+        setIfFree (toEdit, Board::formatSeconds (Board::cardOut (item, seconds)));
+        setIfFree (fadeInEdit, juce::String ((double) item.getProperty (IDs::fadeIn, 0.0), 3));
+        setIfFree (fadeOutEdit, juce::String ((double) item.getProperty (IDs::fadeOut, 0.0), 3));
+        setIfFree (startEdit, Board::formatSeconds ((double) item.getProperty (IDs::outStart, 0.0)));
+        gain.setValue ((double) item.getProperty (IDs::gainDb, 0.0), juce::dontSendNotification);
+        const bool out = Board::isTemporalOut (item);
+        outToggle.setToggleState (out, juce::dontSendNotification);
+        startEdit.setEnabled (out);
+        startLabel.setAlpha (out ? 1.0f : 0.5f);
+        const bool hearing = previewingCard && previewingCard() == item[IDs::id].toString();
+        playButton.setButtonText (hearing ? "Stop" : "Play");
+        wholeButton.setEnabled (Board::cardIn (item) > 0.0 || item.hasProperty (IDs::srcOut));
+        juce::String about;
+        about << "Sound: " << project.findSound (item[IDs::soundId].toString())[IDs::name].toString() << ", " << Board::formatSeconds (seconds)
+              << ".\nDrag the ends on its waveform for a fragment. Up onto a track (with the timeline in view) it makes a sound box.";
+        info.setText (about, juce::dontSendNotification);
+    }
+    if (m == Mode::link)
+    {
+        auto target = BoardPainter::linkedBox (item, &project);
+        info.setText (target.isValid() ? "To " + target[IDs::name].toString() + ": " + BoardPainter::linkDetails (item, target) + "."
+                                       : "Its box is gone (it was " + item[IDs::name].toString() + "). Point it elsewhere, or delete it.",
+                      juce::dontSendNotification);
+        goButton.setEnabled (target.isValid());
+        const auto takeId = item[IDs::targetTake].toString();
+        auto take = target.getChildWithName (IDs::TAKES).getChildWithProperty (IDs::id, takeId);
+        if (target.isValid() && take.isValid() && target[IDs::activeTake].toString() != takeId)
+        {
+            takeButton.setButtonText ("Switch the box to take " + take[IDs::name].toString());
+            takeButton.setVisible (true);
+        }
     }
     if (m == Mode::shape || m == Mode::arrow || m == Mode::stroke)
     {
@@ -364,12 +487,40 @@ void BoardPanel::resized()
         info.setBounds (r.removeFromTop (juce::jmin (r.getHeight(), 320)));
         return;
     }
-    if (info.getText().isNotEmpty()) info.setBounds (r.removeFromTop (34)); else info.setBounds ({});
+    if (info.getText().isNotEmpty()) info.setBounds (r.removeFromTop (mode == Mode::soundCard ? 66 : 34)); else info.setBounds ({});
     if (labelBox.isVisible()) labelled (labelLabel, labelBox, 26);
     if (shapeBox.isVisible()) labelled (shapeLabel, shapeBox, 24);
     if (colours.isVisible()) labelled (colourLabel, colours, 24);
     if (levelBox.isVisible()) labelled (levelLabel, levelBox, 24);
     if (words.isVisible()) labelled (wordsLabel, words, 26);
+    if (mode == Mode::soundCard)
+    {
+        buttonRow ({ &playButton, &wholeButton });
+        auto pair = [&r] (juce::Label& l1, juce::TextEditor& e1, juce::Label& l2, juce::TextEditor& e2)
+        {
+            auto labels = r.removeFromTop (17);
+            auto fields = r.removeFromTop (26);
+            const int w = (fields.getWidth() - 8) / 2;
+            l1.setBounds (labels.removeFromLeft (w));
+            labels.removeFromLeft (8);
+            l2.setBounds (labels);
+            e1.setBounds (fields.removeFromLeft (w));
+            fields.removeFromLeft (8);
+            e2.setBounds (fields);
+            r.removeFromTop (8);
+        };
+        pair (fromLabel, fromEdit, toLabel, toEdit);
+        labelled (gainLabel, gain, 22);
+        pair (fadeInLabel, fadeInEdit, fadeOutLabel, fadeOutEdit);
+        outToggle.setBounds (r.removeFromTop (24));
+        r.removeFromTop (4);
+        labelled (startLabel, startEdit, 26);
+    }
+    if (mode == Mode::link)
+    {
+        buttonRow ({ &goButton, &relinkButton });
+        if (takeButton.isVisible()) buttonRow ({ &takeButton });
+    }
     if (width.isVisible()) labelled (widthLabel, width, 22);
     if (dashed.isVisible())
     {

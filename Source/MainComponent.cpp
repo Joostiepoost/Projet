@@ -59,10 +59,7 @@ MainComponent::MainComponent()
     outline.onSelect = [this] (juce::ValueTree box)
     {
         if (! box.isValid()) { goTo ({}); return; }
-        // A box of either level shown is selected where it is (stage 6).
-        if (auto* v = viewFor (box)) { activate (*v); v->selectBox (box); return; }
-        goTo (Project::containerOf (box));
-        timeline.selectBox (box);
+        showBox (box);
     };
 
     // The magnifier (stage 6): its bar, and the divider it makes.
@@ -101,6 +98,30 @@ MainComponent::MainComponent()
         commandManager.commandStatusChanged();
     };
     board.onStatus = [this] (const juce::String& m, bool warning) { transport.setStatus (m, warning); };
+    // 9b: sound cards heard, links followed, sounds from files, cards onto tracks.
+    board.onPlayCard = [this] (juce::ValueTree card) { playCard (card); };
+    board.previewingCard = [this] { return previewer.getTag(); };
+    board.previewSeconds = [this] { return previewer.getPositionSeconds(); };
+    board.onGoToBox = [this] (juce::ValueTree box) { showBox (box); };
+    board.onImportSounds = [this] (const juce::StringArray& files, juce::Point<float> p) { importSoundCards (files, p); };
+    board.onChooseSoundFiles = [this] (juce::Point<float> p)
+    {
+        chooser = std::make_unique<juce::FileChooser> ("Sounds for the board", juce::File::getSpecialLocation (juce::File::userMusicDirectory), audioPatterns, true);
+        juce::Component::SafePointer<MainComponent> safeThis (this);
+        chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::canSelectMultipleItems,
+                                  [safeThis, p] (const juce::FileChooser& fc)
+        {
+            if (safeThis == nullptr) return;
+            juce::StringArray paths;
+            for (auto& f : fc.getResults()) paths.add (f.getFullPathName());
+            if (! paths.isEmpty()) safeThis->importSoundCards (paths, p);
+        });
+    };
+    board.canDragOut = [this] { return ! boardFilled; };
+    timeline.onDropSoundCard = magnifier.onDropSoundCard = [this] (const juce::String& boxId, const juce::String& cardId, juce::ValueTree track, double start)
+    {
+        dropSoundCard (boxId, cardId, track, start);
+    };
     {
         auto& bp = inspector.getBoardPanel();
         bp.onShowOnBox = [this] { board.showOnBox(); };
@@ -113,6 +134,16 @@ MainComponent::MainComponent()
         bp.onClose = [this] { closeBoard(); };
         bp.onFill = [this] { setBoardFilled (! boardFilled); };
         bp.isFilled = [this] { return boardFilled; };
+        bp.onPlayCard = [this] (juce::ValueTree card) { playCard (card); };
+        bp.previewingCard = [this] { return previewer.getTag(); };
+        bp.onGoToBox = [this] (juce::ValueTree box) { showBox (box); };
+        bp.onRelink = [this] (juce::ValueTree link) { board.relink (link); };
+        bp.soundSeconds = [this] (const juce::ValueTree& card)
+        {
+            const auto id = card[IDs::soundId].toString();
+            if (auto s = pool.get (id)) return s->seconds();
+            return project.soundSeconds (id);
+        };
     }
     inspector.onOpenBoard = [this] (juce::ValueTree box) { openBoard (box); };
     outline.onDiveIn = [this] (juce::ValueTree c) { goTo (c); };
@@ -185,6 +216,7 @@ MainComponent::MainComponent()
     const auto err = deviceManager.initialise (0, 2, audioState.get(), true);
     if (err.isNotEmpty()) transport.setStatus ("Audio: " + err, true);
     deviceManager.addAudioCallback (&engine);
+    deviceManager.addAudioCallback (&previewer);     // mixed with the engine's (9b)
     deviceManager.addChangeListener (this);
     // Off when it was off at the last quit.
     if (! settings->getBoolValue ("audioOn", true)) setAudioOn (false, false);
@@ -222,6 +254,7 @@ MainComponent::~MainComponent()
     juce::MenuBarModel::setMacMainMenu (nullptr);
    #endif
     stopTimer();
+    deviceManager.removeAudioCallback (&previewer);
     deviceManager.removeAudioCallback (&engine);
     deviceManager.removeChangeListener (this);
     properties.saveIfNeeded();
@@ -528,6 +561,63 @@ void MainComponent::updateBoardBar()
     about << dot << "at " << TimeFormat::format (from, 1) << " in the piece";
     boardBar.setInfo (name, about);
     boardBar.setButton (boardFilled ? "Share" : "Fill", boardFilled ? "Give the timeline its room back above the board" : "Let the board fill the area (the timeline hides until Share)");
+}
+
+//== Sound cards and links (9b) ================================================
+
+void MainComponent::playCard (juce::ValueTree card)
+{
+    if (! card.hasType (IDs::SOUNDCARD)) return;
+    const auto id = card[IDs::id].toString();
+    if (previewer.isPlaying() && previewer.getTag() == id) { previewer.stop(); board.repaint(); inspector.refresh(); return; }
+    auto sound = pool.get (card[IDs::soundId].toString());
+    if (sound == nullptr) { transport.setStatus ("The sound is still loading (or missing).", true); return; }
+    if (! audioOn) setAudioOn (true);
+    previewer.play (sound, Board::cardIn (card), Board::cardOut (card, sound->seconds()),
+                    juce::Decibels::decibelsToGain ((float) (double) card.getProperty (IDs::gainDb, 0.0)),
+                    (double) card.getProperty (IDs::fadeIn, 0.0), (double) card.getProperty (IDs::fadeOut, 0.0), id);
+    previewWasPlaying = false;     // the timer brings the button and the line up to date
+}
+
+void MainComponent::showBox (juce::ValueTree box)
+{
+    if (! box.isValid() || ! project.isInPiece (box)) return;
+    if (boardShown && boardFilled) setBoardFilled (false);      // the timeline in view again
+    // A box of either level shown is selected where it is (stage 6).
+    if (auto* v = viewFor (box)) { activate (*v); v->selectBox (box); v->revealBox (box); return; }
+    goTo (Project::containerOf (box));
+    activate (timeline);
+    timeline.selectBox (box);
+    timeline.revealBox (box);
+}
+
+void MainComponent::importSoundCards (const juce::StringArray& files, juce::Point<float> boardPoint)
+{
+    if (! boardShown || ! Project::isBoard (board.getBox())) return;
+    importFiles (files, {}, 0.0, {});
+    if (! batches.empty())
+    {
+        batches.back()->boardBoxId = board.getBox()[IDs::id].toString();
+        batches.back()->boardPoint = boardPoint;
+    }
+}
+
+void MainComponent::dropSoundCard (const juce::String& boardBoxId, const juce::String& cardId, juce::ValueTree track, double start)
+{
+    auto boardBox = project.findBoxInPiece (boardBoxId);
+    auto card = Board::findItem (Project::boardOf (boardBox), cardId);
+    if (! card.isValid() || ! track.isValid() || Project::isFolder (track) || ! project.findSound (card[IDs::soundId].toString()).isValid()) return;
+    const double seconds = project.soundSeconds (card[IDs::soundId].toString());
+    project.getUndoManager().beginNewTransaction ("Sound box from a sound card");
+    auto box = project.addSoundBox (track, juce::jmax (0.0, start), card[IDs::soundId].toString());
+    const double from = Board::cardIn (card), to = Board::cardOut (card, seconds);
+    box.setProperty (IDs::offset, from, project.um());
+    box.setProperty (IDs::length, juce::jmax (Project::minBoxLength, to - from), project.um());
+    for (auto* id : { &IDs::gainDb, &IDs::fadeIn, &IDs::fadeOut })
+        if (card.hasProperty (*id)) box.setProperty (*id, card[*id], project.um());
+    if (card[IDs::label].toString().isNotEmpty()) box.setProperty (IDs::name, card[IDs::label], project.um());
+    if (auto* v = viewFor (box)) { activate (*v); v->selectBox (box); }
+    transport.setStatus ("A sound box from the sound card " + BoardPainter::soundCardName (card, &project) + ".");
 }
 
 bool MainComponent::boardTakes (juce::CommandID id) const
@@ -993,6 +1083,18 @@ void MainComponent::placeReady (std::shared_ptr<ImportBatch> batch)
             project.addSound (s);
         }
 
+        // Sound cards on a board (9b), one under the other.
+        if (batch->boardBoxId.isNotEmpty())
+            if (auto boardBox = project.findBoxInPiece (batch->boardBoxId); boardBox.isValid() && Project::isBoard (boardBox))
+            {
+                project.getUndoManager().beginNewTransaction ("Sound card " + r.original.getFileName());
+                auto card = Board::makeSoundCard (soundId, { batch->boardPoint.x, batch->boardPoint.y, 240.0f, 92.0f }, (int) Board::palette()[2].getARGB());
+                Project::boardOf (boardBox).appendChild (card, project.um());
+                batch->boardPoint.y += 110.0f;
+                if (boardShown && board.getBox() == boardBox) board.selectItems ({ card });
+                continue;
+            }
+
         // New takes of a box (stage 7): the first of them is the one that plays.
         if (batch->takeBoxId.isNotEmpty())
             if (auto takeBox = project.findBoxInPiece (batch->takeBoxId); takeBox.isValid())
@@ -1192,6 +1294,17 @@ void MainComponent::paste()
 
 void MainComponent::playStop()
 {
+    // On the board, Space plays the selected sound card (9b), when the piece is not playing.
+    if (boardActive && boardShown && ! engine.isPlaying())
+    {
+        auto card = board.singleSelected();
+        if (card.hasType (IDs::SOUNDCARD) || previewer.isPlaying())
+        {
+            if (card.hasType (IDs::SOUNDCARD)) playCard (card);
+            else previewer.stop();
+            return;
+        }
+    }
     if (engine.isPlaying()) engine.stop();
     else
     {
@@ -1240,6 +1353,14 @@ void MainComponent::locate (double seconds)
 void MainComponent::timerCallback()
 {
     engine.purgeRetired();
+    previewer.purge();
+    // A sound card heard on the board: its play line, and its button (9b).
+    if (previewer.isPlaying() || previewWasPlaying)
+    {
+        if (boardShown) board.repaint();
+        if (previewer.isPlaying() != previewWasPlaying && inspector.isShowingBoard()) inspector.refresh();
+        previewWasPlaying = previewer.isPlaying();
+    }
     if (importPanel.isVisible())
     {
         const bool show = importPanel.update();

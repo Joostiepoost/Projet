@@ -35,6 +35,7 @@
 
 class TimelineView : public juce::Component,
                      public juce::FileDragAndDropTarget,
+                     public juce::DragAndDropTarget,          // a sound card from a board (9b)
                      public juce::TooltipClient,
                      private juce::ScrollBar::Listener,
                      private juce::AsyncUpdater
@@ -132,6 +133,14 @@ public:
     std::function<void (juce::ValueTree box)> onOpenBoard;
     /** The project folder, for the images on boards shown on their boxes. */
     void setProjectFolder (const juce::File& f)     { projectFolderRoot = f; }
+    /** A sound card dropped on a track (9b): the board box, the card, the track, the start here. */
+    std::function<void (const juce::String& boardBoxId, const juce::String& cardId, juce::ValueTree track, double start)> onDropSoundCard;
+    /** Brings a box into view (its start, its track). */
+    void revealBox (const juce::ValueTree& box);
+    bool isInterestedInDragSource (const SourceDetails&) override;
+    void itemDragMove (const SourceDetails&) override;
+    void itemDragExit (const SourceDetails&) override;
+    void itemDropped (const SourceDetails&) override;
     /** The board box whose board is open below, marked like the magnified container. */
     void setOpenBoard (const juce::ValueTree& b)    { if (b != openBoard) { openBoard = b; repaint(); } }
     std::function<void (const juce::String& message, bool warning)> onStatus;
@@ -177,7 +186,8 @@ private:
                           drawSpan, itemMove, itemStart, itemEnd, itemGoal, itemGoalEnd,   // drawn lanes (4d.2)
                           drawNode, nodeMove, nodeStart, nodeEnd,
                           trackHeight,                                                       // a track's lower edge (after stage 7)
-                          factorCurve };                                                     // a factor's curve over a box (stage 8)
+                          factorCurve,                                                       // a factor's curve over a box (stage 8)
+                          linkOut };                                                         // a box Alt-dragged onto a board (9b)
     enum class Zone { none, body, startEdge, endEdge, fadeInHandle, fadeOutHandle };
 
     struct TrackRow { juce::ValueTree track; int y = 0, h = 0, depth = 0; bool folder = false; };
@@ -284,6 +294,12 @@ private:
                         juce::Colour base, bool selected, bool emphasis);
     juce::File projectFolderRoot;
     juce::ValueTree openBoard;
+    // A sound card dragged over a track (9b)
+    juce::String dropTrackId;
+    double dropStart = 0.0, dropLength = 0.0;
+    bool dropAt (const SourceDetails&, juce::ValueTree& track, double& start, double& length) const;
+    /** The temporal outs of a board box, as a strip along its bottom (9b). */
+    void paintOutsStrip (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float> strip);
     /** A container (stage 5a): header, miniature of the inside, fades, double edge. */
     void paintContainer (juce::Graphics&, const juce::ValueTree& box, juce::Rectangle<float>, float alpha,
                          juce::Colour base, bool selected, bool emphasis);

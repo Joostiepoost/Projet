@@ -2,7 +2,11 @@
 // below the timeline where the magnifier opens (or filling the area).
 //
 // Tools on a strip at the left, each with a key: select (V), text card (T),
-// arrow (A), shape (S; again for ellipse and line), pen (P), image (I).
+// arrow (A), shape (S; again for ellipse and line), pen (P), image (I),
+// sound card (O), timeline link (L) (9b). A sound card plays from its button
+// (or Space), its fragment set by dragging its ends on the waveform; marked
+// out, it plays in the piece. Dragged up onto a track, it makes a sound box.
+// A box Alt-dragged from the timeline onto the board makes a link to it.
 // Scroll pans, Cmd-scroll or pinch zooms; items snap to a 10-unit grid
 // unless Cmd is held. Double-click a card to write in it (or the empty board
 // for a new card), a shape or arrow for its label, an image for its caption.
@@ -18,10 +22,11 @@
 #include "BoardPainter.h"
 
 class BoardView : public juce::Component,
-                  public juce::FileDragAndDropTarget
+                  public juce::FileDragAndDropTarget,
+                  public juce::DragAndDropTarget
 {
 public:
-    BoardView (Project&, const Framework&, const ProjectFolder&);
+    BoardView (Project&, const Framework&, const ProjectFolder&, const projet::SoundPool&);
     ~BoardView() override;
 
     /** The board box shown (invalid: none). */
@@ -31,7 +36,7 @@ public:
     /** After any change to the model: repaint, and forget selected items that went. */
     void modelChanged();
 
-    enum class Tool { select, card, arrow, shape, pen, image };
+    enum class Tool { select, card, arrow, shape, pen, image, sound, link };
     void setTool (Tool);
     Tool getTool() const noexcept                   { return tool; }
 
@@ -65,6 +70,27 @@ public:
 
     std::function<void()> onActivate, onSelectionChanged;
     std::function<void (const juce::String&, bool warning)> onStatus;
+    // 9b: hearing a sound card, going to a linked box, sounds from files.
+    std::function<void (juce::ValueTree card)> onPlayCard;
+    std::function<juce::String()> previewingCard;           // the card heard now ("" none)
+    std::function<double()> previewSeconds;
+    std::function<void (juce::ValueTree box)> onGoToBox;
+    std::function<void (const juce::StringArray& files, juce::Point<float> boardPoint)> onImportSounds;
+    std::function<void (juce::Point<float> boardPoint)> onChooseSoundFiles;
+    /** True when the timeline is in view above (a sound card can be dragged onto it). */
+    std::function<bool()> canDragOut;
+    /** A sound card placed at a point (from a project sound). */
+    juce::ValueTree addSoundCard (const juce::String& soundId, juce::Point<float> boardPoint, bool undoable = true);
+    /** Points a link to another box (a menu of the piece's boxes). */
+    void relink (juce::ValueTree link)              { showLinkMenu (Board::rect (link).getTopLeft(), link); }
+    /** The selected item when it is the only one, else invalid. */
+    juce::ValueTree singleSelected() const;
+
+    // juce::DragAndDropTarget: a box from the timeline becomes a link (9b)
+    bool isInterestedInDragSource (const SourceDetails&) override;
+    void itemDragEnter (const SourceDetails&) override;
+    void itemDragExit (const SourceDetails&) override;
+    void itemDropped (const SourceDetails&) override;
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -85,6 +111,7 @@ private:
     Project& project;
     const Framework& framework;
     const ProjectFolder& folder;
+    const projet::SoundPool& pool;
     juce::ValueTree box;
     juce::UndoManager* um()                         { return project.um(); }
 
@@ -120,7 +147,7 @@ private:
     float tolerance() const                         { return 5.0f / zoom; }
 
     // Dragging
-    enum class Drag { none, pan, move, rubber, corner, end, bend, newCard, newShape, newArrow, pen };
+    enum class Drag { none, pan, move, rubber, corner, end, bend, newCard, newShape, newArrow, pen, trimIn, trimOut, dragOut };
     Drag drag = Drag::none;
     juce::Point<float> downScreen, downBoard, lastScreen;
     juce::Point<float> current;                     // the board point under the mouse while dragging
@@ -145,6 +172,13 @@ private:
     void positionEditor();
 
     void showItemMenu (juce::ValueTree item);
+    void showSoundMenu (juce::Point<float> boardPoint);
+    void showLinkMenu (juce::Point<float> boardPoint, juce::ValueTree relink = {});
+    /** The trim end (0 in, 1 out) of a sound card under a screen point, or -1. */
+    int trimHandleAt (const juce::ValueTree& card, juce::Point<float> screen) const;
+    double soundSeconds (const juce::ValueTree& card) const;
+    void startDragOut (const juce::ValueTree& card);
+    bool linkDragOver = false;
     void showBoardMenu (juce::Point<float> boardPoint);
     void addImages (const juce::Array<juce::File>&, juce::Point<float> at);
     void addCardAt (juce::Point<float> boardPoint, bool edit);

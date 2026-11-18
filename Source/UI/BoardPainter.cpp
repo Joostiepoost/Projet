@@ -217,6 +217,233 @@ namespace BoardPainter
         }
     }
 
+    namespace
+    {
+        void paintSoundCard (juce::Graphics& g, const juce::ValueTree& card, const Context& ctx)
+        {
+            const auto r = Board::rect (card);
+            const auto edge = Board::colourOf (card);
+            const bool out = Board::isTemporalOut (card);
+            g.setColour (cardPaper (edge).withMultipliedAlpha (ctx.alpha));
+            g.fillRoundedRectangle (r, 6.0f);
+            g.setColour (edge.withMultipliedAlpha (ctx.alpha));
+            g.drawRoundedRectangle (r.reduced (0.5f), 6.0f, out ? 2.0f : 1.0f);
+
+            juce::Graphics::ScopedSaveState s (g);
+            g.reduceClipRegion (r.reduced (1.0f).toNearestInt());
+            const auto soundId = card[IDs::soundId].toString();
+            auto sound = ctx.pool != nullptr ? ctx.pool->get (soundId) : nullptr;
+            const double seconds = sound != nullptr ? sound->seconds() : (ctx.project != nullptr ? ctx.project->soundSeconds (soundId) : 0.0);
+            const double from = Board::cardIn (card), to = Board::cardOut (card, seconds);
+            const bool hearing = ctx.previewCard.isNotEmpty() && ctx.previewCard == card[IDs::id].toString();
+
+            // The play button, the name, the length.
+            const auto play = playButton (card);
+            g.setColour (edge.darker (0.6f).withMultipliedAlpha (ctx.alpha));
+            g.fillEllipse (play);
+            g.setColour (edge.brighter (0.5f).withMultipliedAlpha (ctx.alpha));
+            g.drawEllipse (play.reduced (0.5f), 1.0f);
+            if (hearing) g.fillRect (play.withSizeKeepingCentre (8.0f, 8.0f));
+            else
+            {
+                juce::Path tri;
+                const auto c = play.getCentre();
+                tri.addTriangle (c.x - 3.5f, c.y - 5.0f, c.x - 3.5f, c.y + 5.0f, c.x + 5.5f, c.y);
+                g.fillPath (tri);
+            }
+            auto head = juce::Rectangle<float> (play.getRight() + 8.0f, r.getY() + 8.0f, r.getRight() - play.getRight() - 18.0f, 24.0f);
+            g.setFont (Theme::font (11.0f).withExtraKerningFactor (0.0f));
+            g.setColour (Theme::text.withMultipliedAlpha (0.75f * ctx.alpha));
+            const auto length = Board::formatSeconds (juce::jmax (0.0, to - from));
+            const float lw = (float) juce::GlyphArrangement::getStringWidthInt (Theme::font (11.0f), length) + 4.0f;
+            g.drawText (length, head.removeFromRight (lw), juce::Justification::centredRight, false);
+            g.setColour (Theme::text.withMultipliedAlpha (ctx.alpha));
+            g.setFont (Theme::font (13.0f, true));
+            g.drawText (soundCardName (card, ctx.project), head, juce::Justification::centredLeft, true);
+
+            // The waveform of the whole sound, its fragment bright.
+            const auto wave = waveArea (card);
+            g.setColour (juce::Colour (0xff101113).withMultipliedAlpha (0.6f * ctx.alpha));
+            g.fillRoundedRectangle (wave, 3.0f);
+            if (sound != nullptr && ! sound->peakMin.empty() && seconds > 0.0)
+            {
+                const auto blocks = (int64_t) sound->peakMin.size();
+                const float mid = wave.getCentreY(), half = wave.getHeight() * 0.45f;
+                const int columns = juce::jmax (1, (int) wave.getWidth());
+                for (int x = 0; x < columns; ++x)
+                {
+                    const double t0 = seconds * x / columns, t1 = seconds * (x + 1) / columns;
+                    auto b0 = (int64_t) (t0 * sound->sampleRate) / projet::SoundData::peakBlock;
+                    auto b1 = (int64_t) (t1 * sound->sampleRate) / projet::SoundData::peakBlock;
+                    b0 = juce::jlimit ((int64_t) 0, blocks - 1, b0);
+                    b1 = juce::jlimit (b0 + 1, blocks, b1 + 1);
+                    float lo = 0.0f, hi = 0.0f;
+                    for (auto b = b0; b < b1; ++b) { lo = juce::jmin (lo, sound->peakMin[(size_t) b]); hi = juce::jmax (hi, sound->peakMax[(size_t) b]); }
+                    const bool inside = t1 > from && t0 < to;
+                    g.setColour ((inside ? edge.brighter (0.6f) : Theme::textMuted.withAlpha (0.35f)).withMultipliedAlpha (ctx.alpha));
+                    g.fillRect (wave.getX() + (float) x, mid - hi * half, 1.0f, juce::jmax (0.6f, (hi - lo) * half));
+                }
+                // The fragment's ends.
+                const float xIn = wave.getX() + wave.getWidth() * (float) (from / seconds);
+                const float xOut = wave.getX() + wave.getWidth() * (float) (to / seconds);
+                g.setColour (Theme::accent.withMultipliedAlpha (ctx.alpha));
+                g.fillRect (xIn - 0.75f, wave.getY(), 1.5f, wave.getHeight());
+                g.fillRect (xOut - 0.75f, wave.getY(), 1.5f, wave.getHeight());
+                juce::Path flags;
+                flags.addTriangle (xIn, wave.getY(), xIn + 5.0f, wave.getY(), xIn, wave.getY() + 5.0f);
+                flags.addTriangle (xOut, wave.getY(), xOut - 5.0f, wave.getY(), xOut, wave.getY() + 5.0f);
+                g.fillPath (flags);
+                if (hearing)
+                {
+                    const float xp = wave.getX() + wave.getWidth() * (float) juce::jlimit (0.0, 1.0, ctx.previewSeconds / seconds);
+                    g.setColour (Theme::text.withMultipliedAlpha (ctx.alpha));
+                    g.fillRect (xp - 0.5f, wave.getY(), 1.0f, wave.getHeight());
+                }
+            }
+            else
+            {
+                g.setColour (Theme::textMuted.withMultipliedAlpha (ctx.alpha));
+                g.setFont (Theme::font (11.0f).italicised());
+                g.drawText (ctx.project != nullptr && ! ctx.project->findSound (soundId).isValid() ? "sound not in the project" : "loading...",
+                            wave, juce::Justification::centred, false);
+            }
+
+            // What it does: here only, or in the piece.
+            auto foot = juce::Rectangle<float> (r.getX() + 10.0f, r.getBottom() - 20.0f, r.getWidth() - 20.0f, 16.0f);
+            g.setFont (Theme::font (10.5f));
+            if (out)
+            {
+                const auto tagArea = foot.removeFromRight (32.0f);
+                g.setColour (Theme::accent.withMultipliedAlpha (ctx.alpha));
+                g.fillRoundedRectangle (tagArea.reduced (0.0f, 1.0f), 3.0f);
+                g.setColour (juce::Colours::black.withMultipliedAlpha (ctx.alpha));
+                g.setFont (Theme::font (9.5f, true));
+                g.drawText ("OUT", tagArea, juce::Justification::centred, false);
+                g.setFont (Theme::font (10.5f));
+                const double gain = (double) card.getProperty (IDs::gainDb, 0.0);
+                juce::String t = "plays in the piece at " + Board::formatSeconds ((double) card.getProperty (IDs::outStart, 0.0)) + " in the box";
+                if (std::abs (gain) > 0.05) t << ", " << juce::String (gain, 1) << " dB";
+                g.setColour (Theme::text.withMultipliedAlpha (0.8f * ctx.alpha));
+                g.drawText (t, foot, juce::Justification::centredLeft, true);
+            }
+            else
+            {
+                g.setColour (Theme::textMuted.withMultipliedAlpha (ctx.alpha));
+                g.drawText ("Sound card: plays here only", foot, juce::Justification::centredLeft, true);
+            }
+        }
+
+        void paintLink (juce::Graphics& g, const juce::ValueTree& link, const Context& ctx)
+        {
+            const auto r = Board::rect (link);
+            const auto edge = Board::colourOf (link);
+            auto box = linkedBox (link, ctx.project);
+            const bool gone = ! box.isValid();
+            g.setColour (cardPaper (edge).withMultipliedAlpha (ctx.alpha));
+            g.fillRoundedRectangle (r, 6.0f);
+            if (gone)
+            {
+                juce::Path p, dashed;
+                p.addRoundedRectangle (r.reduced (0.5f), 6.0f);
+                const float dashes[] = { 5.0f, 4.0f };
+                juce::PathStrokeType (1.0f).createDashedStroke (dashed, p, dashes, 2);
+                g.setColour (edge.withMultipliedAlpha (ctx.alpha));
+                g.fillPath (dashed);
+            }
+            else
+            {
+                g.setColour (edge.withMultipliedAlpha (ctx.alpha));
+                g.drawRoundedRectangle (r.reduced (0.5f), 6.0f, 1.0f);
+            }
+            juce::Graphics::ScopedSaveState s (g);
+            g.reduceClipRegion (r.reduced (1.0f).toNearestInt());
+            // A box sign, the name; a button to go there.
+            auto inner = r.reduced (10.0f, 8.0f);
+            auto line1 = inner.removeFromTop (20.0f);
+            const auto go = goButton (link);
+            line1.setRight (go.getX() - 4.0f);
+            const auto sign = line1.removeFromLeft (14.0f).withSizeKeepingCentre (12.0f, 12.0f);
+            g.setColour (edge.brighter (0.5f).withMultipliedAlpha (ctx.alpha));
+            g.drawRoundedRectangle (sign, 2.0f, 1.0f);
+            g.fillRoundedRectangle (sign.reduced (3.0f), 1.0f);
+            line1.removeFromLeft (6.0f);
+            g.setColour (Theme::text.withMultipliedAlpha (ctx.alpha));
+            g.setFont (Theme::font (13.0f, true));
+            const auto name = gone ? link[IDs::name].toString() : box[IDs::name].toString();
+            g.drawText (name.isNotEmpty() ? name : juce::String ("(no name)"), line1, juce::Justification::centredLeft, true);
+            if (! gone)
+            {
+                g.setColour (edge.darker (0.5f).withMultipliedAlpha (ctx.alpha));
+                g.fillRoundedRectangle (go, 4.0f);
+                g.setColour (edge.brighter (0.7f).withMultipliedAlpha (ctx.alpha));
+                juce::Path arrow;
+                const auto c = go.reduced (6.0f);
+                arrow.startNewSubPath (c.getX(), c.getBottom());
+                arrow.lineTo (c.getRight(), c.getY());
+                arrow.startNewSubPath (c.getX() + 3.0f, c.getY());
+                arrow.lineTo (c.getRight(), c.getY());
+                arrow.lineTo (c.getRight(), c.getBottom() - 3.0f);
+                g.strokePath (arrow, juce::PathStrokeType (1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            }
+            g.setFont (Theme::font (11.0f));
+            g.setColour ((gone ? Theme::nodesFlagged : edge.interpolatedWith (Theme::text, 0.6f)).withMultipliedAlpha (ctx.alpha));
+            g.drawText (gone ? juce::String ("Timeline link: the box is gone (right-click to point it elsewhere)")
+                             : "Timeline link " + juce::String::fromUTF8 ("\xc2\xb7 ") + linkDetails (link, box),
+                        inner.removeFromTop (16.0f), juce::Justification::centredLeft, true);
+        }
+    }
+
+    juce::Rectangle<float> playButton (const juce::ValueTree& card)
+    {
+        const auto r = Board::rect (card);
+        return { r.getX() + 10.0f, r.getY() + 8.0f, 24.0f, 24.0f };
+    }
+
+    juce::Rectangle<float> waveArea (const juce::ValueTree& card)
+    {
+        const auto r = Board::rect (card);
+        return { r.getX() + 10.0f, r.getY() + 38.0f, juce::jmax (10.0f, r.getWidth() - 20.0f), juce::jmax (12.0f, r.getHeight() - 38.0f - 24.0f) };
+    }
+
+    juce::Rectangle<float> goButton (const juce::ValueTree& link)
+    {
+        const auto r = Board::rect (link);
+        return { r.getRight() - 32.0f, r.getY() + 7.0f, 24.0f, 22.0f };
+    }
+
+    juce::String soundCardName (const juce::ValueTree& card, const Project* project)
+    {
+        const auto label = card[IDs::label].toString().trim();
+        if (label.isNotEmpty()) return label;
+        if (project != nullptr)
+            if (auto s = project->findSound (card[IDs::soundId].toString()); s.isValid()) return s[IDs::name].toString();
+        return "Sound";
+    }
+
+    juce::ValueTree linkedBox (const juce::ValueTree& link, Project* project)
+    {
+        if (project == nullptr) return {};
+        auto box = project->findBoxInPiece (link[IDs::targetBox].toString());
+        return box.isValid() && project->isInPiece (box) ? box : juce::ValueTree();
+    }
+
+    juce::String linkDetails (const juce::ValueTree& link, const juce::ValueTree& box)
+    {
+        juce::StringArray parts;
+        const auto takeId = link[IDs::targetTake].toString();
+        if (takeId.isNotEmpty() && Project::numTakes (box) > 1)
+        {
+            const auto take = box.getChildWithName (IDs::TAKES).getChildWithProperty (IDs::id, takeId);
+            const auto active = Project::activeTakeOf (box);
+            if (take.isValid())
+                parts.add ("take " + take[IDs::name].toString() + (take == active ? juce::String() : " (" + active[IDs::name].toString() + " playing)"));
+        }
+        int depth = 1;
+        for (auto c = Project::containerOf (box); c.isValid(); c = Project::containerOf (c)) ++depth;
+        parts.add ("level " + juce::String (depth));
+        return parts.joinIntoString (juce::String::fromUTF8 (" \xc2\xb7 "));
+    }
+
     const Framework::Category* fillCategory (const Framework& framework)
     {
         for (auto& c : framework.getCategories())
@@ -267,6 +494,8 @@ namespace BoardPainter
             case Board::Kind::stroke: paintStroke (g, item, ctx); break;
             case Board::Kind::arrow:  paintArrow (g, board, item, ctx); break;
             case Board::Kind::image:  paintImage (g, item, ctx); break;
+            case Board::Kind::soundCard: paintSoundCard (g, item, ctx); break;
+            case Board::Kind::link:   paintLink (g, item, ctx); break;
             case Board::Kind::unknown: break;
         }
     }

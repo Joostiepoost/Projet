@@ -55,15 +55,15 @@ Other options:
 | 6 | Magnified inline expansion: a container of the level shown opened in a second timeline below, with full editing, following the selection | done |
 | 7 | Takes: alternatives of a box's content (sounds, texts, containers), one active; new takes from a copy, the project's sounds or files; switching on the box, in the panel or with Cmd-] and Cmd-[; takes shown stacked in their boxes | built, to test |
 | 8 | Framework, layer 4: variation factors as curves along a box (in its Framework tab or drawn over the box), reshaping its glyph; one factor across the boxes in the energies lane | done |
-| 9a | Board box: a free canvas in a box, opened below the timeline (or filling the area): text cards, arrows between them, shapes, the pen, images; a chosen part of it shown on the box | built, to test |
-| 9b | Board box: sound cards, temporal outs, timeline links | |
+| 9a | Board box: a free canvas in a box, opened below the timeline (or filling the area): text cards, arrows between them, shapes, the pen, images; a chosen part of it shown on the box | done |
+| 9b | Board box: sound cards (heard on the board, fragments, dragged onto tracks), temporal outs (a board box that sounds in the piece), timeline links | built, to test |
 | 9c | Board box: morphogram regions and energy gestures | |
 | 10 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 | 11 | Relations, materials, origin; the operations of the structuring language (once the research is ready) | |
 | 12 | Strata view | |
 | 13 | A framework package template, for packages of your own | |
 
-## Using Projet (stages 1–9a)
+## Using Projet (stages 1–9b)
 
 ### The project folder
 
@@ -382,6 +382,15 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **On the timeline**: the box shows its name and what the board holds. To show a part of the board there instead: select the items to show and *Show it (them) on the box*, or with nothing selected *Show what is in view on the box* (the panel, or right-click the empty board). The part is outlined in blue on the board; *Show nothing on the box* goes back. A taller track shows it larger.
 - **Copies, takes, splits**: copying, pasting and duplicating a board box copy its board; each take has its own board; splitting a board box gives both parts a copy of it.
 
+### Sound cards, temporal outs and links (stage 9b)
+
+- **A sound card**: **O** (or right-click the empty board > *Sound card here...*), click where it goes, then choose one of the project's sounds, or *From a file...* (imported as usual). Sound files dropped from the Finder onto the board become sound cards too. The card shows the name, the length and the whole sound's waveform.
+- **Hearing it**: its round button, or **Space** while the board is worked on and the card is selected (when the piece is not playing; Space again stops it). It plays on its own, beside the timeline.
+- **A fragment**: drag the two orange ends on its waveform (the panel shows the times, and takes typed ones: `1.25` or `0:01.250`); *Whole sound* goes back. The panel also has its gain and fades, and a name of its own (empty: the sound's).
+- **Onto a track**: with the timeline in view above (not *Fill*), drag a sound card up out of the board onto a track: a sound box with that fragment, gain and fades, where it is dropped.
+- **Temporal out**: tick *Plays in the piece (temporal out)* in the panel (or right-click the card). The board box then sounds when the timeline plays it: the card's fragment from *Starts in the box at* (seconds after the box's start), with its gain and fades, cut off at the box's end, never stretched; several outs mix, and the track's mute and solo apply. The card carries an OUT tag, and the box on the timeline a strip along its bottom with what it plays.
+- **A link to a box**: Alt-drag a box from the timeline onto the board, or **L** (or right-click > *Link to a box here...*) and choose the box from the piece's outline (a container's inside as a submenu). The card shows the box's name, its take (if it has takes) and its level. Its arrow button, or a double-click, goes there: the box's level, the box selected (the board stays open). If the box is deleted the link says so; *Point it elsewhere...* in the panel or its menu. A link made from a take offers to switch the box back to that take.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -413,6 +422,15 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 9b**:
+- On a board: O, click, choose a sound. Its button: it plays (and stops). Space with the card selected. Drag the ends of its waveform; type times in the panel; *Whole sound*.
+- Drop a sound file from the Finder onto the board; *From a file...* in the O menu.
+- Drag a card up onto a track: a sound box with that fragment (check its start, length, gain, fades).
+- Tick *Plays in the piece*, set *Starts in the box at*, play the piece across the board box: you hear the fragment there, cut off at the box's end. Try two outs, a gain, fades; mute the track; move the box; put it in a container and stretch the container (the out moves, its sound does not stretch).
+- The strip along the bottom of the board box (make the track taller if it is low).
+- Alt-drag a box onto the board: a link. Its button, a double-click; a link to a box deep inside containers (L, the outline menu); delete the box (the link says so), undo; *Point it elsewhere*. A link to a box with takes, then switch the box's take.
+- Save, quit, reopen.
 
 **Worth testing in stage 9a**:
 - Alt-Cmd-B on a track: a board box, and its board opens below. Double-click the board: write a card (try **bold** and a list); Esc. Make a second card with T (click, then drag one), and an arrow from the first to the second with A.

@@ -76,6 +76,8 @@ namespace Board
         if (item.hasType (IDs::SHAPE))  return Kind::shape;
         if (item.hasType (IDs::STROKE)) return Kind::stroke;
         if (item.hasType (IDs::IMAGE))  return Kind::image;
+        if (item.hasType (IDs::SOUNDCARD)) return Kind::soundCard;
+        if (item.hasType (IDs::LINK))   return Kind::link;
         return Kind::unknown;
     }
 
@@ -88,6 +90,8 @@ namespace Board
             case Kind::shape:   return isLine (item) ? "line" : (isEllipse (item) ? "ellipse" : "rectangle");
             case Kind::stroke:  return "drawing";
             case Kind::image:   return "image";
+            case Kind::soundCard: return "sound card";
+            case Kind::link:    return "link";
             case Kind::unknown: break;
         }
         return "item";
@@ -119,7 +123,7 @@ namespace Board
                     return juce::Rectangle<float> (juce::Point<float> (x, y), juce::Point<float> (x + num (item, IDs::w), y + num (item, IDs::h)));
                 }
                 return rect (item);
-            case Kind::card: case Kind::stroke: case Kind::image:
+            case Kind::card: case Kind::stroke: case Kind::image: case Kind::soundCard: case Kind::link:
                 return rect (item);
             case Kind::unknown:
                 break;
@@ -196,6 +200,8 @@ namespace Board
         {
             case Kind::card:
             case Kind::image:
+            case Kind::soundCard:
+            case Kind::link:
                 return rect (item).expanded (tol).contains (p);
             case Kind::shape:
             {
@@ -328,6 +334,74 @@ namespace Board
         return t;
     }
 
+    juce::ValueTree makeSoundCard (const juce::String& soundId, juce::Rectangle<float> r, int colour)
+    {
+        juce::ValueTree t (IDs::SOUNDCARD);
+        t.setProperty (IDs::id, newId(), nullptr);
+        t.setProperty (IDs::soundId, soundId, nullptr);
+        setRectProps (t, r);
+        t.setProperty (IDs::colour, colour, nullptr);
+        return t;
+    }
+
+    juce::ValueTree makeLink (const juce::ValueTree& box, juce::Rectangle<float> r)
+    {
+        juce::ValueTree t (IDs::LINK);
+        t.setProperty (IDs::id, newId(), nullptr);
+        t.setProperty (IDs::targetBox, box[IDs::id].toString(), nullptr);
+        if (box.getChildWithName (IDs::TAKES).isValid())
+            t.setProperty (IDs::targetTake, box[IDs::activeTake].toString(), nullptr);
+        setRectProps (t, r);
+        t.setProperty (IDs::colour, (int) palette()[1].getARGB(), nullptr);
+        return t;
+    }
+
+    double cardIn (const juce::ValueTree& card)
+    {
+        return juce::jmax (0.0, (double) card.getProperty (IDs::srcIn, 0.0));
+    }
+
+    double cardOut (const juce::ValueTree& card, double soundSeconds)
+    {
+        const double out = (double) card.getProperty (IDs::srcOut, 0.0);
+        const double end = soundSeconds > 0.0 ? soundSeconds : 1.0e9;
+        return out > 0.0 ? juce::jlimit (cardIn (card), end, out) : end;
+    }
+
+    bool isTemporalOut (const juce::ValueTree& card)
+    {
+        return card.hasType (IDs::SOUNDCARD) && (bool) card[IDs::temporalOut];
+    }
+
+    juce::Array<juce::ValueTree> temporalOuts (const juce::ValueTree& board)
+    {
+        juce::Array<juce::ValueTree> out;
+        for (auto item : board)
+            if (isTemporalOut (item)) out.add (item);
+        return out;
+    }
+
+    juce::String formatSeconds (double seconds)
+    {
+        seconds = juce::jmax (0.0, seconds);
+        const int minutes = (int) (seconds / 60.0);
+        const double rest = seconds - minutes * 60.0;
+        return juce::String (minutes) + ":" + (rest < 10.0 ? "0" : "") + juce::String (rest, 3);
+    }
+
+    double parseSeconds (const juce::String& text)
+    {
+        const auto t = text.trim();
+        if (t.isEmpty()) return -1.0;
+        if (t.containsChar (':'))
+        {
+            const auto m = t.upToFirstOccurrenceOf (":", false, false).trim(), s = t.fromFirstOccurrenceOf (":", false, false).trim();
+            if (! m.containsOnly ("0123456789") || ! s.containsOnly ("0123456789.")) return -1.0;
+            return m.getIntValue() * 60.0 + s.getDoubleValue();
+        }
+        return t.containsOnly ("0123456789.") ? t.getDoubleValue() : -1.0;
+    }
+
     void moveBy (juce::ValueTree item, juce::Point<float> d, juce::UndoManager* um)
     {
         if (item.hasType (IDs::ARROW))
@@ -369,7 +443,8 @@ namespace Board
     bool hasCorners (const juce::ValueTree& item)
     {
         const auto k = kindOf (item);
-        return k == Kind::card || k == Kind::image || k == Kind::stroke || (k == Kind::shape && ! isLine (item));
+        return k == Kind::card || k == Kind::image || k == Kind::stroke || k == Kind::soundCard || k == Kind::link
+               || (k == Kind::shape && ! isLine (item));
     }
 
     bool hasEnds (const juce::ValueTree& item)
@@ -463,7 +538,7 @@ namespace Board
 
     juce::String summary (const juce::ValueTree& board)
     {
-        int cards = 0, arrows = 0, shapes = 0, strokes = 0, images = 0;
+        int cards = 0, arrows = 0, shapes = 0, strokes = 0, images = 0, sounds = 0, links = 0, outs = 0;
         for (auto item : board)
             switch (kindOf (item))
             {
@@ -472,6 +547,8 @@ namespace Board
                 case Kind::shape:  ++shapes; break;
                 case Kind::stroke: ++strokes; break;
                 case Kind::image:  ++images; break;
+                case Kind::soundCard: ++sounds; if (isTemporalOut (item)) ++outs; break;
+                case Kind::link:   ++links; break;
                 case Kind::unknown: break;
             }
         juce::StringArray parts;
@@ -481,6 +558,9 @@ namespace Board
         add (shapes, "shape", "shapes");
         add (strokes, "drawing", "drawings");
         add (images, "image", "images");
+        add (sounds, "sound card", "sound cards");
+        add (links, "link", "links");
+        if (outs > 0) parts.add (juce::String (outs) + " playing in the piece");
         return parts.isEmpty() ? juce::String ("empty") : parts.joinIntoString (", ");
     }
 

@@ -7,6 +7,8 @@
 #include <JuceHeader.h>
 #include "../Model/Board.h"
 #include "../Model/Framework.h"
+#include "../Model/Project.h"
+#include "../Engine/SoundData.h"
 
 namespace BoardPainter
 {
@@ -17,6 +19,10 @@ namespace BoardPainter
         bool fills = true;                      // semiotic fills on cards
         juce::String skipText;                  // an item whose words are being edited (drawn without them)
         float alpha = 1.0f;
+        Project* project = nullptr;             // sound names, linked boxes (9b)
+        const projet::SoundPool* pool = nullptr;    // waveforms (9b)
+        juce::String previewCard;               // the sound card heard now, and where (seconds into its sound)
+        double previewSeconds = 0.0;
     };
 
     /** Every item, back to front. */
@@ -30,6 +36,17 @@ namespace BoardPainter
 
     /** The image file of an IMAGE item, cached. */
     juce::Image imageFor (const juce::ValueTree& item, const juce::File& projectFolder);
+
+    //== Sound cards and links (9b): their parts, in board units ===============
+    juce::Rectangle<float> playButton (const juce::ValueTree& soundCard);
+    juce::Rectangle<float> waveArea (const juce::ValueTree& soundCard);
+    juce::Rectangle<float> goButton (const juce::ValueTree& link);
+    /** A sound card's name: its label, else its sound's name. */
+    juce::String soundCardName (const juce::ValueTree& card, const Project*);
+    /** The box a link points to, if it is in the piece. */
+    juce::ValueTree linkedBox (const juce::ValueTree& link, Project*);
+    /** "take B · level 2" for a linked box. */
+    juce::String linkDetails (const juce::ValueTree& link, const juce::ValueTree& box);
 
     /** The category whose values fill boxes (the semiotic levels), or null. */
     const Framework::Category* fillCategory (const Framework&);

@@ -16,8 +16,9 @@
 //                  Folders can hold fw.* values too, given to the boxes inside.
 //         TIMELINE a container box's own timeline (stage 5a), kept when the box
 //                  changes kind
-//         BOARD    a board box's canvas (stage 9): CARD, ARROW, SHAPE, STROKE and
-//                  IMAGE items, back to front, in board units (pixels at 100%)
+//         BOARD    a board box's canvas (stage 9): CARD, ARROW, SHAPE, STROKE,
+//                  IMAGE, SOUNDCARD and LINK items, back to front, in board
+//                  units (pixels at 100%)
 //           TRACKS tracks, folders and boxes, as at the top (containers again)
 //
 // Times are in seconds (doubles); the engine turns them into samples at the
@@ -55,6 +56,8 @@ namespace IDs
     PROJET_ID (SHAPE)                 // a rectangle, ellipse or line
     PROJET_ID (STROKE)                // a freehand stroke: points relative to x, y
     PROJET_ID (IMAGE)                 // an image copied into the project's Boards folder
+    PROJET_ID (SOUNDCARD)             // a sound card (9b): soundId, srcIn..srcOut, gain, fades; a temporal out plays in the piece
+    PROJET_ID (LINK)                  // a timeline link (9b): targetBox (and targetTake)
 
     // Project
     PROJET_ID (formatVersion)
@@ -163,6 +166,12 @@ namespace IDs
     PROJET_ID (showY)
     PROJET_ID (showW)
     PROJET_ID (showH)
+    PROJET_ID (srcIn)                 // a sound card's fragment: from (seconds into the sound)
+    PROJET_ID (srcOut)                //   to (0 or none: the sound's end)
+    PROJET_ID (temporalOut)           // a sound card that plays when the timeline plays its board box
+    PROJET_ID (outStart)              //   from this many seconds after the box's start
+    PROJET_ID (targetBox)             // a link's box (its id)
+    PROJET_ID (targetTake)            //   and the take it was made from (its id; optional)
     // Framework values: fw.<package>.<category> (Framework::Category::property()),
     // never "type", which names the node in the project file.
 
