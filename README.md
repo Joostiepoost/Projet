@@ -412,7 +412,7 @@ A **board box** holds a free canvas for working out the logic of a section: card
 ### Graphic score (stage 10b)
 
 - *File > Export score...* (**Cmd-Shift-P**) prints the level you are looking at (the piece, or the container you are inside): all of it, the loop, or what is in view.
-- **Systems**: like a score, a chosen number of seconds a line (about a quarter of the piece to begin with), each line with its track names and the rulers above it; as many lines a page as fit. **A3 landscape**, or A4. Each page has the piece's name, what it shows, the date and the page number.
+- **Systems**: like a score, a chosen number of seconds a line (to begin with, a round number giving three lines or more), each line with its track names and the rulers above it; as many lines a page as fit. **A3 landscape**, or A4. Each page has the piece's name, what it shows, the date and the page number.
 - **Drawn by the timeline's own code**, so the score shows what the timeline shows: boxes with their names, fills, glyphs (with their curves) and marks, the rulers and lanes, the signs and nodes, the loop. Hide a ruler layer or fold a folder to leave it out; make a track taller to give it room. The playhead, handles, hints and idle M and S buttons are left out.
 - **On paper** (the default): the screen's dark colours turned light with their hues kept, so a dark fill becomes a light tint and light text dark. Or *as on screen*.
 - **Containers**: as on the timeline, or also each opened out after its level: its inside in its own time, as when you go inside, nested ones after it. **Boards**: as on the timeline, or also each board on a page of its own at the end.
