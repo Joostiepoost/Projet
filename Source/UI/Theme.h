@@ -49,20 +49,39 @@ namespace Theme
 
     /** Text in capitals for headings. JUCE's toUpperCase leaves accented
         letters small on some systems ("éCRITURE"), so accents are dropped
-        first, as is usual in French capitals on screen: "ECRITURE". */
+        first, as is usual in French capitals on screen: "ECRITURE". Done
+        letter by letter: String::replace matched one accented letter for
+        another ("Mé-son" came out as "MA-SON"). */
     inline juce::String capitals (const juce::String& input)
     {
-        static const char* const from[] = { "\xc3\xa0", "\xc3\xa2", "\xc3\xa4", "\xc3\xa1", "\xc3\xa3", "\xc3\xa9", "\xc3\xa8", "\xc3\xaa", "\xc3\xab",
-                                            "\xc3\xae", "\xc3\xaf", "\xc3\xad", "\xc3\xac", "\xc3\xb4", "\xc3\xb6", "\xc3\xb3", "\xc3\xb2", "\xc3\xb5",
-                                            "\xc3\xb9", "\xc3\xbb", "\xc3\xbc", "\xc3\xba", "\xc3\xa7", "\xc3\xb1", "\xc5\x93", "\xc3\xa6",
-                                            "\xc3\x80", "\xc3\x82", "\xc3\x89", "\xc3\x88", "\xc3\x8a", "\xc3\x8e", "\xc3\x94", "\xc3\x99", "\xc3\x9b", "\xc3\x87" };
-        static const char* const to[]   = { "a", "a", "a", "a", "a", "e", "e", "e", "e",
-                                            "i", "i", "i", "i", "o", "o", "o", "o", "o",
-                                            "u", "u", "u", "u", "c", "n", "oe", "ae",
-                                            "A", "A", "E", "E", "E", "I", "O", "U", "U", "C" };
-        auto s = input;
-        for (size_t i = 0; i < sizeof (from) / sizeof (from[0]); ++i)
-            s = s.replace (juce::String::fromUTF8 (from[i]), to[i]);
+        juce::String s;
+        for (auto p = input.getCharPointer(); ! p.isEmpty();)
+        {
+            const auto c = p.getAndAdvance();
+            const char* plain = nullptr;
+            switch (c)
+            {
+                case 0xe0: case 0xe1: case 0xe2: case 0xe3: case 0xe4: case 0xe5: plain = "a"; break;
+                case 0xe8: case 0xe9: case 0xea: case 0xeb:                       plain = "e"; break;
+                case 0xec: case 0xed: case 0xee: case 0xef:                       plain = "i"; break;
+                case 0xf2: case 0xf3: case 0xf4: case 0xf5: case 0xf6:            plain = "o"; break;
+                case 0xf9: case 0xfa: case 0xfb: case 0xfc:                       plain = "u"; break;
+                case 0xe7: plain = "c"; break;
+                case 0xf1: plain = "n"; break;
+                case 0xe6: plain = "ae"; break;
+                case 0x153: plain = "oe"; break;
+                case 0xc0: case 0xc1: case 0xc2: case 0xc3: case 0xc4: case 0xc5: plain = "A"; break;
+                case 0xc8: case 0xc9: case 0xca: case 0xcb:                       plain = "E"; break;
+                case 0xcc: case 0xcd: case 0xce: case 0xcf:                       plain = "I"; break;
+                case 0xd2: case 0xd3: case 0xd4: case 0xd5: case 0xd6:            plain = "O"; break;
+                case 0xd9: case 0xda: case 0xdb: case 0xdc:                       plain = "U"; break;
+                case 0xc7: plain = "C"; break;
+                case 0x152: plain = "OE"; break;
+                default: break;
+            }
+            if (plain != nullptr) s << plain;
+            else                  s << juce::String::charToString (c);
+        }
         return s.toUpperCase();
     }
 }
