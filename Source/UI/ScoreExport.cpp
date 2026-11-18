@@ -114,7 +114,7 @@ namespace
                 const double end = juce::jmin (t + seconds, span.getEnd());
                 view.setView (t, pps);
                 auto& page = result.pages.back();
-                Vector::Recorder recorder (page, map);
+                Vector::Recorder recorder (page, map, options.imageDpi);
                 recorder.beginGroup (heading + " system " + juce::String (++number) + " " + TimeFormat::format (t, 1) + "-" + TimeFormat::format (end, 1));
                 juce::Graphics g (recorder);
                 g.addTransform (juce::AffineTransform::scale (scale).translated (content.getX(), y));
@@ -162,7 +162,7 @@ namespace
             ++result.boards;
             const float scale = juce::jmin (content.getWidth() / bounds.getWidth(), content.getHeight() / bounds.getHeight(), 1.2f);
             auto& page = result.pages.back();
-            Vector::Recorder recorder (page, map);
+            Vector::Recorder recorder (page, map, options.imageDpi);
             recorder.beginGroup ("board " + name);
             juce::Graphics g (recorder);
             g.addTransform (juce::AffineTransform::translation (-bounds.getX(), -bounds.getY()).scaled (scale).translated (content.getX(), content.getY()));
@@ -184,7 +184,7 @@ namespace
             for (int i = 0; i < n; ++i)
             {
                 auto& page = result.pages[(size_t) i];
-                Vector::Recorder recorder (page, map);
+                Vector::Recorder recorder (page, map, options.imageDpi);
                 recorder.beginGroup ("head");
                 juce::Graphics g (recorder);
                 auto head = juce::Rectangle<float> (margin, margin - 4.0f, pageWidth - 2.0f * margin, headerHeight - 6.0f);
@@ -204,8 +204,10 @@ namespace
 
 Result render (Project& project, projet::SoundPool& pool, const Framework& framework, const ProjectFolder& folder, const Options& options)
 {
+    Vector::Recorder::clearImageCache();
     Layout layout (project, pool, framework, folder, options);
-    return layout.run();
+    auto result = layout.run();
+    return result;
 }
 
 } // namespace Score

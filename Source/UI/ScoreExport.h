@@ -30,6 +30,7 @@ namespace Score
         bool paper = true;                      // light, else as on screen
         bool openContainers = false;            // each container's inside after its level
         bool boards = false;                    // each board on a page of its own
+        float imageDpi = 150.0f;                // images (photos on boards) at no more than this
         juce::String title;                     // the piece's name
     };
 

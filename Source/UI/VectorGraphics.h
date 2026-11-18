@@ -33,10 +33,11 @@ namespace Vector
         bool gradient = false;
         juce::ColourGradient gradientFill;      // page coordinates
 
-        // image
+        // image (an image drawn several times is the same juce::Image: written once)
         juce::Image image;
         juce::AffineTransform imageTransform;   // image pixels to page
         float opacity = 1.0f;
+        bool opaque = true;                     // no transparency: written as JPEG
 
         // text: the characters at their x positions on one baseline
         juce::String text;
@@ -59,7 +60,10 @@ namespace Vector
     {
     public:
         using ColourMap = std::function<juce::Colour (juce::Colour)>;
-        explicit Recorder (Page&, ColourMap = {});
+        /** Images are kept at no more than `imageDpi` at the size they are drawn. */
+        explicit Recorder (Page&, ColourMap = {}, float imageDpi = 150.0f);
+        /** Forgets the images made smaller (call before and after an export). */
+        static void clearImageCache();
 
         /** What follows goes in a group of this name (an SVG <g>). */
         void beginGroup (const juce::String& name);
@@ -108,6 +112,7 @@ namespace Vector
         };
         Page& page;
         ColourMap map;
+        float dpi = 150.0f;
         std::vector<State> stack;
         int group = 0;
         State& s()                                                  { return stack.back(); }

@@ -12,7 +12,33 @@ juce::Colour paperColour (juce::Colour c)
 
 //== Recorder ==================================================================
 
-Recorder::Recorder (Page& p, ColourMap m) : page (p), map (std::move (m))
+namespace
+{
+    /** Images made smaller for the page, by source and size: drawn again, the same image. */
+    struct ScaledImage { juce::Image image; bool opaque = true; };
+    std::map<std::tuple<const void*, int, int>, ScaledImage>& imageCache()
+    {
+        static std::map<std::tuple<const void*, int, int>, ScaledImage> cache;
+        return cache;
+    }
+
+    bool isOpaque (const juce::Image& image)
+    {
+        if (! image.hasAlphaChannel()) return true;
+        const juce::Image::BitmapData bits (image, juce::Image::BitmapData::readOnly);
+        for (int y = 0; y < image.getHeight(); ++y)
+            for (int x = 0; x < image.getWidth(); ++x)
+                if (bits.getPixelColour (x, y).getAlpha() < 255) return false;
+        return true;
+    }
+}
+
+void Recorder::clearImageCache()
+{
+    imageCache().clear();
+}
+
+Recorder::Recorder (Page& p, ColourMap m, float imageDpi) : page (p), map (std::move (m)), dpi (juce::jmax (36.0f, imageDpi))
 {
     State first;
     first.clip = { 0.0f, 0.0f, page.width, page.height };
@@ -120,6 +146,21 @@ void Recorder::push (Op op, juce::Rectangle<float> bounds)
         op.clip = s().clip;
         op.clipPaths = s().clipPaths;
     }
+    // A fill next to the one before, in the same colour and clip (a waveform's
+    // columns, a run of ticks): one path. Not where they overlap, which would
+    // change how a see-through colour adds up.
+    if (op.kind == Op::Kind::fill && ! op.gradient && ! page.ops.empty())
+    {
+        auto& last = page.ops.back();
+        if (last.kind == Op::Kind::fill && ! last.gradient && last.group == op.group && last.colour == op.colour
+            && last.clip == op.clip && last.clipPaths == op.clipPaths
+            && last.path.isUsingNonZeroWinding() && op.path.isUsingNonZeroWinding()
+            && (op.colour.isOpaque() || ! last.path.getBounds().intersects (bounds)))
+        {
+            last.path.addPath (op.path);
+            return;
+        }
+    }
     page.ops.push_back (std::move (op));
 }
 
@@ -170,10 +211,30 @@ void Recorder::drawImage (const juce::Image& image, const juce::AffineTransform&
     if (! image.isValid()) return;
     Op op;
     op.kind = Op::Kind::image;
-    op.image = image.convertedToFormat (juce::Image::ARGB);
-    op.imageTransform = t.followedBy (s().transform);
+    const auto toPage = t.followedBy (s().transform);
     op.opacity = s().opacity * s().layerOpacity * (s().fill.isColour() ? s().fill.colour.getFloatAlpha() : 1.0f);
-    const auto bounds = image.getBounds().toFloat().transformedBy (op.imageTransform);
+    const auto bounds = image.getBounds().toFloat().transformedBy (toPage);
+    if (! s().clip.intersects (bounds)) return;
+
+    // No more pixels than the page shows at the resolution asked for.
+    const float pointsPerPixelX = std::hypot (toPage.mat00, toPage.mat10), pointsPerPixelY = std::hypot (toPage.mat01, toPage.mat11);
+    const int w = image.getWidth(), h = image.getHeight();
+    const int nw = juce::jlimit (1, w, (int) std::ceil ((float) w * pointsPerPixelX * dpi / 72.0f));
+    const int nh = juce::jlimit (1, h, (int) std::ceil ((float) h * pointsPerPixelY * dpi / 72.0f));
+    const auto key = std::make_tuple (static_cast<const void*> (image.getPixelData().get()), nw, nh);
+    auto& cache = imageCache();
+    auto it = cache.find (key);
+    if (it == cache.end())
+    {
+        ScaledImage scaled;
+        auto smaller = (nw < w || nh < h) ? image.rescaled (nw, nh, juce::Graphics::highResamplingQuality) : image;
+        scaled.image = smaller.convertedToFormat (juce::Image::ARGB);
+        scaled.opaque = ! image.hasAlphaChannel() || isOpaque (scaled.image);
+        it = cache.emplace (key, std::move (scaled)).first;
+    }
+    op.image = it->second.image;
+    op.opaque = it->second.opaque;
+    op.imageTransform = juce::AffineTransform::scale ((float) w / (float) op.image.getWidth(), (float) h / (float) op.image.getHeight()).followedBy (toPage);
     push (std::move (op), bounds);
 }
 
@@ -353,6 +414,7 @@ juce::String toSvg (const Page& page)
 {
     juce::String defs, body;
     std::map<juce::String, juce::String> clips;
+    std::map<const void*, juce::String> images;
     int nextClip = 0, nextGradient = 0;
 
     auto clipFor = [&] (const Op& op) -> juce::String
@@ -430,13 +492,31 @@ juce::String toSvg (const Page& page)
             }
             case Op::Kind::image:
             {
-                juce::MemoryOutputStream png;
-                juce::PNGImageFormat().writeImageToStream (op.image, png);
+                // Each image once, in the defs; drawn where it is used.
+                const void* pixels = op.image.getPixelData().get();
+                auto it = images.find (pixels);
+                if (it == images.end())
+                {
+                    juce::MemoryOutputStream data;
+                    juce::String type = "png";
+                    if (op.opaque)
+                    {
+                        juce::JPEGImageFormat jpeg;
+                        jpeg.setQuality (0.85f);
+                        jpeg.writeImageToStream (op.image, data);
+                        type = "jpeg";
+                    }
+                    else juce::PNGImageFormat().writeImageToStream (op.image, data);
+                    const auto id = "i" + juce::String ((int) images.size());
+                    defs << "<image id=\"" << id << "\" width=\"" << op.image.getWidth() << "\" height=\"" << op.image.getHeight()
+                         << "\" preserveAspectRatio=\"none\" xlink:href=\"data:image/" << type << ";base64,"
+                         << juce::Base64::toBase64 (data.getData(), data.getDataSize()) << "\"/>\n";
+                    it = images.emplace (pixels, id).first;
+                }
                 const auto& t = op.imageTransform;
-                body << "<image width=\"" << op.image.getWidth() << "\" height=\"" << op.image.getHeight() << "\" transform=\"matrix("
+                body << "<use xlink:href=\"#" << it->second << "\" transform=\"matrix("
                      << num (t.mat00) << " " << num (t.mat10) << " " << num (t.mat01) << " " << num (t.mat11) << " " << num (t.mat02) << " " << num (t.mat12) << ")\""
-                     << (op.opacity < 0.999f ? " opacity=\"" + num (op.opacity) + "\"" : juce::String()) << clip
-                     << " href=\"data:image/png;base64," << juce::Base64::toBase64 (png.getData(), png.getDataSize()) << "\"/>\n";
+                     << (op.opacity < 0.999f ? " opacity=\"" + num (op.opacity) + "\"" : juce::String()) << clip << "/>\n";
                 break;
             }
         }
@@ -445,7 +525,7 @@ juce::String toSvg (const Page& page)
 
     juce::String out;
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" << num (page.width) << "pt\" height=\"" << num (page.height) << "pt\" viewBox=\"0 0 "
+        << "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"" << num (page.width) << "pt\" height=\"" << num (page.height) << "pt\" viewBox=\"0 0 "
         << num (page.width) << " " << num (page.height) << "\">\n";
     if (defs.isNotEmpty()) out << "<defs>\n" << defs << "</defs>\n";
     out << "<rect width=\"" << num (page.width) << "\" height=\"" << num (page.height) << "\" fill=\"" << hex (page.background) << "\"/>\n";
@@ -484,6 +564,7 @@ juce::MemoryBlock toPdf (const std::vector<Page>& pages, const juce::String& tit
 
     const int catalog = reserve(), pagesObj = reserve(), info = reserve();
     juce::StringArray kids;
+    std::map<const void*, int> imageObjects;             // each image once in the document
 
     for (auto& page : pages)
     {
@@ -522,27 +603,49 @@ juce::MemoryBlock toPdf (const std::vector<Page>& pages, const juce::String& tit
         {
             if (op.kind == Op::Kind::image)
             {
-                // RGB, with its alpha as a soft mask.
                 const int w = op.image.getWidth(), h = op.image.getHeight();
-                juce::MemoryBlock rgb ((size_t) (w * h * 3)), alpha ((size_t) (w * h));
-                const juce::Image::BitmapData bits (op.image, juce::Image::BitmapData::readOnly);
-                auto* p = static_cast<uint8_t*> (rgb.getData());
-                auto* a = static_cast<uint8_t*> (alpha.getData());
-                for (int y = 0; y < h; ++y)
-                    for (int x = 0; x < w; ++x)
+                const void* pixels = op.image.getPixelData().get();
+                auto found = imageObjects.find (pixels);
+                if (found == imageObjects.end())
+                {
+                    const juce::String size = " /Width " + juce::String (w) + " /Height " + juce::String (h);
+                    const int image = reserve();
+                    if (op.opaque)
                     {
-                        const auto col = bits.getPixelColour (x, y);
-                        *p++ = col.getRed(); *p++ = col.getGreen(); *p++ = col.getBlue();
-                        *a++ = col.getAlpha();
+                        // A photo: JPEG, as PDF reads it.
+                        juce::MemoryOutputStream jpg;
+                        juce::JPEGImageFormat jpeg;
+                        jpeg.setQuality (0.85f);
+                        jpeg.writeImageToStream (op.image, jpg);
+                        set (image, stream ("/Type /XObject /Subtype /Image" + size + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode",
+                                            jpg.getMemoryBlock()));
                     }
-                const int mask = reserve(), image = reserve();
-                set (mask, stream ("/Type /XObject /Subtype /Image /Width " + juce::String (w) + " /Height " + juce::String (h)
-                                   + " /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode", deflate (alpha.getData(), alpha.getSize())));
-                set (image, stream ("/Type /XObject /Subtype /Image /Width " + juce::String (w) + " /Height " + juce::String (h)
-                                    + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /SMask " + juce::String (mask) + " 0 R",
-                                    deflate (rgb.getData(), rgb.getSize())));
-                const auto name = "Im" + juce::String (xobjects.size());
-                xobjects.add ("/" + name + " " + juce::String (image) + " 0 R");
+                    else
+                    {
+                        // RGB, with its alpha as a soft mask.
+                        juce::MemoryBlock rgb ((size_t) (w * h * 3)), alpha ((size_t) (w * h));
+                        const juce::Image::BitmapData bits (op.image, juce::Image::BitmapData::readOnly);
+                        auto* p = static_cast<uint8_t*> (rgb.getData());
+                        auto* a = static_cast<uint8_t*> (alpha.getData());
+                        for (int y = 0; y < h; ++y)
+                            for (int x = 0; x < w; ++x)
+                            {
+                                const auto col = bits.getPixelColour (x, y);
+                                *p++ = col.getRed(); *p++ = col.getGreen(); *p++ = col.getBlue();
+                                *a++ = col.getAlpha();
+                            }
+                        const int mask = reserve();
+                        set (mask, stream ("/Type /XObject /Subtype /Image" + size + " /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode",
+                                           deflate (alpha.getData(), alpha.getSize())));
+                        set (image, stream ("/Type /XObject /Subtype /Image" + size + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /SMask "
+                                            + juce::String (mask) + " 0 R", deflate (rgb.getData(), rgb.getSize())));
+                    }
+                    found = imageObjects.emplace (pixels, image).first;
+                }
+                const int image = found->second;
+                const auto name = "Im" + juce::String (image);
+                if (! xobjects.contains ("/" + name + " " + juce::String (image) + " 0 R"))
+                    xobjects.add ("/" + name + " " + juce::String (image) + " 0 R");
                 const auto t = juce::AffineTransform (1.0f / (float) w, 0.0f, 0.0f, 0.0f, -1.0f / (float) h, 1.0f).inverted()
                                    .followedBy (op.imageTransform);
                 c << "q\n" << clipOps (op);

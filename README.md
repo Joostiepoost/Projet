@@ -416,7 +416,8 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **Drawn by the timeline's own code**, so the score shows what the timeline shows: boxes with their names, fills, glyphs (with their curves) and marks, the rulers and lanes, the signs and nodes, the loop. Hide a ruler layer or fold a folder to leave it out; make a track taller to give it room. The playhead, handles, hints and idle M and S buttons are left out.
 - **On paper** (the default): the screen's dark colours turned light with their hues kept, so a dark fill becomes a light tint and light text dark. Or *as on screen*.
 - **Containers**: as on the timeline, or also each opened out after its level: its inside in its own time, as when you go inside, nested ones after it. **Boards**: as on the timeline, or also each board on a page of its own at the end.
-- **Files**: in the project's **Score** folder, a PDF (text as outlines, for annotating on an iPad) and a folder with an SVG of each page (text kept as text, each system a named group, for a graphics editor); then *Open the PDF*, *Show in Finder* or OK.
+- **Files**: in the project's **Score** folder, a PDF (text as outlines, for annotating on an iPad) and a folder with an SVG of each page (text kept as text, each system a named group, for a graphics editor), or only one of the two (*Files*); then *Open the PDF*, *Show in Finder* or OK. The dialog says how large the PDF came out.
+- **Images** (photos on boards): kept at 150 dpi at the size they are printed, or 300 dpi (sharper, larger), or 72 dpi (smallest); each image is in the file once however often it is drawn, photos as JPEG. Everything else is vector, sharp at any zoom. The dialog remembers your last choices.
 
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
@@ -449,6 +450,9 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 10b, after the lighter export**:
+- Export your real project again with the defaults: how long it takes, and the PDF's size (it says so). Then *Files: PDF only*, and *Images: 72 dpi* and *300 dpi*: is 150 dpi sharp enough on the iPad?
 
 **Worth testing in stage 10b**:
 - *File > Export score...* with the defaults: open the PDF. Look at the systems, the colours on paper, the glyphs and their curves, the text, the rulers and lanes. Try another number of seconds a line, A4, and *as on screen*.

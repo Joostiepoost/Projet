@@ -1464,21 +1464,35 @@ void MainComponent::exportScore()
     if (! loopInLevel.isEmpty()) what.add ("What: the loop, " + TimeFormat::format (loopInLevel.getStart(), 1) + " to " + TimeFormat::format (loopInLevel.getEnd(), 1));
     what.add ("What: what is in view, " + TimeFormat::format (inView.getStart(), 1) + " to " + TimeFormat::format (inView.getEnd(), 1));
     w->addComboBox ("what", what);
-    w->addComboBox ("page", { "Pages: A3 landscape", "Pages: A4 landscape" });
+    // The last choices are remembered.
+    auto* settings = properties.getUserSettings();
+    auto combo = [w, settings] (const juce::String& name, const juce::StringArray& items)
+    {
+        w->addComboBox (name, items);
+        w->getComboBoxComponent (name)->setSelectedItemIndex (juce::jlimit (0, items.size() - 1, settings->getIntValue ("score." + name, 0)));
+    };
+    combo ("page", { "Pages: A3 landscape", "Pages: A4 landscape" });
     // About four lines for the whole, in a round number of seconds.
     double perLine = 5.0;
     for (double s : { 5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 90.0, 120.0 }) if (s <= whole.getLength() / 3.0) perLine = s;
     w->addTextEditor ("seconds", juce::String (juce::roundToInt (perLine)), "Seconds a line");
-    w->addComboBox ("colours", { "Colours: on paper (light, the hues kept)", "Colours: as on screen (dark)" });
-    w->addComboBox ("containers", { "Containers: as on the timeline", "Containers: also each opened out, after its level" });
-    w->addComboBox ("boards", { "Boards: as on the timeline", "Boards: also each on a page of its own, at the end" });
+    combo ("colours", { "Colours: on paper (light, the hues kept)", "Colours: as on screen (dark)" });
+    combo ("containers", { "Containers: as on the timeline", "Containers: also each opened out, after its level" });
+    combo ("boards", { "Boards: as on the timeline", "Boards: also each on a page of its own, at the end" });
+    combo ("files", { "Files: PDF and SVG", "Files: PDF only", "Files: SVG only" });
+    combo ("images", { "Images: 150 dpi", "Images: 300 dpi (sharper, larger files)", "Images: 72 dpi (smallest files)" });
     w->addButton ("Export", 1, juce::KeyPress (juce::KeyPress::returnKey));
     w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     w->enterModalState (true, juce::ModalCallbackFunction::create ([safeThis, w, level, loopInLevel, inView] (int r)
     {
         if (safeThis == nullptr || r != 1) return;
         auto& self = *safeThis;
+        for (auto name : { "page", "colours", "containers", "boards", "files", "images" })
+            self.properties.getUserSettings()->setValue (juce::String ("score.") + name, w->getComboBoxComponent (name)->getSelectedItemIndex());
+        const int files = w->getComboBoxComponent ("files")->getSelectedItemIndex();
+        const bool writePdf = files != 2, writeSvg = files != 1;
         Score::Options options;
+        options.imageDpi = std::array<float, 3> { 150.0f, 300.0f, 72.0f }[(size_t) juce::jlimit (0, 2, w->getComboBoxComponent ("images")->getSelectedItemIndex())];
         options.level = level;
         const int chosen = w->getComboBoxComponent ("what")->getSelectedItemIndex();
         if (chosen == 1 && ! loopInLevel.isEmpty()) options.span = loopInLevel;
@@ -1501,13 +1515,22 @@ void MainComponent::exportScore()
         auto name = juce::File::createLegalFileName (options.title + (level.isValid() ? " " + level[IDs::name].toString() : juce::String())
                                                      + juce::Time::getCurrentTime().formatted (" %Y-%m-%d %H%M"));
         for (int n = 2; dir.getChildFile (name + ".pdf").exists(); ++n) name = name.upToLastOccurrenceOf (" (", false, false) + " (" + juce::String (n) + ")";
+        for (int n = 2; dir.getChildFile (name + " SVG").exists(); ++n) name = name.upToLastOccurrenceOf (" (", false, false) + " (" + juce::String (n) + ")";
         const auto pdf = dir.getChildFile (name + ".pdf");
         const auto svgDir = dir.getChildFile (name + " SVG");
-        svgDir.createDirectory();
-        const auto data = Vector::toPdf (result.pages, options.title);
-        bool ok = pdf.replaceWithData (data.getData(), data.getSize());
-        for (size_t i = 0; i < result.pages.size(); ++i)
-            ok = svgDir.getChildFile ("page " + juce::String ((int) i + 1).paddedLeft ('0', 2) + ".svg").replaceWithText (Vector::toSvg (result.pages[i]), false, false, "\n") && ok;
+        bool ok = true;
+        if (writePdf)
+        {
+            const auto data = Vector::toPdf (result.pages, options.title);
+            ok = pdf.replaceWithData (data.getData(), data.getSize());
+        }
+        if (writeSvg)
+        {
+            svgDir.createDirectory();
+            for (size_t i = 0; i < result.pages.size(); ++i)
+                ok = svgDir.getChildFile ("page " + juce::String ((int) i + 1).paddedLeft ('0', 2) + ".svg").replaceWithText (Vector::toSvg (result.pages[i]), false, false, "\n") && ok;
+        }
+        Vector::Recorder::clearImageCache();
         if (! ok)
         {
             self.transport.setStatus ("Could not write the score in " + dir.getFullPathName() + ".", true);
@@ -1518,16 +1541,19 @@ void MainComponent::exportScore()
         if (result.containers > 0) message << ", " << result.containers << (result.containers == 1 ? " container opened out" : " containers opened out");
         if (result.boards > 0) message << ", " << result.boards << (result.boards == 1 ? " board" : " boards");
         message << ".";
-        self.transport.setStatus ("Score exported: " + pdf.getFileName());
-        auto* done = new juce::AlertWindow ("Score exported", pdf.getFileName() + "\nand its pages as SVG in " + svgDir.getFileName() + "\n\n" + message,
-                                            juce::MessageBoxIconType::NoIcon, safeThis.getComponent());
-        done->addButton ("Open the PDF", 1, juce::KeyPress (juce::KeyPress::returnKey));
+        if (writePdf) message << "\nThe PDF: " << juce::File::descriptionOfSizeInBytes (pdf.getSize()) << ".";
+        self.transport.setStatus ("Score exported: " + (writePdf ? pdf.getFileName() : svgDir.getFileName()));
+        juce::String written = writePdf ? pdf.getFileName() : juce::String();
+        if (writeSvg) written << (writePdf ? "\nand its pages as SVG in " : "The pages as SVG in ") << svgDir.getFileName();
+        auto* done = new juce::AlertWindow ("Score exported", written + "\n\n" + message, juce::MessageBoxIconType::NoIcon, safeThis.getComponent());
+        if (writePdf) done->addButton ("Open the PDF", 1, juce::KeyPress (juce::KeyPress::returnKey));
         done->addButton ("Show in Finder", 2);
         done->addButton ("OK", 0, juce::KeyPress (juce::KeyPress::escapeKey));
-        done->enterModalState (true, juce::ModalCallbackFunction::create ([pdf] (int choice)
+        const auto shown = writePdf ? pdf : svgDir;
+        done->enterModalState (true, juce::ModalCallbackFunction::create ([shown] (int choice)
         {
-            if (choice == 1) pdf.startAsProcess();
-            else if (choice == 2) pdf.revealToUser();
+            if (choice == 1) shown.startAsProcess();
+            else if (choice == 2) shown.revealToUser();
         }), true);
     }), true);
 }

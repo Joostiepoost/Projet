@@ -2761,6 +2761,41 @@ void testScore()
     juce::XmlDocument doc (svg);
     check (doc.getDocumentElement() != nullptr, "and it is well-formed XML");
 
+    // Lighter files (after the first real test): fills side by side in one
+    // colour become one path; a large photo drawn small is kept small, once.
+    Vector::Page light;
+    light.width = 400.0f;
+    light.height = 300.0f;
+    {
+        Vector::Recorder::clearImageCache();
+        Vector::Recorder recorder (light, {}, 150.0f);
+        juce::Graphics g (recorder);
+        g.setColour (juce::Colours::grey.withAlpha (0.55f));
+        for (int x = 0; x < 200; ++x) g.fillRect ((float) x, 50.0f, 1.0f, (float) (10 + x % 20));    // a waveform's columns
+        juce::Image photo (juce::Image::RGB, 3000, 2000, true);
+        photo.clear (photo.getBounds(), juce::Colours::darkblue);
+        g.drawImage (photo, juce::Rectangle<float> (0.0f, 100.0f, 144.0f, 96.0f));                    // 2 inches wide
+        g.drawImage (photo, juce::Rectangle<float> (200.0f, 100.0f, 144.0f, 96.0f));
+    }
+    int lightFills = 0;
+    std::vector<const Vector::Op*> photos;
+    for (auto& op : light.ops)
+    {
+        if (op.kind == Vector::Op::Kind::fill) ++lightFills;
+        if (op.kind == Vector::Op::Kind::image) photos.push_back (&op);
+    }
+    check (lightFills == 1, "a waveform's 200 columns: one path");
+    check (photos.size() == 2 && photos[0]->image.getWidth() == 300 && photos[0]->opaque
+           && photos[0]->image.getPixelData() == photos[1]->image.getPixelData(),
+           "a 3000-pixel photo drawn 2 inches wide: kept at 300 pixels (150 dpi), the same image both times");
+    const auto lightPdf = Vector::toPdf ({ light }, "light");
+    const std::string lp (static_cast<const char*> (lightPdf.getData()), lightPdf.getSize());
+    size_t imageObjects = 0;
+    for (auto at = lp.find ("/Subtype /Image"); at != std::string::npos; at = lp.find ("/Subtype /Image", at + 1)) ++imageObjects;
+    check (imageObjects == 1 && lp.find ("/DCTDecode") != std::string::npos && lightPdf.getSize() < 60000,
+           "in the PDF: once, as JPEG (" + juce::String ((int) lightPdf.getSize() / 1024) + " KB)");
+    Vector::Recorder::clearImageCache();
+
     std::vector<Vector::Page> pages { page, page };
     const auto pdf = Vector::toPdf (pages, "Test (score)");
     const auto head = juce::String::fromUTF8 ((const char*) pdf.getData(), 8);
