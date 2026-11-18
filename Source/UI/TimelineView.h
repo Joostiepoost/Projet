@@ -110,6 +110,11 @@ public:
     /** The piece's own view, wherever the focus is (for saving). */
     double getPieceViewStart() const;
     double getPiecePixelsPerSecond() const;
+    /** The graphic score (10b): drawn for paper, without the playhead,
+        hints and highlights of the screen. */
+    void setPrinting (bool on)                      { printing = on; }
+    /** Everything the view draws from top to bottom: the ruler and every track. */
+    int printHeight() const;
     /** Forget every level's view (another project). */
     void resetLevels()                              { levelViews.clear(); levelId = {}; level = {}; magnified = {}; }
 
@@ -431,6 +436,7 @@ private:
     juce::String levelId;
     juce::ValueTree level, magnified;
     bool activePane = false;
+    bool printing = false;
     void paintWindowEdges (juce::Graphics&);
     bool dropHighlight = false;
 

@@ -155,6 +155,7 @@ void TimelineView::paintRuler (juce::Graphics& g)
         if (r.section) paintSectionRow (g, r);
         else if (! r.layer.isValid())
         {
+            if (printing) continue;
             g.setColour (layerBackground);
             g.fillRect (0, r.y, getWidth(), r.h);
             g.setColour (Theme::textMuted);

@@ -34,6 +34,12 @@ TimelineView::TimelineView (Project& p, projet::SoundPool& sp, const Framework& 
     addChildComponent (vScroll);
 }
 
+int TimelineView::printHeight() const
+{
+    const Project::ScopedFocus levelScope (project, level);   // this view's level
+    return rulerHeight() + contentHeight() - addTrackHeight;
+}
+
 void TimelineView::frameworkReloaded()
 {
     const Project::ScopedFocus levelScope (project, level);   // this view's level (stage 6)
@@ -608,12 +614,15 @@ void TimelineView::paint (juce::Graphics& g)
         for (size_t i = 0; i < rs.size(); ++i)
             paintTrackHeader (g, rs[i], (int) i);
 
-        auto add = addTrackButton();
-        g.setColour (Theme::lineStrong);
-        g.drawRoundedRectangle (add.toFloat().reduced (0.5f), 5.0f, 1.0f);
-        g.setColour (Theme::textMuted);
-        g.setFont (Theme::font (12.5f));
-        g.drawText ("+ Track", add, juce::Justification::centred);
+        if (! printing)
+        {
+            auto add = addTrackButton();
+            g.setColour (Theme::lineStrong);
+            g.drawRoundedRectangle (add.toFloat().reduced (0.5f), 5.0f, 1.0f);
+            g.setColour (Theme::textMuted);
+            g.setFont (Theme::font (12.5f));
+            g.drawText ("+ Track", add, juce::Justification::centred);
+        }
     }
 
     g.setColour (Theme::line);
@@ -687,7 +696,7 @@ void TimelineView::paint (juce::Graphics& g)
         g.fillRect (x1 - 1.0f, (float) top, 1.0f, (float) (getHeight() - top));
     }
     // The view worked in, when there are two (stage 6).
-    if (activePane)
+    if (activePane && ! printing)
     {
         g.setColour (Theme::accent);
         g.fillRect (0, 0, getWidth(), 2);
@@ -720,7 +729,7 @@ void TimelineView::paint (juce::Graphics& g)
 
     // Playhead
     const float px = timeToX (playhead);
-    if (px >= (float) headerWidth)
+    if (px >= (float) headerWidth && ! printing)
     {
         g.setColour (Theme::accent);
         g.fillRect (px - 0.5f, 0.0f, 1.5f, (float) getHeight());
@@ -821,8 +830,9 @@ void TimelineView::paintTrackHeader (juce::Graphics& g, const TrackRow& r, int i
         g.setFont (Theme::font (11.0f, true));
         g.drawText (label, b, juce::Justification::centred);
     };
-    drawToggle (muteButton (r), "M", (bool) track[IDs::mute], juce::Colour (0xffd08a5a));
-    drawToggle (soloButton (r), "S", (bool) track[IDs::solo], Theme::accent);
+    // On the score, only a mute or solo that is on.
+    if (! printing || (bool) track[IDs::mute]) drawToggle (muteButton (r), "M", (bool) track[IDs::mute], juce::Colour (0xffd08a5a));
+    if (! printing || (bool) track[IDs::solo]) drawToggle (soloButton (r), "S", (bool) track[IDs::solo], Theme::accent);
 
     if (! r.folder && r.h >= 56)
     {
@@ -907,7 +917,7 @@ void TimelineView::paintBoxIn (juce::Graphics& g, const juce::ValueTree& box, co
             const auto md = box[IDs::notes].toString();
             if (md.trim().isNotEmpty())
                 Markdown::drawPreview (g, md, inner, 11.0f, juce::Colour (0xffd6cbb2).withAlpha (juce::jmax (0.6f, alpha)));
-            else if (inner.getHeight() > 12.0f)
+            else if (inner.getHeight() > 12.0f && ! printing)
             {
                 g.setColour (Theme::textMuted.withAlpha (0.8f));
                 g.setFont (Theme::font (11.0f).italicised());
@@ -1033,7 +1043,7 @@ void TimelineView::paintBoardBox (juce::Graphics& g, const juce::ValueTree& box,
         {
             g.setColour (Theme::textMuted.withAlpha (0.85f * juce::jmax (0.6f, alpha)));
             g.setFont (Theme::font (11.0f));
-            g.drawText ("Board: " + Board::summary (board) + juce::String::fromUTF8 (" \xc2\xb7 double-click to open"),
+            g.drawText ("Board: " + Board::summary (board) + (printing ? juce::String() : juce::String::fromUTF8 (" \xc2\xb7 double-click to open")),
                         inner.withHeight (juce::jmin (inner.getHeight(), 15.0f)), juce::Justification::topLeft, true);
         }
     }
@@ -1374,7 +1384,7 @@ void TimelineView::paintFades (juce::Graphics& g, const juce::ValueTree& box, ju
 
 void TimelineView::paintFadeHandles (juce::Graphics& g, const juce::ValueTree& box, juce::Rectangle<float> r)
 {
-    if (drawingTakeLanes) return;
+    if (drawingTakeLanes || printing) return;      // handles are for the mouse, not the score
     if (r.getWidth() <= 24.0f) return;
     const double fs = Project::soundScale (box);
     const float fiX = timeToX (Project::boxStart (box) + (double) box[IDs::fadeIn] / fs);

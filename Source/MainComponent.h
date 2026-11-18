@@ -58,7 +58,8 @@ public:
         cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes,  // stage 7
         cmdNewBoard,                                             // stage 9
         cmdLoopToggle, cmdLoopSelection,                         // stage 10a
-        cmdExportReaper
+        cmdExportReaper,
+        cmdExportScore                                           // stage 10b
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -266,6 +267,8 @@ private:
     void syncLoop();
     // The Reaper export (10a)
     void exportToReaper();
+    // The graphic score (10b)
+    void exportScore();
     void dropGesture (const juce::String& boardBoxId, const juce::String& gestureId, juce::ValueTree track, double start, double length);
     bool previewWasPlaying = false;
     ImportPanel importPanel;

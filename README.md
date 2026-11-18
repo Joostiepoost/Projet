@@ -58,13 +58,13 @@ Other options:
 | 9a | Board box: a free canvas in a box, opened below the timeline (or filling the area): text cards, arrows between them, shapes, the pen, images; a chosen part of it shown on the box | done |
 | 9b | Board box: sound cards (heard on the board, fragments, dragged onto tracks), temporal outs (a board box that sounds in the piece), timeline links | done |
 | 9c | Board box: morphogram regions (time across, register up) and energy gestures (a path drawn with an energy's glyph, its factor curves along it; dragged onto a track as a text box) | done |
-| 10a | Loop region (drawn on the seconds ruler, a Loop button by Play), and the Reaper export: the piece as one .rpp, containers as folder tracks, text and boards as empty items with notes, takes, regions and markers | built, to test |
-| 10b | Graphic score (SVG to edit, PDF to annotate) | |
+| 10a | Loop region (drawn on the seconds ruler, a Loop button by Play), and the Reaper export: the piece as one .rpp, containers as folder tracks, text and boards as empty items with notes, takes, regions and markers | done |
+| 10b | Graphic score: the timeline in systems on A3 or A4 pages, as a PDF to annotate and an SVG of each page to edit; on paper or as on screen; containers opened out and boards on pages of their own, if asked | built, to test |
 | 11 | Relations, materials, origin; the operations of the structuring language (once the research is ready) | |
 | 12 | Strata view | |
 | 13 | A framework package template, for packages of your own | |
 
-## Using Projet (stages 1–10a)
+## Using Projet (stages 1–10b)
 
 ### The project folder
 
@@ -409,6 +409,15 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **What Reaper gets**: the tracks and folders as tracks and folder tracks (names, colours, mute, solo). Sound boxes as items at the same place, with their offset, gain and fades; a box's sound takes as the item's takes, the active one active (named "A: sound", "B: sound"). Each container as a folder track named after it, under its track, holding its tracks: its gain is the folder's volume and its fades the folder's volume envelope, and its sounds sit where they sound, cut at its edges with a 5 ms fade, as Projet plays them. Text boxes as empty items with their name, framework values (energy, level and so on, with the curves drawn) and notes as item text. Board boxes as empty items with the board's summary and its cards' words; their temporal outs as items on a track "name: temporal outs" under them. The piece's containers as regions; the named marks and the nodes as markers. The loop as Reaper's loop and time selection. The project notes say what could not be carried over (glyphs, curves, boards).
 - **The sounds** are the project's copies (Ogg Vorbis or FLAC, as Projet plays them), by paths relative to the .rpp (`../Sounds/...`), so the project folder can move. Replace them with the originals in Reaper as you go.
 
+### Graphic score (stage 10b)
+
+- *File > Export score...* (**Cmd-Shift-P**) prints the level you are looking at (the piece, or the container you are inside): all of it, the loop, or what is in view.
+- **Systems**: like a score, a chosen number of seconds a line (about a quarter of the piece to begin with), each line with its track names and the rulers above it; as many lines a page as fit. **A3 landscape**, or A4. Each page has the piece's name, what it shows, the date and the page number.
+- **Drawn by the timeline's own code**, so the score shows what the timeline shows: boxes with their names, fills, glyphs (with their curves) and marks, the rulers and lanes, the signs and nodes, the loop. Hide a ruler layer or fold a folder to leave it out; make a track taller to give it room. The playhead, handles, hints and idle M and S buttons are left out.
+- **On paper** (the default): the screen's dark colours turned light with their hues kept, so a dark fill becomes a light tint and light text dark. Or *as on screen*.
+- **Containers**: as on the timeline, or also each opened out after its level: its inside in its own time, as when you go inside, nested ones after it. **Boards**: as on the timeline, or also each board on a page of its own at the end.
+- **Files**: in the project's **Score** folder, a PDF (text as outlines, for annotating on an iPad) and a folder with an SVG of each page (text kept as text, each system a named group, for a graphics editor); then *Open the PDF*, *Show in Finder* or OK.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -440,6 +449,14 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 10b**:
+- *File > Export score...* with the defaults: open the PDF. Look at the systems, the colours on paper, the glyphs and their curves, the text, the rulers and lanes. Try another number of seconds a line, A4, and *as on screen*.
+- Open a page's SVG in a graphics editor (Affinity, Illustrator, Inkscape): the text should be text you can change, each system a group.
+- The PDF on the iPad: annotate it.
+- Containers opened out, with a container inside a container; boards on their own pages (a board with cards, images, a morphogram).
+- From inside a container; the loop; what is in view. Hide a ruler layer, fold a folder, and export again.
+- Whatever reads badly on paper (a colour too pale, text too small, something from the screen that should not be there): tell me.
 
 **Worth testing in stage 10a**:
 - Drag along the seconds ruler: a loop. Play across it: it loops, with no click at the seam. Turn it off and on with the Loop button and with L; play from after its end (it plays on).

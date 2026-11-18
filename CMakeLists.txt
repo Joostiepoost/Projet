@@ -88,6 +88,8 @@ target_sources(Projet PRIVATE
     Source/UI/BoardPainter.cpp
     Source/UI/BoardView.cpp
     Source/UI/BoardPanel.cpp
+    Source/UI/VectorGraphics.cpp
+    Source/UI/ScoreExport.cpp
     Source/UI/OutlinePanel.cpp
     Source/UI/RulerPanel.cpp
     Source/UI/FrameworkPanel.cpp
@@ -126,7 +128,7 @@ option(PROJET_BUILD_TESTS "Build the ProjetTests measurement program" OFF)
 if(PROJET_BUILD_TESTS)
     juce_add_console_app(ProjetTests PRODUCT_NAME "ProjetTests")
     juce_generate_juce_header(ProjetTests)
-    target_sources(ProjetTests PRIVATE Tests/EngineTests.cpp ${PROJET_CORE_SOURCES})
+    target_sources(ProjetTests PRIVATE Tests/EngineTests.cpp ${PROJET_CORE_SOURCES} Source/UI/VectorGraphics.cpp)
     target_compile_definitions(ProjetTests PRIVATE
         ${PROJET_DEFINITIONS} JUCE_STANDALONE_APPLICATION=1
         PROJET_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

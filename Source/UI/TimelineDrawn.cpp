@@ -297,7 +297,7 @@ void TimelineView::paintDrawnLane (juce::Graphics& g, const LayerRow& row, const
         g.strokePath (strokes, juce::PathStrokeType (1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), t);
     }
 
-    if (project.drawnItems (lane.key()).isEmpty())
+    if (project.drawnItems (lane.key()).isEmpty() && ! printing)
     {
         g.setColour (Theme::textMuted.withAlpha (0.7f));
         g.setFont (Theme::font (10.5f));

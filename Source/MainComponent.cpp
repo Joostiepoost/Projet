@@ -4,6 +4,7 @@
 #include "Engine/Arrangement.h"
 #include "UI/TimeFormat.h"
 #include "Engine/ReaperExport.h"
+#include "UI/ScoreExport.h"
 
 namespace
 {
@@ -1436,6 +1437,101 @@ void MainComponent::exportToReaper()
     }), true);
 }
 
+//== The graphic score (stage 10b) =============================================
+
+void MainComponent::exportScore()
+{
+    if (! hasProject()) return;
+    juce::Component::SafePointer<MainComponent> safeThis (this);
+    auto& v = view();
+    const auto level = v.getLevel();
+    juce::Range<double> loopInLevel, inView (v.getViewStart(), v.getViewEnd());
+    juce::Range<double> whole;
+    {
+        const Project::ScopedFocus atLevel (project, level);
+        const auto frame = project.frameFor ("piece");
+        whole = { frame.start, frame.end() };
+        if (project.hasLoop())
+            loopInLevel = { project.pieceToLevel (project.getLoop().getStart()), project.pieceToLevel (project.getLoop().getEnd()) };
+    }
+    const auto levelName = level.isValid() ? "all of " + level[IDs::name].toString() : juce::String ("the whole piece");
+
+    auto* w = new juce::AlertWindow ("Export score",
+                                     "The timeline as a graphic score, in systems: a PDF to annotate, and an SVG of each page to edit. "
+                                     "It shows what the timeline shows: hide a ruler layer or fold a folder to leave it out.",
+                                     juce::MessageBoxIconType::NoIcon, this);
+    juce::StringArray what { "What: " + levelName + " (" + TimeFormat::format (whole.getLength(), 1) + ")" };
+    if (! loopInLevel.isEmpty()) what.add ("What: the loop, " + TimeFormat::format (loopInLevel.getStart(), 1) + " to " + TimeFormat::format (loopInLevel.getEnd(), 1));
+    what.add ("What: what is in view, " + TimeFormat::format (inView.getStart(), 1) + " to " + TimeFormat::format (inView.getEnd(), 1));
+    w->addComboBox ("what", what);
+    w->addComboBox ("page", { "Pages: A3 landscape", "Pages: A4 landscape" });
+    // About four lines for the whole, in a round number of seconds.
+    double perLine = 5.0;
+    for (double s : { 5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 90.0, 120.0 }) if (s <= whole.getLength() / 3.0) perLine = s;
+    w->addTextEditor ("seconds", juce::String (juce::roundToInt (perLine)), "Seconds a line");
+    w->addComboBox ("colours", { "Colours: on paper (light, the hues kept)", "Colours: as on screen (dark)" });
+    w->addComboBox ("containers", { "Containers: as on the timeline", "Containers: also each opened out, after its level" });
+    w->addComboBox ("boards", { "Boards: as on the timeline", "Boards: also each on a page of its own, at the end" });
+    w->addButton ("Export", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    w->enterModalState (true, juce::ModalCallbackFunction::create ([safeThis, w, level, loopInLevel, inView] (int r)
+    {
+        if (safeThis == nullptr || r != 1) return;
+        auto& self = *safeThis;
+        Score::Options options;
+        options.level = level;
+        const int chosen = w->getComboBoxComponent ("what")->getSelectedItemIndex();
+        if (chosen == 1 && ! loopInLevel.isEmpty()) options.span = loopInLevel;
+        else if (chosen >= 1) options.span = inView;
+        options.a4 = w->getComboBoxComponent ("page")->getSelectedItemIndex() == 1;
+        options.secondsPerLine = juce::jlimit (1.0, 3600.0, w->getTextEditorContents ("seconds").getDoubleValue() > 0.0 ? w->getTextEditorContents ("seconds").getDoubleValue() : 30.0);
+        options.paper = w->getComboBoxComponent ("colours")->getSelectedItemIndex() == 0;
+        options.openContainers = w->getComboBoxComponent ("containers")->getSelectedItemIndex() == 1;
+        options.boards = w->getComboBoxComponent ("boards")->getSelectedItemIndex() == 1;
+        options.title = self.folder.getProjectFile().getFileNameWithoutExtension();
+
+        const auto result = Score::render (self.project, self.pool, self.framework, self.folder, options);
+        if (result.pages.empty())
+        {
+            self.transport.setStatus ("Nothing to print there.", true);
+            return;
+        }
+        auto dir = self.folder.getFolder().getChildFile ("Score");
+        dir.createDirectory();
+        auto name = juce::File::createLegalFileName (options.title + (level.isValid() ? " " + level[IDs::name].toString() : juce::String())
+                                                     + juce::Time::getCurrentTime().formatted (" %Y-%m-%d %H%M"));
+        for (int n = 2; dir.getChildFile (name + ".pdf").exists(); ++n) name = name.upToLastOccurrenceOf (" (", false, false) + " (" + juce::String (n) + ")";
+        const auto pdf = dir.getChildFile (name + ".pdf");
+        const auto svgDir = dir.getChildFile (name + " SVG");
+        svgDir.createDirectory();
+        const auto data = Vector::toPdf (result.pages, options.title);
+        bool ok = pdf.replaceWithData (data.getData(), data.getSize());
+        for (size_t i = 0; i < result.pages.size(); ++i)
+            ok = svgDir.getChildFile ("page " + juce::String ((int) i + 1).paddedLeft ('0', 2) + ".svg").replaceWithText (Vector::toSvg (result.pages[i]), false, false, "\n") && ok;
+        if (! ok)
+        {
+            self.transport.setStatus ("Could not write the score in " + dir.getFullPathName() + ".", true);
+            return;
+        }
+        juce::String message;
+        message << (int) result.pages.size() << (result.pages.size() == 1 ? " page, " : " pages, ") << result.systems << (result.systems == 1 ? " system" : " systems");
+        if (result.containers > 0) message << ", " << result.containers << (result.containers == 1 ? " container opened out" : " containers opened out");
+        if (result.boards > 0) message << ", " << result.boards << (result.boards == 1 ? " board" : " boards");
+        message << ".";
+        self.transport.setStatus ("Score exported: " + pdf.getFileName());
+        auto* done = new juce::AlertWindow ("Score exported", pdf.getFileName() + "\nand its pages as SVG in " + svgDir.getFileName() + "\n\n" + message,
+                                            juce::MessageBoxIconType::NoIcon, safeThis.getComponent());
+        done->addButton ("Open the PDF", 1, juce::KeyPress (juce::KeyPress::returnKey));
+        done->addButton ("Show in Finder", 2);
+        done->addButton ("OK", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+        done->enterModalState (true, juce::ModalCallbackFunction::create ([pdf] (int choice)
+        {
+            if (choice == 1) pdf.startAsProcess();
+            else if (choice == 2) pdf.revealToUser();
+        }), true);
+    }), true);
+}
+
 //== The loop region (stage 10a) ===============================================
 
 void MainComponent::syncLoop()
@@ -1590,7 +1686,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& c)
                   cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel,
                   cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, cmdDiveIn, cmdLevelUp, cmdToggleOutline, cmdMagnify,
                   cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes, cmdNewBoard,
-                  cmdLoopToggle, cmdLoopSelection, cmdExportReaper });
+                  cmdLoopToggle, cmdLoopSelection, cmdExportReaper, cmdExportScore });
 }
 
 void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommandInfo& info)
@@ -1716,6 +1812,7 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
                                info.setActive (open); info.setTicked (open && project.isLoopOn()); break;
         case cmdLoopSelection: info.setInfo ("Loop the selected boxes", "The loop region becomes the span of the selected boxes, and loops", "Transport", 0); info.addDefaultKeypress ('l', cmd); info.setActive (open); break;
         case cmdExportReaper:  info.setInfo ("Export to Reaper...", "Write the piece as a Reaper project (.rpp) in the project's Reaper folder", "File", 0); info.addDefaultKeypress ('r', cmd | shift); info.setActive (open); break;
+        case cmdExportScore:   info.setInfo ("Export score...", "The timeline as a graphic score: PDF to annotate, SVG to edit", "File", 0); info.addDefaultKeypress ('p', cmd | shift); info.setActive (open); break;
         default: break;
     }
     // While the board is worked on, the editing commands are its own (stage 9).
@@ -1794,6 +1891,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case cmdLoopToggle:   loopAction (0); break;
         case cmdLoopSelection: loopAction (1); break;
         case cmdExportReaper: exportToReaper(); break;
+        case cmdExportScore:  exportScore(); break;
         case cmdDiveIn:
         {
             auto box = view().getSelectedBox();
@@ -1912,7 +2010,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             juce::PopupMenu recent;
             recentProjects.createPopupMenuItems (recent, 5000, true, true);
             m.addSubMenu ("Open recent", recent, recent.getNumItems() > 0);
-            add ({ 0, cmdSaveProject, cmdRevealFolder, 0, cmdImport, 0, cmdExportReaper });
+            add ({ 0, cmdSaveProject, cmdRevealFolder, 0, cmdImport, 0, cmdExportReaper, cmdExportScore });
             break;
         }
         case 1: add ({ cmdUndo, cmdRedo, 0, cmdCut, cmdCopy, cmdPaste, cmdDuplicate, cmdDelete, 0, cmdSplit, cmdNewTextBox, cmdNotesWindow,

@@ -31,6 +31,7 @@
 #include "../Source/Model/Board.h"
 #include "../Source/Model/ProjectFolder.h"
 #include "../Source/Engine/ReaperExport.h"
+#include "../Source/UI/VectorGraphics.h"
 
 #include <random>
 #include <thread>
@@ -2700,6 +2701,90 @@ void testLoopAndReaper()
     line();
 }
 
+void testScore()
+{
+    line ("## 26. The graphic score: vectors, SVG and PDF (stage 10b)");
+    line();
+    Vector::Page page;
+    page.width = 400.0f;
+    page.height = 300.0f;
+    page.background = juce::Colours::white;
+    {
+        Vector::Recorder recorder (page, [] (juce::Colour c) { return Vector::paperColour (c); });
+        recorder.beginGroup ("system 1");
+        juce::Graphics g (recorder);
+        g.addTransform (juce::AffineTransform::scale (0.5f).translated (20.0f, 30.0f));
+        g.setColour (juce::Colour (0xff141518));                    // the screen's background
+        g.fillRect (0, 0, 200, 100);
+        {
+            juce::Graphics::ScopedSaveState state (g);
+            g.reduceClipRegion (10, 10, 50, 50);
+            g.setColour (juce::Colour (0xffe8b04b));
+            g.fillEllipse (0.0f, 0.0f, 100.0f, 100.0f);              // cut by the clip
+        }
+        g.setGradientFill (juce::ColourGradient (juce::Colours::red, 0.0f, 0.0f, juce::Colours::blue, 100.0f, 0.0f, false));
+        g.fillRect (0, 120, 100, 10);
+        g.setColour (juce::Colour (0xffe6e6e6));                    // the screen's text
+        g.setFont (juce::Font (juce::FontOptions (20.0f)));
+        g.drawText ("Section A", 0, 140, 200, 30, juce::Justification::centredLeft);
+        juce::Image img (juce::Image::ARGB, 4, 4, true);
+        img.setPixelAt (1, 1, juce::Colours::green);
+        g.drawImageAt (img, 300, 0);
+        g.fillRect (2000, 2000, 10, 10);                            // off the page: left out
+    }
+    int fills = 0, texts = 0, images = 0, clipped = 0;
+    for (auto& op : page.ops)
+    {
+        if (op.kind == Vector::Op::Kind::fill) ++fills;
+        if (op.kind == Vector::Op::Kind::text) ++texts;
+        if (op.kind == Vector::Op::Kind::image) ++images;
+        if (! op.clip.isEmpty()) ++clipped;
+    }
+    check (fills == 3 && texts == 1 && images == 1, "drawing recorded as fills, a run of text and an image; what falls off the page is left out ("
+           + juce::String (fills) + " fills, " + juce::String (texts) + " text, " + juce::String (images) + " image)");
+    check (clipped == 1, "only what a clip cuts carries one");
+    const auto& bg = page.ops[0];
+    check (bg.path.getBounds() == juce::Rectangle<float> (20.0f, 30.0f, 100.0f, 50.0f), "in page coordinates (the transforms applied)");
+    check (bg.colour.getLightness() > 0.85f && page.ops.back().kind != Vector::Op::Kind::text, "on paper: the dark background turned light");
+    const auto paper = Vector::paperColour (juce::Colour (0xff3355aa));
+    check (std::abs (paper.getHue() - juce::Colour (0xff3355aa).getHue()) < 0.01f && paper.getLightness() > 0.5f, "a colour keeps its hue on paper");
+    const Vector::Op* textOp = nullptr;
+    for (auto& op : page.ops) if (op.kind == Vector::Op::Kind::text) textOp = &op;
+    check (textOp != nullptr && textOp->text == "Section A" && textOp->xs.size() == 9 && textOp->colour.getLightness() < 0.2f
+           && std::abs (textOp->fontSize - 0.5f * juce::Font (juce::FontOptions (20.0f)).getHeightInPoints()) < 0.01f && ! textOp->path.isEmpty(),
+           "text kept as characters at their places (and as outlines), dark on paper, its size scaled");
+
+    const auto svg = Vector::toSvg (page);
+    check (svg.contains ("<svg") && svg.contains (">Section A</text>") && svg.contains ("<clipPath") && svg.contains ("<linearGradient")
+           && svg.contains ("data:image/png;base64,") && svg.contains ("id=\"system-1\"") && svg.trimEnd().endsWith ("</svg>"),
+           "SVG: text as text, the clip, the gradient, the image, the group");
+    juce::XmlDocument doc (svg);
+    check (doc.getDocumentElement() != nullptr, "and it is well-formed XML");
+
+    std::vector<Vector::Page> pages { page, page };
+    const auto pdf = Vector::toPdf (pages, "Test (score)");
+    const auto head = juce::String::fromUTF8 ((const char*) pdf.getData(), 8);
+    const std::string all (static_cast<const char*> (pdf.getData()), pdf.getSize());
+    auto ends = [&all] (const std::string& tail) { auto t = all.find_last_not_of ("\n"); return t != std::string::npos && all.compare (t + 1 - tail.size(), tail.size(), tail) == 0; };
+    check (head == "%PDF-1.4" && ends ("%%EOF") && all.find ("/Count 2") != std::string::npos && all.find ("/Title (Test \\(score\\))") != std::string::npos,
+           "PDF: two pages, a title, the trailer");
+    // The xref offsets point at the objects.
+    const auto xref = all.rfind ("xref\n0 ");
+    bool offsetsRight = xref != std::string::npos;
+    if (offsetsRight)
+    {
+        const auto entries = juce::StringArray::fromLines (juce::String (all.substr (xref)));
+        for (int k = 1; k <= 3; ++k)
+        {
+            const auto offset = (size_t) entries[k + 2].substring (0, 10).getLargeIntValue();
+            offsetsRight = offsetsRight && offset < all.size()
+                           && all.substr (offset, (size_t) juce::String (k).length() + 6) == juce::String (k).toStdString() + " 0 obj";
+        }
+    }
+    check (offsetsRight, "and its cross-reference table points at its objects");
+    line();
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
@@ -2709,7 +2794,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); testSoundCards(); testGestures(); testLoopAndReaper(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); testSoundCards(); testGestures(); testLoopAndReaper(); testScore(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -2751,6 +2836,7 @@ int main (int argc, char** argv)
     std::cout << "Sound cards..." << std::endl;        testSoundCards();
     std::cout << "Gestures..." << std::endl;           testGestures();
     std::cout << "Loop, Reaper..." << std::endl;       testLoopAndReaper();
+    std::cout << "Score..." << std::endl;              testScore();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);
