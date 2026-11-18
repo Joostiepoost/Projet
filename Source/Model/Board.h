@@ -15,7 +15,7 @@
 
 namespace Board
 {
-    enum class Kind { card, arrow, shape, stroke, image, soundCard, link, unknown };
+    enum class Kind { card, arrow, shape, stroke, image, soundCard, link, region, gesture, unknown };
     Kind kindOf (const juce::ValueTree& item);
     /** "card", "arrow" ... for the panel and undo names. */
     juce::String kindName (const juce::ValueTree& item);
@@ -74,6 +74,27 @@ namespace Board
     /** "0:01.250" (minutes when needed); and back (seconds, or -1 if unreadable). */
     juce::String formatSeconds (double seconds);
     double parseSeconds (const juce::String&);
+
+    //== Morphogram regions and energy gestures (9c) ==========================
+    juce::ValueTree makeRegion (juce::Rectangle<float>, int colour);
+    /** A gesture through these points, drawn in `region` (may be invalid). */
+    juce::ValueTree makeGesture (const juce::Array<juce::Point<float>>& points, const juce::ValueTree& region, float thickness);
+    /** The box shows this region in its own time (9c): each gesture where it falls in the box. */
+    void setShownRegion (juce::ValueTree board, const juce::ValueTree& region, juce::UndoManager*);
+    /** The region whose inside holds the point (the topmost), or invalid. */
+    juce::ValueTree regionAt (const juce::ValueTree& board, juce::Point<float> p);
+    /** The gestures drawn in a region. */
+    juce::Array<juce::ValueTree> gesturesIn (const juce::ValueTree& board, const juce::ValueTree& region);
+    /** A region's inside (below its title strip), where time and register run. */
+    juce::Rectangle<float> regionInside (const juce::ValueTree& region);
+    juce::Rectangle<float> regionInside (juce::Rectangle<float> frame);
+    /** True when a region runs in its board box's time (the default). */
+    bool regionInBoxTime (const juce::ValueTree& region);
+    /** The time a gesture spans in its region (seconds into the box), empty
+        when it has no region, or the region runs free, or `boxLength` is 0. */
+    juce::Range<double> gestureSpan (const juce::ValueTree& board, const juce::ValueTree& gesture, double boxLength);
+    /** A height in a region as a register: "high", "middle", "low", or Hz. */
+    juce::String registerAt (const juce::ValueTree& region, float y);
 
     /** Moves an item (an arrow: its free ends). */
     void moveBy (juce::ValueTree item, juce::Point<float> delta, juce::UndoManager*);

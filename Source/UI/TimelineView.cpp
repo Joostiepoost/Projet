@@ -998,7 +998,18 @@ void TimelineView::paintBoardBox (juce::Graphics& g, const juce::ValueTree& box,
 
         const auto part = Board::shownPart (board);
         inner = inner.reduced (0.0f, 1.0f);
-        if (! part.isEmpty() && inner.getHeight() > 8.0f && inner.getWidth() > 12.0f)
+        const auto region = BoardPainter::shownRegion (board);
+        if (region.isValid() && inner.getHeight() > 8.0f && inner.getWidth() > 12.0f)
+        {
+            // A morphogram region in the box's time: its gestures where they fall in the box (9c).
+            BoardPainter::Context ctx;
+            ctx.framework = &framework;
+            ctx.alpha = juce::jmax (0.35f, alpha);
+            ctx.glyphs = &glyphs;
+            ctx.boxLength = Project::boxLength (box);
+            BoardPainter::paintRegionAcross (g, board, region, inner, ctx);
+        }
+        else if (! part.isEmpty() && inner.getHeight() > 8.0f && inner.getWidth() > 12.0f)
         {
             // The chosen part, fitted (and centred) in the box below its name.
             const float k = juce::jmin (inner.getWidth() / part.getWidth(), inner.getHeight() / part.getHeight());
@@ -1012,6 +1023,8 @@ void TimelineView::paintBoardBox (juce::Graphics& g, const juce::ValueTree& box,
             ctx.projectFolder = projectFolderRoot;
             ctx.fills = project.getState()[IDs::fwFills].toString() != "off";
             ctx.alpha = juce::jmax (0.35f, alpha);
+            ctx.glyphs = &glyphs;
+            ctx.boxLength = Project::boxLength (box);
             BoardPainter::paint (g, board, ctx);
         }
         else if (inner.getHeight() > 11.0f)
@@ -1079,7 +1092,7 @@ void TimelineView::paintOutsStrip (juce::Graphics& g, const juce::ValueTree& box
 bool TimelineView::dropAt (const SourceDetails& d, juce::ValueTree& track, double& start, double& length) const
 {
     const auto desc = d.description.toString();
-    if (! desc.startsWith ("projet:soundcard:")) return false;
+    if (! desc.startsWith ("projet:soundcard:") && ! desc.startsWith ("projet:gesture:")) return false;
     length = desc.fromLastOccurrenceOf (":", false, false).getDoubleValue();
     const int y = d.localPosition.y;
     for (auto& r : rows())
@@ -1092,7 +1105,8 @@ bool TimelineView::dropAt (const SourceDetails& d, juce::ValueTree& track, doubl
 
 bool TimelineView::isInterestedInDragSource (const SourceDetails& d)
 {
-    return d.description.toString().startsWith ("projet:soundcard:");
+    const auto desc = d.description.toString();
+    return desc.startsWith ("projet:soundcard:") || desc.startsWith ("projet:gesture:");
 }
 
 void TimelineView::itemDragMove (const SourceDetails& d)
@@ -1119,10 +1133,16 @@ void TimelineView::itemDropped (const SourceDetails& d)
     dropTrackId.clear();
     juce::ValueTree track;
     double start = 0.0, length = 0.0;
-    if (dropAt (d, track, start, length) && onDropSoundCard)
+    if (dropAt (d, track, start, length))
     {
-        const auto parts = juce::StringArray::fromTokens (d.description.toString().fromFirstOccurrenceOf ("projet:soundcard:", false, false), ":", {});
-        if (parts.size() >= 2) onDropSoundCard (parts[0], parts[1], track, start);
+        const auto desc = d.description.toString();
+        const bool gesture = desc.startsWith ("projet:gesture:");
+        const auto parts = juce::StringArray::fromTokens (desc.fromFirstOccurrenceOf (gesture ? "projet:gesture:" : "projet:soundcard:", false, false), ":", {});
+        if (parts.size() >= 2)
+        {
+            if (gesture && onDropGesture) onDropGesture (parts[0], parts[1], track, start, length);
+            else if (! gesture && onDropSoundCard) onDropSoundCard (parts[0], parts[1], track, start);
+        }
     }
     repaint();
 }

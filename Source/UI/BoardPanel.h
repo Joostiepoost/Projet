@@ -3,6 +3,8 @@
 // semiotic level and text; a shape's, arrow's or drawing's colour, width,
 // dashes and label; an image's caption), or, with nothing selected, the
 // board itself: what it holds, the part shown on its box, and the keys.
+// A morphogram region's name, time and register scale, and an energy
+// gesture's energies, width and variation factors (9c).
 
 #pragma once
 
@@ -10,6 +12,7 @@
 #include "../Model/Project.h"
 #include "../Model/Board.h"
 #include "NotesEditor.h"
+#include "FactorCurves.h"
 
 class BoardPanel : public juce::Component
 {
@@ -35,7 +38,7 @@ public:
     void resized() override;
 
 private:
-    enum class Mode { board, card, shape, arrow, stroke, image, soundCard, link, several };
+    enum class Mode { board, card, shape, arrow, stroke, image, soundCard, link, region, gesture, several };
     Mode mode = Mode::board;
     void setMode (Mode);
     void commitWords();
@@ -79,6 +82,22 @@ private:
     juce::Slider gain;
     juce::ToggleButton outToggle { "Plays in the piece (temporal out)" };
     juce::TextButton playButton { "Play" }, wholeButton { "Whole sound" }, goButton { "Go there" }, relinkButton { "Point it elsewhere..." }, takeButton;
+    // Regions and gestures (9c)
+    juce::Label timeLabel { {}, "Time" }, scaleLabel { {}, "Register" }, hzLabel { {}, "Hz: from" }, hzToLabel { {}, "to" },
+                energyLabel { {}, "Energy" }, energy2Label { {}, "Second energy" }, thicknessLabel { {}, "Width" };
+    juce::ComboBox timeBox, scaleBox, energyBox, energy2Box;
+    juce::TextEditor hzLowEdit, hzHighEdit;
+    juce::Slider thickness;
+    juce::OwnedArray<FactorCurves::Editor> factorEditors;
+    juce::OwnedArray<juce::Label> factorHeadings;   // one per energy, above its curves
+    juce::Viewport factorView;                      // the curves scroll when they do not fit
+    juce::Component factorHolder;
+    void layoutFactors (int width);
+    juce::Array<juce::ValueTree> factorFor;     // the gesture the editors were built for
+    juce::StringArray factorsBuiltFor;          // and its energies then
+    void buildFactorEditors();
+    void setEnergy (int which, int selectedId);
+    void commitHz (juce::TextEditor&, const juce::Identifier&);
     juce::TextButton showOnBox { "Show on the box" }, clearShown { "Show nothing on the box" }, fit { "Fit" }, addImages { "Add images..." },
                      front { "To front" }, back { "To back" }, remove { "Delete" }, close { "Close the board" }, fill { "Fill the area" };
 

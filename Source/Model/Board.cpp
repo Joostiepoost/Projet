@@ -78,6 +78,8 @@ namespace Board
         if (item.hasType (IDs::IMAGE))  return Kind::image;
         if (item.hasType (IDs::SOUNDCARD)) return Kind::soundCard;
         if (item.hasType (IDs::LINK))   return Kind::link;
+        if (item.hasType (IDs::REGION)) return Kind::region;
+        if (item.hasType (IDs::GESTURE)) return Kind::gesture;
         return Kind::unknown;
     }
 
@@ -92,6 +94,8 @@ namespace Board
             case Kind::image:   return "image";
             case Kind::soundCard: return "sound card";
             case Kind::link:    return "link";
+            case Kind::region:  return "morphogram region";
+            case Kind::gesture: return "gesture";
             case Kind::unknown: break;
         }
         return "item";
@@ -123,8 +127,10 @@ namespace Board
                     return juce::Rectangle<float> (juce::Point<float> (x, y), juce::Point<float> (x + num (item, IDs::w), y + num (item, IDs::h)));
                 }
                 return rect (item);
-            case Kind::card: case Kind::stroke: case Kind::image: case Kind::soundCard: case Kind::link:
+            case Kind::card: case Kind::stroke: case Kind::image: case Kind::soundCard: case Kind::link: case Kind::region:
                 return rect (item);
+            case Kind::gesture:
+                return rect (item).expanded (num (item, IDs::thickness, 36.0f) * 0.5f);
             case Kind::unknown:
                 break;
         }
@@ -226,10 +232,18 @@ namespace Board
                 if (filled) return r.expanded (tol).contains (p);
                 return r.expanded (tol + w).contains (p) && ! r.reduced (tol + w).contains (p);
             }
+            case Kind::region:
+            {
+                // Its frame and its title strip; inside, what is drawn in it is picked.
+                const auto r = rect (item);
+                if (r.withHeight (20.0f).expanded (tol).contains (p)) return true;
+                return r.expanded (tol).contains (p) && ! r.reduced (tol).contains (p);
+            }
+            case Kind::gesture:
             case Kind::stroke:
             {
                 const auto pts = strokePoints (item);
-                const float w = num (item, IDs::lineWidth, 2.0f) * 0.5f;
+                const float w = item.hasType (IDs::GESTURE) ? num (item, IDs::thickness, 36.0f) * 0.5f : num (item, IDs::lineWidth, 2.0f) * 0.5f;
                 if (pts.size() == 1) return p.getDistanceFrom (pts[0]) <= tol + w;
                 for (int i = 1; i < pts.size(); ++i)
                     if (distanceToSegment (p, pts[i - 1], pts[i]) <= tol + w) return true;
@@ -381,6 +395,92 @@ namespace Board
         return out;
     }
 
+    juce::ValueTree makeRegion (juce::Rectangle<float> r, int colour)
+    {
+        juce::ValueTree t (IDs::REGION);
+        t.setProperty (IDs::id, newId(), nullptr);
+        setRectProps (t, r);
+        t.setProperty (IDs::colour, colour, nullptr);
+        return t;
+    }
+
+    juce::ValueTree makeGesture (const juce::Array<juce::Point<float>>& points, const juce::ValueTree& region, float thickness)
+    {
+        auto t = makeStroke (points, 0, 1.0f);
+        juce::ValueTree g (IDs::GESTURE);
+        g.copyPropertiesFrom (t, nullptr);
+        g.removeProperty (IDs::colour, nullptr);
+        g.removeProperty (IDs::lineWidth, nullptr);
+        g.setProperty (IDs::thickness, thickness, nullptr);
+        if (region.isValid()) g.setProperty (IDs::regionId, region[IDs::id].toString(), nullptr);
+        return g;
+    }
+
+    void setShownRegion (juce::ValueTree board, const juce::ValueTree& region, juce::UndoManager* um)
+    {
+        setShownPart (board, rect (region), um);
+        board.setProperty (IDs::regionId, region[IDs::id].toString(), um);
+    }
+
+    juce::ValueTree regionAt (const juce::ValueTree& board, juce::Point<float> p)
+    {
+        for (int i = board.getNumChildren(); --i >= 0;)
+        {
+            auto item = board.getChild (i);
+            if (item.hasType (IDs::REGION) && rect (item).contains (p)) return item;
+        }
+        return {};
+    }
+
+    juce::Array<juce::ValueTree> gesturesIn (const juce::ValueTree& board, const juce::ValueTree& region)
+    {
+        juce::Array<juce::ValueTree> out;
+        const auto id = region[IDs::id].toString();
+        if (id.isEmpty()) return out;
+        for (auto item : board)
+            if (item.hasType (IDs::GESTURE) && item[IDs::regionId].toString() == id) out.add (item);
+        return out;
+    }
+
+    juce::Rectangle<float> regionInside (juce::Rectangle<float> frame)
+    {
+        return frame.withTrimmedTop (20.0f).withTrimmedBottom (18.0f).reduced (1.0f, 0.0f);
+    }
+
+    juce::Rectangle<float> regionInside (const juce::ValueTree& region)
+    {
+        return regionInside (rect (region));
+    }
+
+    bool regionInBoxTime (const juce::ValueTree& region)
+    {
+        return region[IDs::timeMode].toString() != "free";
+    }
+
+    juce::Range<double> gestureSpan (const juce::ValueTree& board, const juce::ValueTree& gesture, double boxLength)
+    {
+        auto region = findItem (board, gesture[IDs::regionId].toString());
+        if (! region.isValid() || ! regionInBoxTime (region) || boxLength <= 0.0) return {};
+        const auto inside = regionInside (region);
+        const auto r = rect (gesture);
+        auto at = [&] (float x) { return boxLength * juce::jlimit (0.0, 1.0, (double) ((x - inside.getX()) / juce::jmax (1.0f, inside.getWidth()))); };
+        return { at (r.getX()), at (r.getRight()) };
+    }
+
+    juce::String registerAt (const juce::ValueTree& region, float y)
+    {
+        const auto inside = regionInside (region);
+        const double k = juce::jlimit (0.0, 1.0, (double) ((inside.getBottom() - y) / juce::jmax (1.0f, inside.getHeight())));
+        if (region[IDs::registerScale].toString() == "hz")
+        {
+            const double lo = juce::jmax (1.0, (double) region.getProperty (IDs::hzLow, 20.0));
+            const double hi = juce::jmax (lo * 1.01, (double) region.getProperty (IDs::hzHigh, 20000.0));
+            const double hz = lo * std::pow (hi / lo, k);
+            return hz >= 1000.0 ? juce::String (hz / 1000.0, 1) + " kHz" : juce::String (juce::roundToInt (hz)) + " Hz";
+        }
+        return k > 2.0 / 3.0 ? "high" : (k > 1.0 / 3.0 ? "middle" : "low");
+    }
+
     juce::String formatSeconds (double seconds)
     {
         seconds = juce::jmax (0.0, seconds);
@@ -424,7 +524,7 @@ namespace Board
 
     void setRect (juce::ValueTree item, juce::Rectangle<float> r, juce::UndoManager* um)
     {
-        if (item.hasType (IDs::STROKE))
+        if (item.hasType (IDs::STROKE) || item.hasType (IDs::GESTURE))
         {
             const float ow = num (item, IDs::w), oh = num (item, IDs::h);
             const float kx = ow > 0.01f ? r.getWidth() / ow : 1.0f, ky = oh > 0.01f ? r.getHeight() / oh : 1.0f;
@@ -444,7 +544,7 @@ namespace Board
     {
         const auto k = kindOf (item);
         return k == Kind::card || k == Kind::image || k == Kind::stroke || k == Kind::soundCard || k == Kind::link
-               || (k == Kind::shape && ! isLine (item));
+               || k == Kind::region || k == Kind::gesture || (k == Kind::shape && ! isLine (item));
     }
 
     bool hasEnds (const juce::ValueTree& item)
@@ -524,6 +624,7 @@ namespace Board
 
     void setShownPart (juce::ValueTree board, juce::Rectangle<float> r, juce::UndoManager* um)
     {
+        if (board.hasProperty (IDs::regionId)) board.removeProperty (IDs::regionId, um);
         if (r.isEmpty())
         {
             for (auto* id : { &IDs::showX, &IDs::showY, &IDs::showW, &IDs::showH })
@@ -538,7 +639,7 @@ namespace Board
 
     juce::String summary (const juce::ValueTree& board)
     {
-        int cards = 0, arrows = 0, shapes = 0, strokes = 0, images = 0, sounds = 0, links = 0, outs = 0;
+        int cards = 0, arrows = 0, shapes = 0, strokes = 0, images = 0, sounds = 0, links = 0, outs = 0, regions = 0, gestures = 0;
         for (auto item : board)
             switch (kindOf (item))
             {
@@ -549,6 +650,8 @@ namespace Board
                 case Kind::image:  ++images; break;
                 case Kind::soundCard: ++sounds; if (isTemporalOut (item)) ++outs; break;
                 case Kind::link:   ++links; break;
+                case Kind::region: ++regions; break;
+                case Kind::gesture: ++gestures; break;
                 case Kind::unknown: break;
             }
         juce::StringArray parts;
@@ -560,6 +663,8 @@ namespace Board
         add (images, "image", "images");
         add (sounds, "sound card", "sound cards");
         add (links, "link", "links");
+        add (regions, "morphogram region", "morphogram regions");
+        add (gestures, "gesture", "gestures");
         if (outs > 0) parts.add (juce::String (outs) + " playing in the piece");
         return parts.isEmpty() ? juce::String ("empty") : parts.joinIntoString (", ");
     }
@@ -576,6 +681,14 @@ namespace Board
             c.setProperty (IDs::id, fresh, nullptr);
             copies.add (c);
         }
+        for (auto& c : copies)
+            if (c.hasType (IDs::GESTURE) && c.hasProperty (IDs::regionId))
+            {
+                // A gesture copied with its region stays in the copy; without it, it is drawn free.
+                auto it = ids.find (c[IDs::regionId].toString());
+                if (it != ids.end()) c.setProperty (IDs::regionId, it->second, nullptr);
+                else c.removeProperty (IDs::regionId, nullptr);
+            }
         for (int i = 0; i < copies.size(); ++i)
         {
             auto& c = copies.getReference (i);

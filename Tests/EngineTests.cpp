@@ -2495,6 +2495,67 @@ void testSoundCards()
     line();
 }
 
+void testGestures()
+{
+    line ("## 24. Morphogram regions and energy gestures (stage 9c)");
+    line();
+    Project p;
+    p.resetToDefault ("Gestures", 48000.0);
+    auto track = p.getTrack (0);
+    auto& um = p.getUndoManager();
+    um.beginNewTransaction ("Board");
+    auto box = p.addBoardBox (track, 0.0, 10.0);                 // 10 s long
+    auto board = Project::boardOf (box);
+    auto region = Board::makeRegion ({ 0.0f, 0.0f, 420.0f, 338.0f }, 0);
+    board.appendChild (region, &um);
+    const auto inside = Board::regionInside (region);
+    check (Board::regionInBoxTime (region) && inside.getY() > 0.0f && inside.getBottom() < 338.0f, "a new region runs in its box's time, below its title");
+
+    // A gesture over the second fifth of the region's width.
+    const float x0 = inside.getX() + inside.getWidth() * 0.2f, x1 = inside.getX() + inside.getWidth() * 0.4f;
+    const float yMid = inside.getCentreY();
+    juce::Array<juce::Point<float>> path;
+    path.add ({ x0, yMid });
+    path.add ({ (x0 + x1) * 0.5f, yMid - 20.0f });
+    path.add ({ x1, yMid });
+    auto gesture = Board::makeGesture (path, Board::regionAt (board, { x0, yMid }), 36.0f);
+    gesture.setProperty ("fw.test.energy", "impulse", nullptr);
+    board.appendChild (gesture, &um);
+    check (gesture[IDs::regionId] == region[IDs::id] && Board::gesturesIn (board, region).size() == 1, "a gesture drawn in a region belongs to it");
+    const auto span = Board::gestureSpan (board, gesture, Project::boxLength (box));
+    check (std::abs (span.getStart() - 2.0) < 0.01 && std::abs (span.getEnd() - 4.0) < 0.01, "its time span: from where it starts to where it ends across the region (2 s to 4 s)");
+    check (Board::registerAt (region, inside.getY() + 2.0f) == "high" && Board::registerAt (region, yMid) == "middle"
+           && Board::registerAt (region, inside.getBottom() - 2.0f) == "low", "the region's register: low, middle, high");
+    region.setProperty (IDs::registerScale, "hz", &um);
+    check (Board::registerAt (region, inside.getBottom()) == "20 Hz" && Board::registerAt (region, inside.getY()) == "20.0 kHz", "on the Hz scale, logarithmic from 20 Hz to 20 kHz");
+    region.setProperty (IDs::timeMode, "free", &um);
+    check (Board::gestureSpan (board, gesture, 10.0).isEmpty(), "in a region of free time, a gesture has no time span");
+    region.setProperty (IDs::timeMode, "box", &um);
+    check (Board::hits (board, gesture, { (x0 + x1) * 0.5f, yMid - 20.0f + 12.0f }, 3.0f) && ! Board::hits (board, gesture, { x0, yMid + 40.0f }, 3.0f),
+           "a gesture is picked within its width, not beyond");
+    check (Board::hits (board, region, { 200.0f, 8.0f }, 3.0f) && ! Board::hits (board, region, { 200.0f, 150.0f }, 3.0f),
+           "a region is picked by its title strip and its frame, not inside");
+
+    // Copied with its region, a gesture stays in the copy; alone, it is free.
+    auto both = Board::copyItems (board, { region, gesture });
+    check (both.size() == 2 && both[1][IDs::regionId] == both[0][IDs::id] && both[0][IDs::id] != region[IDs::id], "copied with its region, a gesture follows the copy");
+    auto alone = Board::copyItems (board, { gesture });
+    check (alone.size() == 1 && ! alone[0].hasProperty (IDs::regionId) && alone[0]["fw.test.energy"] == "impulse", "copied alone, a gesture keeps its energy and is drawn free");
+
+    Board::setShownRegion (board, region, &um);
+    check (board[IDs::regionId] == region[IDs::id] && Board::shownPart (board) == Board::rect (region), "the box shows the region in its own time");
+    um.beginNewTransaction ("Duplicate");
+    auto dup = p.duplicateBox (box);
+    auto dupBoard = Project::boardOf (dup);
+    auto dupRegion = dupBoard.getChildWithName (IDs::REGION), dupGesture = dupBoard.getChildWithName (IDs::GESTURE);
+    check (dupGesture[IDs::regionId] == dupRegion[IDs::id] && dupRegion[IDs::id] != region[IDs::id], "a duplicated board box: its gestures in its own regions");
+    check (dupBoard[IDs::regionId] == dupRegion[IDs::id], "and it shows its own region");
+    Board::setShownPart (board, { 0.0f, 0.0f, 100.0f, 100.0f }, &um);
+    check (! board.hasProperty (IDs::regionId), "choosing another part to show leaves the region");
+    check (Board::summary (board).contains ("morphogram region") && Board::summary (board).contains ("gesture"), "the board's summary counts regions and gestures");
+    line();
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
@@ -2504,7 +2565,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); testSoundCards(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); testSoundCards(); testGestures(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -2544,6 +2605,7 @@ int main (int argc, char** argv)
     std::cout << "Factors..." << std::endl;            testFactors();
     std::cout << "Boards..." << std::endl;             testBoards();
     std::cout << "Sound cards..." << std::endl;        testSoundCards();
+    std::cout << "Gestures..." << std::endl;           testGestures();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);

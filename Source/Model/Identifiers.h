@@ -17,8 +17,8 @@
 //         TIMELINE a container box's own timeline (stage 5a), kept when the box
 //                  changes kind
 //         BOARD    a board box's canvas (stage 9): CARD, ARROW, SHAPE, STROKE,
-//                  IMAGE, SOUNDCARD and LINK items, back to front, in board
-//                  units (pixels at 100%)
+//                  IMAGE, SOUNDCARD, LINK, REGION and GESTURE items, back to
+//                  front, in board units (pixels at 100%)
 //           TRACKS tracks, folders and boxes, as at the top (containers again)
 //
 // Times are in seconds (doubles); the engine turns them into samples at the
@@ -58,6 +58,8 @@ namespace IDs
     PROJET_ID (IMAGE)                 // an image copied into the project's Boards folder
     PROJET_ID (SOUNDCARD)             // a sound card (9b): soundId, srcIn..srcOut, gain, fades; a temporal out plays in the piece
     PROJET_ID (LINK)                  // a timeline link (9b): targetBox (and targetTake)
+    PROJET_ID (REGION)                // a morphogram region (9c): time across, register up
+    PROJET_ID (GESTURE)               // an energy gesture (9c): a path drawn with an energy's glyph; fw.* values and factor curves as on a box
 
     // Project
     PROJET_ID (formatVersion)
@@ -172,6 +174,12 @@ namespace IDs
     PROJET_ID (outStart)              //   from this many seconds after the box's start
     PROJET_ID (targetBox)             // a link's box (its id)
     PROJET_ID (targetTake)            //   and the take it was made from (its id; optional)
+    PROJET_ID (timeMode)              // a region's time: "box" (the board box's, 0 to its length) or "free"
+    PROJET_ID (registerScale)         // a region's register: "bands" (low, middle, high) or "hz"
+    PROJET_ID (hzLow)                 //   the Hz scale's ends (log)
+    PROJET_ID (hzHigh)
+    PROJET_ID (regionId)              // the region a gesture was drawn in; on a BOARD, the region its box shows in its own time
+    PROJET_ID (thickness)             // a gesture's width: its glyph's band, board units
     // Framework values: fw.<package>.<category> (Framework::Category::property()),
     // never "type", which names the node in the project file.
 

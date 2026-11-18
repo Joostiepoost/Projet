@@ -35,6 +35,13 @@ BoardView::BoardView (Project& p, const Framework& f, const ProjectFolder& pf, c
 {
     setWantsKeyboardFocus (true);
     setMouseClickGrabsKeyboardFocus (true);
+    glyphs.rebuild (framework);
+}
+
+void BoardView::frameworkReloaded()
+{
+    glyphs.rebuild (framework);
+    repaint();
 }
 
 BoardView::~BoardView()
@@ -98,6 +105,8 @@ BoardPainter::Context BoardView::context() const
     if (editing.isValid() && editingField == IDs::notes) c.skipText = editing[IDs::id].toString();
     c.project = &project;
     c.pool = &pool;
+    c.glyphs = &glyphs;
+    c.boxLength = box.isValid() ? Project::boxLength (box) : 0.0;
     if (previewingCard) c.previewCard = previewingCard();
     if (c.previewCard.isNotEmpty() && previewSeconds) c.previewSeconds = previewSeconds();
     return c;
@@ -176,7 +185,7 @@ std::vector<BoardView::ToolButton> BoardView::toolButtons() const
     std::vector<ToolButton> b;
     int y = 10;
     // Closer together when the board is low.
-    const int step = juce::jlimit (30, 42, (getHeight() - 14) / 8);
+    const int step = juce::jlimit (28, 42, (getHeight() - 14) / 10);
     const int size = juce::jmin (36, step - 4);
     auto add = [&] (Tool t, const char* name, const char* key)
     {
@@ -191,12 +200,15 @@ std::vector<BoardView::ToolButton> BoardView::toolButtons() const
     add (Tool::image, "Image", "I");
     add (Tool::sound, "Sound card", "O");
     add (Tool::link, "Timeline link", "L");
+    add (Tool::region, "Morphogram region", "M");
+    add (Tool::gesture, "Energy gesture", "E");
     return b;
 }
 
 void BoardView::setTool (Tool t)
 {
     if (t == Tool::image) { chooseImages(); return; }
+    if (t == Tool::gesture && gestureEnergy.isEmpty()) { showEnergyMenu(); return; }
     commitEdit();
     tool = t;
     switch (t)
@@ -208,6 +220,15 @@ void BoardView::setTool (Tool t)
         case Tool::pen:    status ("Pen: draw freely; Esc or V to stop."); break;
         case Tool::sound:  status ("Sound card: click where it goes, then choose a sound of the project (or a file). Or drop sound files on the board."); break;
         case Tool::link:   status ("Timeline link: click where it goes, then choose the box. Or Alt-drag a box from the timeline onto the board."); break;
+        case Tool::region: status ("Morphogram region: drag its frame (time across, register up); then draw gestures in it with E."); break;
+        case Tool::gesture:
+        {
+            juce::String name = gestureEnergy;
+            for (auto* c : BoardPainter::glyphCategories (framework))
+                if (auto* v = framework.findValue (*c, gestureEnergy)) { name = framework.text (v->name); break; }
+            status ("Energy gesture (" + name + "): draw its path, in a region for its time and register; E again or right-click the tool for another energy; Esc or V to stop.");
+            break;
+        }
         case Tool::image:  break;
     }
     repaint();
@@ -245,6 +266,8 @@ void BoardView::paintToolStrip (juce::Graphics& g)
             case Tool::image:  icon = iconPath ("M3 4 H15 V14 H3 Z M3 12 L7 8 L10 11 L12 9 L15 12"); break;
             case Tool::sound:  icon = iconPath ("M4 7 V11 M7 4 V14 M10 6 V12 M13 8 V10"); break;
             case Tool::link:   icon = iconPath ("M3 9 H10 M7 5.5 L10.5 9 L7 12.5 M12 4 H15 V14 H12"); break;
+            case Tool::region: icon = iconPath ("M3 4 H15 V14 H3 Z M3 7.5 H15 M3 11 H15"); break;
+            case Tool::gesture: icon = iconPath ("M3 12 C 5 6, 7 6, 9 10 C 11 14, 13 13, 15 6 M4 14 L5 12 M8 13 L9 11 M12 15 L13 13"); break;
         }
         icon.applyTransform (juce::AffineTransform::translation (r.getCentreX() - 9.0f, r.getCentreY() - 9.0f));
         g.setColour (on ? juce::Colour (0xfff0cf8e) : Theme::textMuted.brighter (0.2f));
@@ -257,6 +280,7 @@ void BoardView::paintToolStrip (juce::Graphics& g)
 
 void BoardView::showToolMenu (Tool t)
 {
+    if (t == Tool::gesture) { showEnergyMenu(); return; }
     if (t != Tool::shape) return;
     juce::PopupMenu m;
     m.addItem (1, "Rectangle", true, shapeKind == "rect");
@@ -316,6 +340,10 @@ void BoardView::deleteSelection()
     commitEdit();
     project.getUndoManager().beginNewTransaction (items.size() == 1 ? "Delete " + Board::kindName (items[0]) : juce::String ("Delete items"));
     auto board = getBoard();
+    // A region goes with the gestures drawn in it (9c).
+    for (int i = 0; i < items.size(); ++i)
+        if (items[i].hasType (IDs::REGION))
+            for (auto& gst : Board::gesturesIn (board, items[i])) items.addIfNotAlreadyThere (gst);
     for (auto& item : items) Board::detachArrowsFrom (board, item[IDs::id].toString(), um());
     for (auto& item : items) board.removeChild (item, um());
     setSelectedIds ({});
@@ -325,6 +353,9 @@ void BoardView::copySelection()
 {
     auto items = getSelectedItems();
     if (items.isEmpty()) return;
+    for (int i = 0; i < items.size(); ++i)
+        if (items[i].hasType (IDs::REGION))
+            for (auto& gst : Board::gesturesIn (getBoard(), items[i])) items.addIfNotAlreadyThere (gst);
     commitEdit();
     boardClipboard() = Board::copyItems (getBoard(), items);
     pasteCount = 0;
@@ -372,6 +403,9 @@ void BoardView::duplicateSelection()
 {
     auto items = getSelectedItems();
     if (items.isEmpty()) return;
+    for (int i = 0; i < items.size(); ++i)
+        if (items[i].hasType (IDs::REGION))
+            for (auto& gst : Board::gesturesIn (getBoard(), items[i])) items.addIfNotAlreadyThere (gst);
     commitEdit();
     auto board = getBoard();
     auto copies = Board::copyItems (board, items);
@@ -407,6 +441,15 @@ void BoardView::showOnBox()
     auto board = getBoard();
     if (! board.isValid()) return;
     const auto items = getSelectedItems();
+    if (items.size() == 1 && items[0].hasType (IDs::REGION))
+    {
+        // A region: the box shows its gestures in the box's own time (9c).
+        project.getUndoManager().beginNewTransaction ("Show the region on the box");
+        Board::setShownRegion (board, items[0], um());
+        status (Board::regionInBoxTime (items[0]) ? "The box shows the morphogram in its own time: each gesture where it falls."
+                                                  : "The box shows the region (its time is free, so as a picture).");
+        return;
+    }
     auto part = Board::boundsOf (board, items);
     if (items.isEmpty()) part = visibleBoardArea();
     else part = part.expanded (12.0f);
@@ -518,7 +561,7 @@ void BoardView::editText (juce::ValueTree item)
     commitEdit();
     if (! item.isValid() || ! item.getParent().isValid()) return;
     const auto kind = Board::kindOf (item);
-    if (kind == Board::Kind::link || kind == Board::Kind::stroke) return;
+    if (kind == Board::Kind::link || kind == Board::Kind::stroke || kind == Board::Kind::gesture) return;
     editing = item;
     editingField = kind == Board::Kind::card ? IDs::notes : (kind == Board::Kind::image ? IDs::caption : IDs::label);
     setSelectedIds ({ item[IDs::id].toString() });
@@ -556,6 +599,12 @@ void BoardView::positionEditor()
         auto card = Board::rect (editing);
         const float labelH = editing[IDs::label].toString().trim().isNotEmpty() ? 27.0f : 9.0f;
         r = toScreen (juce::Rectangle<float> (card.getX() + 8.0f, card.getY() + labelH, card.getWidth() - 12.0f, juce::jmax (40.0f, card.getHeight() - labelH - 4.0f)));
+    }
+    else if (editing.hasType (IDs::REGION))
+    {
+        const auto reg = Board::rect (editing);
+        r = toScreen (juce::Rectangle<float> (reg.getX() + 4.0f, reg.getY() + 1.0f, juce::jmin (260.0f, reg.getWidth() - 8.0f), 19.0f));
+        fontSize = 11.0f;
     }
     else if (editing.hasType (IDs::SOUNDCARD))
     {
@@ -663,7 +712,8 @@ void BoardView::paintOverlay (juce::Graphics& g, const juce::ValueTree& board, j
     g.reduceClipRegion (canvas);
 
     // The part shown on the box.
-    const auto shown = Board::shownPart (board);
+    const auto shownRegion = BoardPainter::shownRegion (board);
+    const auto shown = shownRegion.isValid() ? Board::rect (shownRegion) : Board::shownPart (board);
     if (! shown.isEmpty())
     {
         const auto r = toScreen (shown);
@@ -674,7 +724,8 @@ void BoardView::paintOverlay (juce::Graphics& g, const juce::ValueTree& board, j
         g.setColour (Theme::magnifier.withAlpha (0.8f));
         g.fillPath (dashed);
         g.setFont (Theme::font (10.5f));
-        g.drawText ("shown on the box", juce::Rectangle<float> (r.getX() + 4.0f, r.getY() - 16.0f, 160.0f, 14.0f), juce::Justification::bottomLeft, false);
+        g.drawText (shownRegion.isValid() ? "shown on the box, in its time" : "shown on the box",
+                    juce::Rectangle<float> (r.getX() + 4.0f, r.getY() - 16.0f, 200.0f, 14.0f), juce::Justification::bottomLeft, false);
     }
 
     // The selection.
@@ -720,7 +771,7 @@ void BoardView::paintOverlay (juce::Graphics& g, const juce::ValueTree& board, j
 
     // What is being made.
     g.setColour (Theme::accent.withAlpha (0.8f));
-    if (drag == Drag::rubber || drag == Drag::newCard || drag == Drag::newShape)
+    if (drag == Drag::rubber || drag == Drag::newCard || drag == Drag::newShape || drag == Drag::newRegion)
     {
         auto r = juce::Rectangle<float> (toScreen (downBoard), toScreen (current));
         if (drag == Drag::newShape && shapeKind == "line") g.drawLine ({ toScreen (downBoard), toScreen (current) }, 1.5f);
@@ -737,11 +788,17 @@ void BoardView::paintOverlay (juce::Graphics& g, const juce::ValueTree& board, j
         if (auto it = Board::findItem (board, arrowFrom); it.isValid()) from = toScreen (Board::bounds (board, it).getCentre());
         g.drawArrow ({ from, toScreen (current) }, 1.5f, 10.0f, 9.0f);
     }
-    else if (drag == Drag::pen && trail.size() > 1)
+    else if ((drag == Drag::pen || drag == Drag::gesture) && trail.size() > 1)
     {
         juce::Path p;
         p.startNewSubPath (toScreen (trail[0]));
         for (int i = 1; i < trail.size(); ++i) p.lineTo (toScreen (trail[i]));
+        if (drag == Drag::gesture)
+        {
+            // The band the glyph will take.
+            g.setColour (Theme::accent.withAlpha (0.18f));
+            g.strokePath (p, juce::PathStrokeType (36.0f * zoom, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        }
         g.setColour (Board::palette()[6]);
         g.strokePath (p, juce::PathStrokeType (2.0f * zoom, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
@@ -758,9 +815,10 @@ void BoardView::paintOverlay (juce::Graphics& g, const juce::ValueTree& board, j
         g.setColour (Theme::textMuted.withAlpha (0.8f));
         g.setFont (Theme::font (13.0f));
         g.drawFittedText ("An empty board. Double-click to write a card, or pick a tool on the left:\n"
-                          "T card,  A arrow,  S shape (S again: ellipse, line),  P pen,  I image,  O sound card,  L link to a box.\n"
+                          "T card,  A arrow,  S shape (S again: ellipse, line),  P pen,  I image,  O sound card,  L link to a box,\n"
+                          "M morphogram region,  E energy gesture.\n"
                           "Drop images or sounds here; Alt-drag a box from the timeline for a link. Scroll to move around, Cmd-scroll or pinch to zoom.",
-                          canvas.reduced (40), juce::Justification::centred, 4);
+                          canvas.reduced (40), juce::Justification::centred, 5);
     }
 
     if (activePane)
@@ -831,6 +889,7 @@ void BoardView::mouseDown (const juce::MouseEvent& e)
                 if (e.mods.isPopupMenu()) { showToolMenu (b.tool); return; }
                 if (b.tool == Tool::shape && tool == Tool::shape)
                     shapeKind = shapeKind == "rect" ? "ellipse" : (shapeKind == "ellipse" ? "line" : "rect");
+                if (b.tool == Tool::gesture && tool == Tool::gesture) { showEnergyMenu(); return; }
                 setTool (b.tool);
                 return;
             }
@@ -881,6 +940,15 @@ void BoardView::mouseDown (const juce::MouseEvent& e)
         case Tool::link:
             showLinkMenu (snapPoint (downBoard, snapOn));
             return;
+        case Tool::region:
+            drag = Drag::newRegion;
+            downBoard = current = snapPoint (downBoard, snapOn);
+            return;
+        case Tool::gesture:
+            drag = Drag::gesture;
+            trail.clearQuick();
+            trail.add (downBoard);
+            return;
         case Tool::image: case Tool::select:
             break;
     }
@@ -919,7 +987,15 @@ void BoardView::mouseDown (const juce::MouseEvent& e)
     {
         dragItem = getSelectedItems()[0];
         handle = h;
-        if (kind == 0) { drag = Drag::corner; dragRect = Board::rect (dragItem); project.getUndoManager().beginNewTransaction ("Resize " + Board::kindName (dragItem)); }
+        if (kind == 0)
+        {
+            drag = Drag::corner;
+            dragRect = Board::bounds (getBoard(), dragItem);
+            regionGestures.clear();
+            if (dragItem.hasType (IDs::REGION))
+                for (auto& gst : Board::gesturesIn (getBoard(), dragItem)) regionGestures.push_back ({ gst, gst.createCopy() });
+            project.getUndoManager().beginNewTransaction ("Resize " + Board::kindName (dragItem));
+        }
         else if (kind == 1) { drag = Drag::end; project.getUndoManager().beginNewTransaction ("Move the end"); }
         else { drag = Drag::bend; project.getUndoManager().beginNewTransaction ("Bend the arrow"); }
         return;
@@ -939,7 +1015,13 @@ void BoardView::mouseDown (const juce::MouseEvent& e)
         else if (! isSelected (item)) setSelectedIds ({ id });
         drag = Drag::move;
         moved.clear();
-        for (auto& s : getSelectedItems()) moved.push_back ({ s, s.createCopy() });
+        const auto selectedNow = getSelectedItems();
+        for (auto& s : selectedNow) moved.push_back ({ s, s.createCopy() });
+        // A region takes the gestures drawn in it along (9c).
+        for (auto& s : selectedNow)
+            if (s.hasType (IDs::REGION))
+                for (auto& gst : Board::gesturesIn (board, s))
+                    if (! selectedNow.contains (gst)) moved.push_back ({ gst, gst.createCopy() });
         project.getUndoManager().beginNewTransaction (moved.size() == 1 ? "Move " + Board::kindName (item) : juce::String ("Move items"));
         return;
     }
@@ -1011,13 +1093,14 @@ void BoardView::mouseDrag (const juce::MouseEvent& e)
         case Drag::move:
         {
             // A sound card pulled up out of the board, onto a track (9b).
-            if (e.y < 0 && moved.size() == 1 && moved.front().first.hasType (IDs::SOUNDCARD) && canDragOut && canDragOut())
+            if (e.y < 0 && moved.size() == 1 && (moved.front().first.hasType (IDs::SOUNDCARD) || moved.front().first.hasType (IDs::GESTURE))
+                && canDragOut && canDragOut())
             {
-                auto card = moved.front().first;
+                auto item = moved.front().first;
                 project.getUndoManager().undoCurrentTransactionOnly();     // it stays where it was on the board
                 moved.clear();
                 drag = Drag::dragOut;
-                startDragOut (card);
+                if (item.hasType (IDs::GESTURE)) startGestureOut (item); else startDragOut (item);
                 break;
             }
             auto d = current - downBoard;
@@ -1049,7 +1132,20 @@ void BoardView::mouseDrag (const juce::MouseEvent& e)
                 const float hh = w / aspect;
                 nr = { (handle == 0 || handle == 3) ? right - w : left, (handle == 0 || handle == 1) ? bottom - hh : top, w, hh };
             }
-            Board::setRect (dragItem, nr, um());
+            const float pad = dragItem.hasType (IDs::GESTURE) ? (float) (double) dragItem.getProperty (IDs::thickness, 36.0) * 0.5f : 0.0f;
+            Board::setRect (dragItem, nr.reduced (pad), um());
+            // A region's gestures keep their place in its time and register.
+            for (auto& [gst, was] : regionGestures)
+            {
+                if (! gst.getParent().isValid()) continue;
+                const auto old = Board::rect (was);
+                const auto a = Board::regionInside (r), b = Board::regionInside (nr);
+                auto mapX = [&] (float x) { return b.getX() + (x - a.getX()) * b.getWidth() / juce::jmax (1.0f, a.getWidth()); };
+                auto mapY = [&] (float y) { return b.getY() + (y - a.getY()) * b.getHeight() / juce::jmax (1.0f, a.getHeight()); };
+                gst.copyPropertiesFrom (was, um());
+                Board::setRect (gst, juce::Rectangle<float> (juce::Point<float> (mapX (old.getX()), mapY (old.getY())),
+                                                             juce::Point<float> (mapX (old.getRight()), mapY (old.getBottom()))), um());
+            }
             break;
         }
         case Drag::end:
@@ -1081,8 +1177,11 @@ void BoardView::mouseDrag (const juce::MouseEvent& e)
             setSelectedIds (ids);
             break;
         }
-        case Drag::newCard: case Drag::newShape:
+        case Drag::newCard: case Drag::newShape: case Drag::newRegion:
             current = snapPoint (current, snapOn);
+            break;
+        case Drag::gesture:
+            if (trail.isEmpty() || trail.getLast().getDistanceFrom (current) >= 1.5f) trail.add (current);
             break;
         case Drag::newArrow:
         {
@@ -1143,6 +1242,35 @@ void BoardView::finishCreation (const juce::MouseEvent& e)
             status ({});
         }
     }
+    else if (drag == Drag::newRegion)
+    {
+        auto r = tiny ? juce::Rectangle<float> (downBoard.x, downBoard.y, 480.0f, 240.0f) : juce::Rectangle<float> (downBoard, current);
+        r = r.withWidth (juce::jmax (120.0f, r.getWidth())).withHeight (juce::jmax (90.0f, r.getHeight()));
+        auto region = Board::makeRegion (r, colourOf (3));
+        project.getUndoManager().beginNewTransaction ("New morphogram region");
+        board.addChild (region, 0, um());          // behind everything: gestures go on it
+        setSelectedIds ({ region[IDs::id].toString() });
+        tool = Tool::select;
+        status ("A morphogram region: E to draw energy gestures in it. Its time and register are in the panel.");
+    }
+    else if (drag == Drag::gesture)
+    {
+        juce::Array<juce::Point<float>> pts;
+        for (auto& p : trail)
+            if (pts.isEmpty() || pts.getLast().getDistanceFrom (p) >= 3.0f) pts.add (p);
+        if (pts.size() < 2 || trail.getFirst().getDistanceFrom (trail.getLast()) < 6.0f)
+            status ("Draw a gesture's path with the mouse held down.");
+        else
+        {
+            if (pts.getLast() != trail.getLast()) pts.add (trail.getLast());
+            auto region = Board::regionAt (board, trail.getFirst());
+            auto gesture = Board::makeGesture (pts, region, 36.0f);
+            if (auto cats = BoardPainter::glyphCategories (framework); ! cats.isEmpty() && gestureEnergy.isNotEmpty())
+                gesture.setProperty (cats[0]->property(), gestureEnergy, nullptr);
+            addItem (gesture, "Draw a gesture");
+        }
+        trail.clearQuick();
+    }
     else if (drag == Drag::pen)
     {
         if (trail.size() == 1) trail.add (trail[0] + juce::Point<float> (0.5f, 0.5f));
@@ -1163,7 +1291,7 @@ void BoardView::mouseUp (const juce::MouseEvent& e)
 {
     switch (drag)
     {
-        case Drag::newCard: case Drag::newShape: case Drag::newArrow: case Drag::pen:
+        case Drag::newCard: case Drag::newShape: case Drag::newArrow: case Drag::pen: case Drag::newRegion: case Drag::gesture:
             finishCreation (e);
             break;
         case Drag::end:
@@ -1171,10 +1299,31 @@ void BoardView::mouseUp (const juce::MouseEvent& e)
         case Drag::pan:
             setMouseCursor (juce::MouseCursor::NormalCursor);
             break;
-        case Drag::move: case Drag::corner: case Drag::bend: case Drag::rubber: case Drag::none:
+        case Drag::move:
+        {
+            // A gesture moved on its own belongs to the region it now starts in (or none) (9c).
+            auto board = getBoard();
+            juce::StringArray movedRegions;
+            for (auto& [item, was] : moved)
+                if (item.hasType (IDs::REGION)) movedRegions.add (item[IDs::id].toString());
+            for (auto& [item, was] : moved)
+            {
+                if (! item.hasType (IDs::GESTURE) || ! item.getParent().isValid() || movedRegions.contains (item[IDs::regionId].toString())) continue;
+                const auto pts = Board::strokePoints (item);
+                if (pts.isEmpty()) continue;
+                const auto region = Board::regionAt (board, pts[0]);
+                const auto id = region[IDs::id].toString();
+                if (id == item[IDs::regionId].toString()) continue;
+                if (id.isEmpty()) item.removeProperty (IDs::regionId, um());
+                else item.setProperty (IDs::regionId, id, um());
+            }
+            break;
+        }
+        case Drag::corner: case Drag::bend: case Drag::rubber: case Drag::none:
         case Drag::trimIn: case Drag::trimOut: case Drag::dragOut:
             break;
     }
+    regionGestures.clear();
     drag = Drag::none;
     hoverTarget.clear();
     arrowFrom.clear();
@@ -1259,6 +1408,12 @@ bool BoardView::keyPressed (const juce::KeyPress& key)
         if (c == 'i') { setTool (Tool::image); return true; }
         if (c == 'o') { setTool (Tool::sound); return true; }
         if (c == 'l') { setTool (Tool::link); return true; }
+        if (c == 'm') { setTool (Tool::region); return true; }
+        if (c == 'e')
+        {
+            if (tool == Tool::gesture) showEnergyMenu(); else setTool (Tool::gesture);
+            return true;
+        }
         if (c == 's')
         {
             if (tool == Tool::shape) shapeKind = shapeKind == "rect" ? "ellipse" : (shapeKind == "ellipse" ? "line" : "rect");
@@ -1654,4 +1809,53 @@ void BoardView::itemDropped (const SourceDetails& d)
     addItem (link, "New link");
     status ("A link to " + target[IDs::name].toString() + ": its button (or a double-click) goes there.");
     repaint();
+}
+
+//== Regions and gestures (9c) =================================================
+
+void BoardView::showEnergyMenu()
+{
+    auto cats = BoardPainter::glyphCategories (framework);
+    if (cats.isEmpty()) { status ("The framework has no energies with glyphs to draw gestures with.", true); return; }
+    const auto* c = cats[0];
+    juce::PopupMenu m;
+    m.addSectionHeader ("Draw gestures with");
+    const auto& values = framework.valuesOf (*c);
+    for (int i = 0; i < values.size() && i < 200; ++i)
+    {
+        if (values[i].glyph.isEmpty()) continue;
+        const auto colours = framework.valueColours (*c, values[i].id);
+        const auto colour = colours.light != 0 ? juce::Colour (colours.light) : (colours.colour != 0 ? juce::Colour (colours.colour) : Theme::text);
+        m.addColouredItem (1 + i, framework.text (values[i].name), colour, true, values[i].id == gestureEnergy);
+    }
+    juce::Component::SafePointer<BoardView> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options(), [safe, values] (int r)
+    {
+        if (safe == nullptr || r <= 0 || r - 1 >= values.size()) return;
+        safe->gestureEnergy = values[r - 1].id;
+        safe->setTool (Tool::gesture);
+    });
+}
+
+void BoardView::startGestureOut (const juce::ValueTree& gesture)
+{
+    auto* container = juce::DragAndDropContainer::findParentDragContainerFor (this);
+    if (container == nullptr) return;
+    const auto span = Board::gestureSpan (getBoard(), gesture, Project::boxLength (box));
+    const double length = span.getLength() > 0.01 ? span.getLength() : 4.0;
+    juce::String name = "Gesture";
+    if (auto cats = BoardPainter::glyphCategories (framework); ! cats.isEmpty())
+        if (auto* v = framework.findValue (*cats[0], gesture[cats[0]->property()].toString())) name = framework.text (v->name);
+    juce::Image image (juce::Image::ARGB, 180, 26, true);
+    {
+        juce::Graphics g (image);
+        g.setColour (BoardPainter::gestureColour (gesture, framework).withAlpha (0.85f));
+        g.fillRoundedRectangle (image.getBounds().toFloat().reduced (1.0f), 4.0f);
+        g.setColour (juce::Colours::black);
+        g.setFont (Theme::font (12.0f, true));
+        g.drawText (name, image.getBounds().reduced (8, 0), juce::Justification::centredLeft, true);
+    }
+    status ("Drop it on a track: a text box " + Board::formatSeconds (length) + " long with its energy and curves, waiting for its sound.");
+    container->startDragging ("projet:gesture:" + box[IDs::id].toString() + ":" + gesture[IDs::id].toString() + ":" + juce::String (length, 6),
+                              this, juce::ScaledImage (image), true);
 }

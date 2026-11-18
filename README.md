@@ -56,14 +56,14 @@ Other options:
 | 7 | Takes: alternatives of a box's content (sounds, texts, containers), one active; new takes from a copy, the project's sounds or files; switching on the box, in the panel or with Cmd-] and Cmd-[; takes shown stacked in their boxes | built, to test |
 | 8 | Framework, layer 4: variation factors as curves along a box (in its Framework tab or drawn over the box), reshaping its glyph; one factor across the boxes in the energies lane | done |
 | 9a | Board box: a free canvas in a box, opened below the timeline (or filling the area): text cards, arrows between them, shapes, the pen, images; a chosen part of it shown on the box | done |
-| 9b | Board box: sound cards (heard on the board, fragments, dragged onto tracks), temporal outs (a board box that sounds in the piece), timeline links | built, to test |
-| 9c | Board box: morphogram regions and energy gestures | |
+| 9b | Board box: sound cards (heard on the board, fragments, dragged onto tracks), temporal outs (a board box that sounds in the piece), timeline links | done |
+| 9c | Board box: morphogram regions (time across, register up) and energy gestures (a path drawn with an energy's glyph, its factor curves along it; dragged onto a track as a text box) | built, to test |
 | 10 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
 | 11 | Relations, materials, origin; the operations of the structuring language (once the research is ready) | |
 | 12 | Strata view | |
 | 13 | A framework package template, for packages of your own | |
 
-## Using Projet (stages 1–9b)
+## Using Projet (stages 1–9c)
 
 ### The project folder
 
@@ -391,6 +391,15 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **Temporal out**: tick *Plays in the piece (temporal out)* in the panel (or right-click the card). The board box then sounds when the timeline plays it: the card's fragment from *Starts in the box at* (seconds after the box's start), with its gain and fades, cut off at the box's end, never stretched; several outs mix, and the track's mute and solo apply. The card carries an OUT tag, and the box on the timeline a strip along its bottom with what it plays.
 - **A link to a box**: Alt-drag a box from the timeline onto the board, or **L** (or right-click > *Link to a box here...*) and choose the box from the piece's outline (a container's inside as a submenu). The card shows the box's name, its take (if it has takes) and its level. Its arrow button, or a double-click, goes there: the box's level, the box selected (the board stays open). If the box is deleted the link says so; *Point it elsewhere...* in the panel or its menu. A link made from a take offers to switch the box back to that take.
 
+### Morphogram regions and energy gestures (stage 9c)
+
+- **A morphogram region**: **M**, then drag its frame (a click gives one of 480 by 240). Time runs across, register up: low, middle and high bands, or a Hz scale (logarithmic, 20 Hz to 20 kHz by default; set the ends in the panel, `200` or `5k`). By default its time is the board box's own: its width is the box's length, with the times along its bottom. *Free* gives it no time of its own. Name it in the panel, or double-click its title.
+- **An energy gesture**: **E**, choose an energy (the first time; **E** again, or a right-click on the tool, for another), then draw its path with the mouse held down. The energy's glyph is drawn along the path, as wide as its dynamics, in the energy's colour. Draw several in a row; **V** or Esc to stop. Drawn in a region, a gesture belongs to it: the panel shows its time span (from where it starts to where it ends across the region) and its register.
+- **The panel for a gesture**: its energy and second energy, its width, and the variation factors of each as curves along the path, as on a box in stage 8 (they reshape the glyph as you draw them). The curves scroll when there are many.
+- **Regions carry their gestures**: moving a region moves its gestures, resizing it keeps each gesture at its place in time and register, deleting it deletes them; copying and duplicating copy them together. A gesture moved on its own into another region joins it; moved out, it is drawn free.
+- **Onto a track**: with the timeline in view above, drag a gesture up out of the board onto a track: a text box named after its energy, as long as its time span (4 s if it has none), with its energy, second energy and their curves. Drawing first, sound later.
+- **On the timeline**: select a region and *Show it on the box*: the board box then shows the region's gestures each at its own time in the box, register up (taller tracks show them larger). The region is outlined on the board, *in its time*; it stays shown when you move or resize it.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -422,6 +431,16 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 9c**:
+- On a board: M and drag a region. E, choose an energy, draw a gesture across it (a slow curve, then a quick zigzag). Draw a second with another energy. V.
+- Select a gesture: its time span and register in the panel. Draw its dynamics curve, then speed or density: the glyph follows. Give it a second energy; change its width.
+- Move the region, resize it by a corner (the gestures follow, their times in the panel stay the same), Cmd-Z. Delete the region, Cmd-Z. Move a gesture out of the region and back in.
+- The region's panel: *Free* time (no span, no times along the bottom), the Hz scale and its ends.
+- Drag a gesture up onto a track: a text box of its length, with its energy and curves (look at its Framework tab and its glyph).
+- Select the region and *Show it on the box*: on the timeline, the gestures at their times in the box (make the track taller). Change the box's length: the gestures stretch with it.
+- Copy and paste the region; duplicate the board box. Save, quit, reopen.
+- Whatever feels awkward (how the glyph bends on tight curves, the width, the default energy): tell me before stage 10.
 
 **Worth testing in stage 9b**:
 - On a board: O, click, choose a sound. Its button: it plays (and stops). Space with the card selected. Drag the ends of its waveform; type times in the panel; *Whole sound*.
