@@ -118,6 +118,10 @@ MainComponent::MainComponent()
         });
     };
     board.canDragOut = [this] { return ! boardFilled; };
+    timeline.onDropGesture = magnifier.onDropGesture = [this] (const juce::String& boxId, const juce::String& gestureId, juce::ValueTree track, double start, double length)
+    {
+        dropGesture (boxId, gestureId, track, start, length);
+    };
     timeline.onDropSoundCard = magnifier.onDropSoundCard = [this] (const juce::String& boxId, const juce::String& cardId, juce::ValueTree track, double start)
     {
         dropSoundCard (boxId, cardId, track, start);
@@ -600,6 +604,26 @@ void MainComponent::importSoundCards (const juce::StringArray& files, juce::Poin
         batches.back()->boardBoxId = board.getBox()[IDs::id].toString();
         batches.back()->boardPoint = boardPoint;
     }
+}
+
+void MainComponent::dropGesture (const juce::String& boardBoxId, const juce::String& gestureId, juce::ValueTree track, double start, double length)
+{
+    auto boardBox = project.findBoxInPiece (boardBoxId);
+    auto gesture = Board::findItem (Project::boardOf (boardBox), gestureId);
+    if (! gesture.isValid() || ! track.isValid() || Project::isFolder (track)) return;
+    juce::String name = "Gesture";
+    if (auto cats = BoardPainter::glyphCategories (framework); ! cats.isEmpty())
+        if (auto* v = framework.findValue (*cats[0], gesture[cats[0]->property()].toString())) name = framework.text (v->name);
+    project.getUndoManager().beginNewTransaction ("Text box from a gesture");
+    auto box = project.addTextBox (track, juce::jmax (0.0, start), juce::jmax (Project::minBoxLength, length), name);
+    // Drawing first, sound later: its energy, second energy and their curves come along.
+    for (int i = 0; i < gesture.getNumProperties(); ++i)
+    {
+        const auto id = gesture.getPropertyName (i);
+        if (id.toString().startsWith ("fw.")) box.setProperty (id, gesture[id], project.um());
+    }
+    if (auto* v = viewFor (box)) { activate (*v); v->selectBox (box); }
+    transport.setStatus ("A text box from the gesture " + name + ", " + Board::formatSeconds (length) + " long, waiting for its sound.");
 }
 
 void MainComponent::dropSoundCard (const juce::String& boardBoxId, const juce::String& cardId, juce::ValueTree track, double start)
@@ -2009,6 +2033,7 @@ void MainComponent::loadFramework (bool announce)
 
     timeline.frameworkReloaded();
     magnifier.frameworkReloaded();
+    board.frameworkReloaded();
     showGlyphProblems();
     inspector.frameworkChanged();
     inspector.refresh();

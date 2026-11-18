@@ -259,6 +259,7 @@ private:
     void showBox (juce::ValueTree box);
     void importSoundCards (const juce::StringArray& files, juce::Point<float> boardPoint);
     void dropSoundCard (const juce::String& boardBoxId, const juce::String& cardId, juce::ValueTree track, double start);
+    void dropGesture (const juce::String& boardBoxId, const juce::String& gestureId, juce::ValueTree track, double start, double length);
     bool previewWasPlaying = false;
     ImportPanel importPanel;
     std::unique_ptr<NotesWindow> notesWindow;

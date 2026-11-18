@@ -193,6 +193,47 @@ BoardPanel::BoardPanel (Project& p, const Framework& f)
     for (auto* b : { &playButton, &wholeButton, &goButton, &relinkButton, &takeButton })
         addChildComponent (*b);
 
+    // Regions and gestures (9c)
+    for (auto* l : { &timeLabel, &scaleLabel, &hzLabel, &hzToLabel, &energyLabel, &energy2Label, &thicknessLabel })
+    {
+        styleLabel (*l);
+        addChildComponent (*l);
+    }
+    timeBox.addItem ("The board box's (0 to its length)", 1);
+    timeBox.addItem ("Free (no time of its own)", 2);
+    timeBox.onChange = [this] { setOnAll (IDs::timeMode, timeBox.getSelectedId() == 2 ? "free" : "box", "Region's time"); };
+    scaleBox.addItem ("Low, middle, high", 1);
+    scaleBox.addItem ("Hz (logarithmic)", 2);
+    scaleBox.onChange = [this] { setOnAll (IDs::registerScale, scaleBox.getSelectedId() == 2 ? "hz" : "bands", "Region's register"); };
+    energyBox.onChange = [this] { setEnergy (0, energyBox.getSelectedId()); };
+    energy2Box.onChange = [this] { setEnergy (1, energy2Box.getSelectedId()); };
+    for (auto* c : { &timeBox, &scaleBox, &energyBox, &energy2Box })
+        addChildComponent (*c);
+    for (auto* ed : { &hzLowEdit, &hzHighEdit })
+    {
+        ed->setFont (Theme::font (13.0f));
+        addChildComponent (*ed);
+    }
+    hzLowEdit.onReturnKey = hzLowEdit.onFocusLost = [this] { commitHz (hzLowEdit, IDs::hzLow); };
+    hzHighEdit.onReturnKey = hzHighEdit.onFocusLost = [this] { commitHz (hzHighEdit, IDs::hzHigh); };
+    thickness.setSliderStyle (juce::Slider::LinearHorizontal);
+    thickness.setTextBoxStyle (juce::Slider::TextBoxRight, false, 48, 22);
+    thickness.setRange (8.0, 160.0, 1.0);
+    thickness.setDoubleClickReturnValue (true, 36.0);
+    thickness.onDragStart = [this] { project.getUndoManager().beginNewTransaction ("Gesture's width"); };
+    thickness.onValueChange = [this]
+    {
+        if (updating) return;
+        if (! thickness.isMouseButtonDown()) project.getUndoManager().beginNewTransaction ("Gesture's width");
+        for (auto& item : items)
+            if (item.hasType (IDs::GESTURE)) item.setProperty (IDs::thickness, thickness.getValue(), um());
+    };
+    addChildComponent (thickness);
+    factorView.setViewedComponent (&factorHolder, false);
+    factorView.setScrollBarsShown (true, false);
+    factorView.setScrollBarThickness (8);
+    addChildComponent (factorView);
+
     showOnBox.onClick = [this] { if (onShowOnBox) onShowOnBox(); };
     clearShown.onClick = [this] { if (onClearShown) onClearShown(); };
     fit.onClick = [this] { if (onFit) onFit(); };
@@ -257,6 +298,115 @@ void BoardPanel::commitTime (juce::TextEditor& ed, const juce::Identifier& id, c
     else card.setProperty (id, v, um());
 }
 
+void BoardPanel::commitHz (juce::TextEditor& ed, const juce::Identifier& id)
+{
+    if (updating || items.size() != 1 || ! items[0].hasType (IDs::REGION)) return;
+    auto region = items[0];
+    auto text = ed.getText().trim().toLowerCase();
+    double v = text.getDoubleValue();
+    if (text.endsWith ("k") || text.endsWith ("khz")) v *= 1000.0;
+    const double lo = region.getProperty (IDs::hzLow, 20.0), hi = region.getProperty (IDs::hzHigh, 20000.0);
+    if (v <= 0.0 || (id == IDs::hzLow && v >= hi) || (id == IDs::hzHigh && v <= lo)) { refresh(); return; }
+    if (std::abs (v - (double) region.getProperty (id, id == IDs::hzLow ? 20.0 : 20000.0)) < 1.0e-6) return;
+    project.getUndoManager().beginNewTransaction ("Region's Hz scale");
+    region.setProperty (id, v, um());
+}
+
+void BoardPanel::setEnergy (int which, int selectedId)
+{
+    if (updating) return;
+    const auto cats = BoardPainter::glyphCategories (framework);
+    if (which >= cats.size()) return;
+    auto* c = cats[which];
+    const auto& values = framework.valuesOf (*c);
+    const int i = selectedId - 2;
+    project.getUndoManager().beginNewTransaction (framework.text (c->name));
+    for (auto& item : items)
+    {
+        if (! item.hasType (IDs::GESTURE)) continue;
+        if (i < 0 || i >= values.size()) item.removeProperty (c->property(), um());
+        else item.setProperty (c->property(), values[i].id, um());
+    }
+}
+
+void BoardPanel::buildFactorEditors()
+{
+    // Built again only when the gesture or its energies change, so a curve being drawn keeps its editor.
+    juce::StringArray energies;
+    const auto cats = BoardPainter::glyphCategories (framework);
+    const auto gesture = mode == Mode::gesture && items.size() == 1 ? items[0] : juce::ValueTree();
+    for (auto* c : cats) energies.add (gesture[c->property()].toString());
+    if (factorFor.size() == 1 && factorFor[0] == gesture && energies == factorsBuiltFor)
+    {
+        // The curves again (undo).
+        int k = 0;
+        for (auto* c : cats)
+            for (auto* factor : framework.factorsOf (*c, gesture[c->property()].toString()))
+                if (auto* e = factorEditors[k++]; e != nullptr && ! e->isDragging()) e->setCurve (Project::factorCurve (gesture, *c, factor->id));
+        return;
+    }
+    factorEditors.clear();
+    factorHeadings.clear();
+    factorFor.clearQuick();
+    factorsBuiltFor = energies;
+    factorView.setVisible (false);
+    if (! gesture.isValid()) return;
+    factorFor.add (gesture);
+    for (auto* c : cats)
+    {
+        const auto value = gesture[c->property()].toString();
+        if (value.isEmpty() || framework.factorsOf (*c, value).isEmpty()) continue;
+        auto* heading = factorHeadings.add (new juce::Label());
+        juce::String name = value;
+        if (auto* v = framework.findValue (*c, value)) name = framework.text (v->name);
+        heading->setText (Theme::capitals (name) + "  " + juce::String::fromUTF8 ("\xc2\xb7") + "  " + framework.text (c->name).toLowerCase(),
+                          juce::dontSendNotification);
+        styleLabel (*heading, 11.0f);
+        heading->getProperties().set ("cat", c->key());
+        factorHolder.addAndMakeVisible (heading);
+        const auto vc = framework.valueColours (*c, value);
+        const auto colour = vc.light != 0 ? juce::Colour (vc.light) : (vc.colour != 0 ? juce::Colour (vc.colour) : Theme::accent);
+        const auto key = c->key();
+        for (auto* factor : framework.factorsOf (*c, value))
+        {
+            auto* editor = factorEditors.add (new FactorCurves::Editor (framework.text (factor->name), framework.text (factor->low),
+                                                                       framework.text (factor->high), factor->neutral, colour));
+            editor->setCurve (Project::factorCurve (gesture, *c, factor->id));
+            editor->setTooltip (framework.text (factor->name) + (factor->about.isEmpty() ? juce::String() : ": " + framework.text (factor->about))
+                                + ". Along the gesture's path. Click to add a point, drag to move one, double-click to remove it, Alt-drag to draw freely; right-click for shapes.");
+            const auto factorId = factor->id;
+            editor->onChange = [this, gesture, key, factorId] (const Factors::Curve& curve, bool starting)
+            {
+                auto* cat = framework.findCategory (key);
+                if (cat == nullptr) return;
+                if (starting) project.getUndoManager().beginNewTransaction ("Variation factor");
+                project.setFactorCurve (gesture, *cat, factorId, curve);
+            };
+            editor->getProperties().set ("cat", key);
+            factorHolder.addAndMakeVisible (editor);
+        }
+    }
+    factorView.setVisible (! factorEditors.isEmpty());
+}
+
+void BoardPanel::layoutFactors (int w)
+{
+    int y = 0;
+    for (auto* heading : factorHeadings)
+    {
+        if (y > 0) y += 6;
+        heading->setBounds (0, y, w, 18);
+        y += 20;
+        for (auto* e : factorEditors)
+            if (e->getProperties()["cat"] == heading->getProperties()["cat"])
+            {
+                e->setBounds (0, y, w, FactorCurves::Editor::preferredHeight);
+                y += FactorCurves::Editor::preferredHeight + 4;
+            }
+    }
+    factorHolder.setSize (w, y);
+}
+
 void BoardPanel::setMode (Mode m)
 {
     mode = m;
@@ -270,15 +420,24 @@ void BoardPanel::setMode (Mode m)
         c->setVisible (sound);
     goButton.setVisible (link);
     relinkButton.setVisible (link);
+    const bool region = m == Mode::region, gesture = m == Mode::gesture;
+    for (auto* c : std::initializer_list<juce::Component*> { &timeLabel, &timeBox, &scaleLabel, &scaleBox })
+        c->setVisible (region);
+    for (auto* c : std::initializer_list<juce::Component*> { &energyLabel, &energyBox, &thicknessLabel, &thickness })
+        c->setVisible (gesture);
+    energy2Label.setVisible (gesture && BoardPainter::glyphCategories (framework).size() > 1);
+    energy2Box.setVisible (energy2Label.isVisible());
+    for (auto* c : std::initializer_list<juce::Component*> { &hzLabel, &hzToLabel, &hzLowEdit, &hzHighEdit })
+        c->setVisible (region);
     takeButton.setVisible (false);
-    colourLabel.setVisible (! board && m != Mode::image);
+    colourLabel.setVisible (! board && m != Mode::image && m != Mode::gesture);
     colours.setVisible (colourLabel.isVisible());
     auto* fc = BoardPainter::fillCategory (framework);
     levelLabel.setVisible (card && fc != nullptr);
     levelBox.setVisible (levelLabel.isVisible());
     textLabel.setVisible (card);
     notes.setVisible (card);
-    wordsLabel.setVisible (m == Mode::shape || m == Mode::arrow || m == Mode::image || m == Mode::soundCard);
+    wordsLabel.setVisible (m == Mode::shape || m == Mode::arrow || m == Mode::image || m == Mode::soundCard || m == Mode::region);
     words.setVisible (wordsLabel.isVisible());
     widthLabel.setVisible (lines);
     width.setVisible (lines);
@@ -319,6 +478,8 @@ void BoardPanel::refresh()
             case Board::Kind::image:  m = Mode::image; break;
             case Board::Kind::soundCard: m = Mode::soundCard; break;
             case Board::Kind::link:   m = Mode::link; break;
+            case Board::Kind::region: m = Mode::region; break;
+            case Board::Kind::gesture: m = Mode::gesture; break;
             case Board::Kind::unknown: break;
         }
     setMode (m);
@@ -337,7 +498,8 @@ void BoardPanel::refresh()
               << "\n\nTools on the left, or their keys:\n"
                  "V select and move,  T text card,  A arrow (from card to card),\n"
                  "S shape (S again: ellipse, line),  P pen,  I image,\n"
-                 "O sound card,  L link to a box (or Alt-drag a box from the timeline onto the board).\n"
+                 "O sound card,  L link to a box (or Alt-drag a box from the timeline onto the board),\n"
+                 "M morphogram region,  E energy gesture (E again: another energy).\n"
                  "Double-click: write in a card (on the empty board: a new card), a label, a caption.\n"
                  "Scroll to move around, Cmd-scroll or pinch to zoom, Cmd-0 to fit. Items snap to the grid unless Cmd is held; Shift keeps proportions.\n"
                  "Right-click an item for its colour, label, dashes and order.";
@@ -356,6 +518,7 @@ void BoardPanel::refresh()
             break;
         }
         case Mode::card: case Mode::shape: case Mode::arrow: case Mode::stroke: case Mode::image: case Mode::soundCard: case Mode::link:
+        case Mode::region: case Mode::gesture:
         {
             title.setText (Theme::capitals (Board::kindName (item)), juce::dontSendNotification);
             info.setText ({}, juce::dontSendNotification);
@@ -394,12 +557,70 @@ void BoardPanel::refresh()
         }
         else notes.refresh();
     }
-    if (m == Mode::shape || m == Mode::arrow || m == Mode::image || m == Mode::soundCard)
+    if (m == Mode::shape || m == Mode::arrow || m == Mode::image || m == Mode::soundCard || m == Mode::region)
     {
-        wordsLabel.setText (m == Mode::image ? "Caption" : (m == Mode::soundCard ? "Name (empty: the sound's)" : "Label"), juce::dontSendNotification);
+        wordsLabel.setText (m == Mode::image ? "Caption" : (m == Mode::soundCard ? "Name (empty: the sound's)" : (m == Mode::region ? "Name" : "Label")),
+                            juce::dontSendNotification);
         if (! words.hasKeyboardFocus (true)) words.setText (item[m == Mode::image ? IDs::caption : IDs::label].toString(), false);
-        words.setTextToShowWhenEmpty (m == Mode::soundCard ? BoardPainter::soundCardName (item, &project) : juce::String(), Theme::textMuted);
+        words.setTextToShowWhenEmpty (m == Mode::soundCard ? BoardPainter::soundCardName (item, &project)
+                                                           : (m == Mode::region ? juce::String ("Morphogram") : juce::String()), Theme::textMuted);
     }
+    if (m == Mode::region)
+    {
+        timeBox.setSelectedId (Board::regionInBoxTime (item) ? 1 : 2, juce::dontSendNotification);
+        const bool hz = item[IDs::registerScale].toString() == "hz";
+        scaleBox.setSelectedId (hz ? 2 : 1, juce::dontSendNotification);
+        for (auto* c : std::initializer_list<juce::Component*> { &hzLabel, &hzToLabel, &hzLowEdit, &hzHighEdit })
+            c->setVisible (hz);
+        auto hzText = [] (double v) { return v >= 1000.0 ? juce::String (v / 1000.0, 1) + "k" : juce::String (juce::roundToInt (v)); };
+        if (! hzLowEdit.hasKeyboardFocus (true)) hzLowEdit.setText (hzText (item.getProperty (IDs::hzLow, 20.0)), false);
+        if (! hzHighEdit.hasKeyboardFocus (true)) hzHighEdit.setText (hzText (item.getProperty (IDs::hzHigh, 20000.0)), false);
+        const auto gestures = Board::gesturesIn (boardTree, item);
+        juce::String about;
+        about << "Time runs across, register up. " << (gestures.isEmpty() ? juce::String ("No gestures in it yet: E to draw one.")
+                                                                         : juce::String (gestures.size()) + (gestures.size() == 1 ? " gesture" : " gestures") + " in it.");
+        if (Board::regionInBoxTime (item)) about << " Its width is the board box's length, " << Board::formatSeconds (Project::boxLength (box)) << ".";
+        info.setText (about, juce::dontSendNotification);
+    }
+    if (m == Mode::gesture)
+    {
+        const auto cats = BoardPainter::glyphCategories (framework);
+        auto fillEnergies = [&] (juce::ComboBox& combo, juce::Label& label, int which)
+        {
+            combo.clear (juce::dontSendNotification);
+            if (which >= cats.size()) return;
+            auto* c = cats[which];
+            label.setText (framework.text (c->name), juce::dontSendNotification);
+            combo.addItem ("None", 1);
+            const auto& values = framework.valuesOf (*c);
+            int selected = 1;
+            for (int i = 0; i < values.size(); ++i)
+            {
+                if (values[i].glyph.isEmpty()) continue;
+                combo.addItem (framework.text (values[i].name), i + 2);
+                if (values[i].id == item[c->property()].toString()) selected = i + 2;
+            }
+            combo.setSelectedId (selected, juce::dontSendNotification);
+        };
+        fillEnergies (energyBox, energyLabel, 0);
+        fillEnergies (energy2Box, energy2Label, 1);
+        thickness.setValue ((double) item.getProperty (IDs::thickness, 36.0), juce::dontSendNotification);
+        juce::String about;
+        const auto region = Board::findItem (boardTree, item[IDs::regionId].toString());
+        const auto span = Board::gestureSpan (boardTree, item, Project::boxLength (box));
+        if (! region.isValid()) about << "Drawn outside a region: no time or register of its own.";
+        else
+        {
+            const auto r = Board::rect (item);
+            about << "In " << (region[IDs::label].toString().isEmpty() ? juce::String ("the morphogram") : region[IDs::label].toString());
+            if (span.getLength() > 0.0) about << ", " << Board::formatSeconds (span.getStart()) << " to " << Board::formatSeconds (span.getEnd());
+            const auto top = Board::registerAt (region, r.getY()), bottom = Board::registerAt (region, r.getBottom());
+            about << (top == bottom ? ", " + top : ", " + bottom + " to " + top) << ".";
+        }
+        about << " Drag it up onto a track for a text box with its energy and curves.";
+        info.setText (about, juce::dontSendNotification);
+    }
+    buildFactorEditors();
     if (m == Mode::soundCard)
     {
         const double seconds = soundSeconds ? soundSeconds (item) : 0.0;
@@ -487,7 +708,8 @@ void BoardPanel::resized()
         info.setBounds (r.removeFromTop (juce::jmin (r.getHeight(), 320)));
         return;
     }
-    if (info.getText().isNotEmpty()) info.setBounds (r.removeFromTop (mode == Mode::soundCard ? 66 : 34)); else info.setBounds ({});
+    if (info.getText().isNotEmpty()) info.setBounds (r.removeFromTop (mode == Mode::soundCard || mode == Mode::gesture || mode == Mode::region ? 66 : 34));
+    else info.setBounds ({});
     if (labelBox.isVisible()) labelled (labelLabel, labelBox, 26);
     if (shapeBox.isVisible()) labelled (shapeLabel, shapeBox, 24);
     if (colours.isVisible()) labelled (colourLabel, colours, 24);
@@ -516,6 +738,30 @@ void BoardPanel::resized()
         r.removeFromTop (4);
         labelled (startLabel, startEdit, 26);
     }
+    if (mode == Mode::region)
+    {
+        labelled (timeLabel, timeBox, 24);
+        labelled (scaleLabel, scaleBox, 24);
+        if (hzLowEdit.isVisible())
+        {
+            auto labels = r.removeFromTop (17);
+            auto fields = r.removeFromTop (26);
+            const int w = (fields.getWidth() - 8) / 2;
+            hzLabel.setBounds (labels.removeFromLeft (w));
+            labels.removeFromLeft (8);
+            hzToLabel.setBounds (labels);
+            hzLowEdit.setBounds (fields.removeFromLeft (w));
+            fields.removeFromLeft (8);
+            hzHighEdit.setBounds (fields);
+            r.removeFromTop (8);
+        }
+    }
+    if (mode == Mode::gesture)
+    {
+        labelled (energyLabel, energyBox, 24);
+        if (energy2Box.isVisible()) labelled (energy2Label, energy2Box, 24);
+        labelled (thicknessLabel, thickness, 22);
+    }
     if (mode == Mode::link)
     {
         buttonRow ({ &goButton, &relinkButton });
@@ -532,6 +778,13 @@ void BoardPanel::resized()
     }
     buttonRow ({ &showOnBox });
     buttonRow ({ &front, &back, &remove });
+    if (factorView.isVisible())
+    {
+        r.removeFromTop (4);
+        factorView.setBounds (r);
+        layoutFactors (r.getWidth());
+        if (factorHolder.getHeight() > r.getHeight()) layoutFactors (r.getWidth() - 10);   // room for the scroll bar
+    }
     if (notes.isVisible())
     {
         r.removeFromTop (4);

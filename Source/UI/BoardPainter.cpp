@@ -3,6 +3,8 @@
 #include "BoardPainter.h"
 #include "Markdown.h"
 #include "Theme.h"
+#include "../Model/Factors.h"
+#include <map>
 
 namespace BoardPainter
 {
@@ -393,6 +395,334 @@ namespace BoardPainter
         }
     }
 
+    namespace
+    {
+        void paintRegion (juce::Graphics& g, const juce::ValueTree& region, const Context& ctx)
+        {
+            const auto r = Board::rect (region);
+            const auto edge = Board::colourOf (region);
+            g.setColour (juce::Colour (0xff141518).withMultipliedAlpha (0.55f * ctx.alpha));
+            g.fillRoundedRectangle (r, 4.0f);
+            g.setColour (edge.withMultipliedAlpha (0.8f * ctx.alpha));
+            g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, 1.2f);
+
+            juce::Graphics::ScopedSaveState s (g);
+            g.reduceClipRegion (r.toNearestInt());
+            // The title strip: its name, its time and register.
+            auto title = r.withHeight (20.0f).reduced (8.0f, 0.0f);
+            g.setColour (edge.interpolatedWith (Theme::text, 0.5f).withMultipliedAlpha (ctx.alpha));
+            g.setFont (Theme::font (11.0f, true));
+            auto name = region[IDs::label].toString().trim();
+            if (name.isEmpty()) name = "Morphogram";
+            g.drawText (Theme::capitals (name), title, juce::Justification::centredLeft, true);
+            const bool boxTime = Board::regionInBoxTime (region);
+            const bool hz = region[IDs::registerScale].toString() == "hz";
+            g.setFont (Theme::font (10.0f));
+            g.setColour (Theme::textMuted.withMultipliedAlpha (ctx.alpha));
+            g.drawText (juce::String (boxTime ? "the box's time" : "free time") + juce::String::fromUTF8 (" \xc2\xb7 ") + (hz ? "Hz" : "low, middle, high"),
+                        title, juce::Justification::centredRight, true);
+
+            const auto inside = Board::regionInside (region);
+            const float dashes[] = { 3.0f, 4.0f };
+            auto dashedLine = [&g, &dashes] (float x0, float y0, float x1, float y1)
+            {
+                juce::Path p, d;
+                p.startNewSubPath (x0, y0);
+                p.lineTo (x1, y1);
+                juce::PathStrokeType (0.8f).createDashedStroke (d, p, dashes, 2);
+                g.fillPath (d);
+            };
+            g.setFont (Theme::font (9.5f));
+            if (hz)
+            {
+                const double lo = juce::jmax (1.0, (double) region.getProperty (IDs::hzLow, 20.0));
+                const double hi = juce::jmax (lo * 1.01, (double) region.getProperty (IDs::hzHigh, 20000.0));
+                for (double f : { 31.5, 63.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0 })
+                {
+                    if (f <= lo || f >= hi) continue;
+                    const float y = inside.getBottom() - inside.getHeight() * (float) (std::log (f / lo) / std::log (hi / lo));
+                    g.setColour (Theme::line.withMultipliedAlpha (ctx.alpha));
+                    dashedLine (inside.getX(), y, inside.getRight(), y);
+                    g.setColour (Theme::textMuted.withMultipliedAlpha (0.8f * ctx.alpha));
+                    g.drawText (f >= 1000.0 ? juce::String (f / 1000.0, f < 10000.0 ? 0 : 0) + "k" : juce::String (juce::roundToInt (f)),
+                                juce::Rectangle<float> (inside.getX() + 3.0f, y - 11.0f, 40.0f, 11.0f), juce::Justification::bottomLeft, false);
+                }
+            }
+            else
+            {
+                const char* bands[] = { "high", "middle", "low" };
+                for (int i = 0; i < 3; ++i)
+                {
+                    const float y0 = inside.getY() + inside.getHeight() * (float) i / 3.0f;
+                    if (i > 0)
+                    {
+                        g.setColour (Theme::line.withMultipliedAlpha (ctx.alpha));
+                        dashedLine (inside.getX(), y0, inside.getRight(), y0);
+                    }
+                    g.setColour (Theme::textMuted.withMultipliedAlpha (0.7f * ctx.alpha));
+                    g.drawText (bands[i], juce::Rectangle<float> (inside.getX() + 4.0f, y0 + 2.0f, 60.0f, 12.0f), juce::Justification::topLeft, false);
+                }
+            }
+            // The time along the bottom.
+            auto foot = juce::Rectangle<float> (inside.getX(), inside.getBottom(), inside.getWidth(), 18.0f);
+            g.setColour (Theme::line.withMultipliedAlpha (ctx.alpha));
+            g.fillRect (inside.getX(), inside.getBottom(), inside.getWidth(), 1.0f);
+            if (boxTime && ctx.boxLength > 0.0)
+            {
+                double step = 0.1;
+                for (double candidate : { 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 30.0, 60.0, 120.0, 300.0 })
+                {
+                    step = candidate;
+                    if (inside.getWidth() * candidate / ctx.boxLength >= 56.0) break;
+                }
+                g.setColour (Theme::textMuted.withMultipliedAlpha (0.85f * ctx.alpha));
+                for (double t = 0.0; t <= ctx.boxLength + 1.0e-6; t += step)
+                {
+                    const float x = inside.getX() + inside.getWidth() * (float) (t / ctx.boxLength);
+                    g.fillRect (x, inside.getBottom(), 1.0f, 4.0f);
+                    const int minutes = (int) (t / 60.0);
+                    const double rest = t - minutes * 60.0;
+                    const auto label = juce::String (minutes) + ":" + (rest < 10.0 ? "0" : "") + juce::String (rest, step < 1.0 ? 1 : 0);
+                    g.drawText (label, juce::Rectangle<float> (x + 2.0f, foot.getY() + 3.0f, 50.0f, 13.0f), juce::Justification::topLeft, false);
+                }
+            }
+            else
+            {
+                g.setColour (Theme::textMuted.withMultipliedAlpha (0.6f * ctx.alpha));
+                g.drawText (boxTime ? "time" : "free time", foot.withTrimmedTop (3.0f), juce::Justification::centredLeft, false);
+            }
+        }
+
+        struct BuiltGlyph { juce::Array<Glyphs::Stroke> strokes; };
+        std::map<juce::String, BuiltGlyph>& glyphCache()
+        {
+            static std::map<juce::String, BuiltGlyph> cache;
+            return cache;
+        }
+
+        /** A value's glyph in a w by h band, shaped by the factor curves (as on boxes, stage 8). */
+        const juce::Array<Glyphs::Stroke>* glyphStrokes (const Framework& framework, const Glyphs::Set& glyphs, const Framework::Category& c,
+                                                          const juce::String& value, const juce::String& curvesText, int w, int h, int seed)
+        {
+            auto* val = framework.findValue (c, value);
+            if (val == nullptr || val->glyph.isEmpty()) return nullptr;
+            const auto found = glyphs.find (val->glyph, { val->from, c.package });
+            if (found.script == nullptr) return nullptr;
+            const auto key = found.owner + "|" + val->glyph + "|" + juce::String (w) + "x" + juce::String (h) + "|" + juce::String (seed)
+                             + "|" + juce::String::toHexString (curvesText.hashCode64());
+            auto& cache = glyphCache();
+            auto it = cache.find (key);
+            if (it == cache.end())
+            {
+                if (cache.size() > 300) cache.clear();
+                Glyphs::FactorValues factorValues;
+                // Its dynamics: the energy's own profile, unless a drawn envelope factor takes its place.
+                juce::Array<float> env;
+                bool flat = true;
+                for (int i = 1; i < val->env.size(); i += 2) flat = flat && std::abs (val->env[i] - 1.0f) < 1.0e-6f;
+                if (! flat) env = val->env;
+                const auto curves = Factors::parse (curvesText);
+                for (auto* factor : framework.factorsOf (c, value))
+                {
+                    auto ci = curves.find (factor->id);
+                    const auto curve = ci != curves.end() ? ci->second : Factors::Curve();
+                    if (factor->effect == "envelope")
+                    {
+                        if (curve.isEmpty()) continue;
+                        const auto samples = Factors::sample (curve, 32, factor->neutral);
+                        env.clearQuick();
+                        for (int i = 0; i < samples.size(); ++i) env.addArray ({ (float) i / 32.0f, juce::jmax (0.04f, samples[i]) });
+                    }
+                    else if (factor->effect == "shift") { if (! curve.isEmpty()) factorValues.shift = Factors::sample (curve, 32, factor->neutral); }
+                    else if (factor->effect == "depth") { if (! curve.isEmpty()) factorValues.depth = Factors::sample (curve, 32, factor->neutral); }
+                    else factorValues.curves.push_back ({ factor->id, Factors::sample (curve, 32, factor->neutral) });
+                }
+                BuiltGlyph built;
+                if (! found.script->run (val->glyph, (float) w, (float) h, env, seed, built.strokes, factorValues).wasOk()) built.strokes.clear();
+                it = cache.emplace (key, std::move (built)).first;
+            }
+            return &it->second.strokes;
+        }
+
+        /** A path's points, smoothed, with their distance along it. */
+        struct Bent
+        {
+            juce::Array<juce::Point<float>> pts;
+            juce::Array<float> along;
+            float length = 0.0f;
+
+            explicit Bent (const juce::Array<juce::Point<float>>& raw)
+            {
+                // A light smoothing, so the bent glyph does not kink at every point.
+                for (int i = 0; i < raw.size(); ++i)
+                {
+                    if (i == 0 || i == raw.size() - 1) { pts.add (raw[i]); continue; }
+                    pts.add ((raw[i - 1] + raw[i] * 2.0f + raw[i + 1]) * 0.25f);
+                }
+                along.add (0.0f);
+                for (int i = 1; i < pts.size(); ++i) along.add (along.getLast() + pts[i].getDistanceFrom (pts[i - 1]));
+                length = along.isEmpty() ? 0.0f : along.getLast();
+            }
+
+            /** The point `s` along the path, moved `offset` off it (to the left of its direction). */
+            juce::Point<float> at (float s, float offset) const
+            {
+                if (pts.size() < 2) return pts.isEmpty() ? juce::Point<float>() : pts[0];
+                s = juce::jlimit (0.0f, length, s);
+                int i = 1;
+                while (i < pts.size() - 1 && along[i] < s) ++i;
+                const float seg = juce::jmax (1.0e-4f, along[i] - along[i - 1]);
+                const float k = (s - along[i - 1]) / seg;
+                const auto p = pts[i - 1] + (pts[i] - pts[i - 1]) * k;
+                auto d = pts[i] - pts[i - 1];
+                const float len = juce::jmax (1.0e-4f, d.getDistanceFromOrigin());
+                return p + juce::Point<float> (d.y / len, -d.x / len) * offset;
+            }
+        };
+
+        void paintGesture (juce::Graphics& g, const juce::ValueTree& gesture, const Context& ctx)
+        {
+            const auto raw = Board::strokePoints (gesture);
+            if (raw.size() < 2) return;
+            const Bent bent (raw);
+            const float thickness = juce::jmax (6.0f, (float) (double) gesture.getProperty (IDs::thickness, 36.0));
+            const auto colour = ctx.framework != nullptr ? gestureColour (gesture, *ctx.framework) : Board::palette()[6];
+
+            // The path itself, faint (dashed while no energy draws on it).
+            juce::Path line;
+            line.startNewSubPath (bent.pts[0]);
+            for (int i = 1; i < bent.pts.size(); ++i) line.lineTo (bent.pts[i]);
+            bool drawn = false;
+            if (ctx.framework != nullptr && ctx.glyphs != nullptr && bent.length > 4.0f)
+            {
+                const int w = juce::jlimit (12, 2048, ((int) bent.length + 5) / 6 * 6);
+                const int h = juce::jlimit (6, 400, ((int) thickness + 2) / 3 * 3);
+                const int seed = (gesture[IDs::id].toString().hashCode() & 0x7fffffff) % 7;
+                for (auto* c : glyphCategories (*ctx.framework))
+                {
+                    const auto value = gesture[c->property()].toString();
+                    if (value.isEmpty()) continue;
+                    auto* strokes = glyphStrokes (*ctx.framework, *ctx.glyphs, *c, value, gesture[c->factorsProperty()].toString(), w, h, seed);
+                    if (strokes == nullptr) continue;
+                    const auto colours = ctx.framework->valueColours (*c, value);
+                    const auto cc = colours.light != 0 ? juce::Colour (colours.light) : (colours.colour != 0 ? juce::Colour (colours.colour) : colour);
+                    const float strength = ctx.alpha * (c->valuesFrom.isEmpty() ? 0.95f : 0.55f);
+                    const float kx = bent.length / (float) w, ky = thickness / (float) h;
+                    auto map = [&] (float x, float y) { return bent.at (x * kx, ((float) h * 0.5f - y) * ky); };
+                    for (auto& stroke : *strokes)
+                    {
+                        g.setColour (cc.withMultipliedAlpha (stroke.alpha * strength));
+                        if (stroke.points.size() >= 4)
+                        {
+                            // Each piece in short steps, so it bends with the path.
+                            juce::Path p;
+                            p.startNewSubPath (map (stroke.points[0], stroke.points[1]));
+                            for (int i = 2; i + 1 < stroke.points.size(); i += 2)
+                            {
+                                const float x0 = stroke.points[i - 2], y0 = stroke.points[i - 1], x1 = stroke.points[i], y1 = stroke.points[i + 1];
+                                const int steps = juce::jlimit (1, 64, (int) (std::abs (x1 - x0) * kx / 4.0f));
+                                for (int k = 1; k <= steps; ++k)
+                                {
+                                    const float t = (float) k / (float) steps;
+                                    p.lineTo (map (x0 + (x1 - x0) * t, y0 + (y1 - y0) * t));
+                                }
+                            }
+                            if (stroke.closed || stroke.filled) p.closeSubPath();
+                            if (stroke.filled) g.fillPath (p);
+                            else g.strokePath (p, juce::PathStrokeType (stroke.width * 1.1f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+                        }
+                        if (stroke.dots.size() >= 3)
+                        {
+                            juce::Path p;
+                            for (int i = 0; i + 2 < stroke.dots.size(); i += 3)
+                            {
+                                const auto c2 = map (stroke.dots[i], stroke.dots[i + 1]);
+                                const float radius = juce::jmax (0.3f, stroke.dots[i + 2]);
+                                p.addEllipse (c2.x - radius, c2.y - radius, radius * 2.0f, radius * 2.0f);
+                            }
+                            g.fillPath (p);
+                        }
+                    }
+                    drawn = true;
+                }
+            }
+            g.setColour (colour.withMultipliedAlpha ((drawn ? 0.22f : 0.7f) * ctx.alpha));
+            if (drawn) g.strokePath (line, juce::PathStrokeType (1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            else
+            {
+                juce::Path d;
+                const float dashes[] = { 6.0f, 5.0f };
+                juce::PathStrokeType (1.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded).createDashedStroke (d, line, dashes, 2);
+                g.fillPath (d);
+            }
+        }
+    }
+
+    juce::Array<const Framework::Category*> glyphCategories (const Framework& framework)
+    {
+        // The categories the package draws as glyphs (the energies); failing
+        // those, any choice whose values have glyphs.
+        juce::Array<const Framework::Category*> out, withGlyphs;
+        for (auto& c : framework.getCategories())
+        {
+            if (c.kind != Framework::Kind::choice) continue;
+            for (auto& v : framework.valuesOf (c))
+                if (v.glyph.isNotEmpty())
+                {
+                    withGlyphs.add (&c);
+                    if (c.mark == Framework::Mark::glyph) out.add (&c);
+                    break;
+                }
+        }
+        if (out.isEmpty()) out = withGlyphs;
+        // The main one first (a category of its own values), then those that borrow them.
+        std::stable_sort (out.begin(), out.end(), [] (const Framework::Category* a, const Framework::Category* b)
+                          { return a->valuesFrom.isEmpty() && ! b->valuesFrom.isEmpty(); });
+        return out;
+    }
+
+    juce::Colour gestureColour (const juce::ValueTree& gesture, const Framework& framework)
+    {
+        for (auto* c : glyphCategories (framework))
+        {
+            const auto value = gesture[c->property()].toString();
+            if (value.isEmpty()) continue;
+            const auto colours = framework.valueColours (*c, value);
+            if (colours.light != 0) return juce::Colour (colours.light);
+            if (colours.colour != 0) return juce::Colour (colours.colour);
+        }
+        return Board::palette()[6];
+    }
+
+    juce::ValueTree shownRegion (const juce::ValueTree& board)
+    {
+        auto region = Board::findItem (board, board[IDs::regionId].toString());
+        return region.hasType (IDs::REGION) && Board::regionInBoxTime (region) ? region : juce::ValueTree();
+    }
+
+    void paintRegionAcross (juce::Graphics& g, const juce::ValueTree& board, const juce::ValueTree& region,
+                            juce::Rectangle<float> area, const Context& ctx)
+    {
+        const auto inside = Board::regionInside (region);
+        if (inside.isEmpty() || area.isEmpty()) return;
+        const float kx = area.getWidth() / inside.getWidth(), ky = area.getHeight() / inside.getHeight();
+        // The register's thirds, faintly.
+        g.setColour (Theme::line.withMultipliedAlpha (0.6f * ctx.alpha));
+        if (region[IDs::registerScale].toString() != "hz")
+            for (int i = 1; i < 3; ++i) g.fillRect (area.getX(), area.getY() + area.getHeight() * (float) i / 3.0f, area.getWidth(), 0.6f);
+        juce::Graphics::ScopedSaveState s (g);
+        g.reduceClipRegion (area.toNearestInt());
+        for (auto& gesture : Board::gesturesIn (board, region))
+        {
+            auto copy = gesture.createCopy();
+            const auto r = Board::rect (gesture);
+            Board::setRect (copy, { area.getX() + (r.getX() - inside.getX()) * kx, area.getY() + (r.getY() - inside.getY()) * ky,
+                                    juce::jmax (1.0f, r.getWidth() * kx), juce::jmax (1.0f, r.getHeight() * ky) }, nullptr);
+            copy.setProperty (IDs::thickness, juce::jmax (6.0, (double) gesture.getProperty (IDs::thickness, 36.0) * ky), nullptr);
+            paintItem (g, board, copy, ctx);
+        }
+    }
+
     juce::Rectangle<float> playButton (const juce::ValueTree& card)
     {
         const auto r = Board::rect (card);
@@ -496,6 +826,8 @@ namespace BoardPainter
             case Board::Kind::image:  paintImage (g, item, ctx); break;
             case Board::Kind::soundCard: paintSoundCard (g, item, ctx); break;
             case Board::Kind::link:   paintLink (g, item, ctx); break;
+            case Board::Kind::region: paintRegion (g, item, ctx); break;
+            case Board::Kind::gesture: paintGesture (g, item, ctx); break;
             case Board::Kind::unknown: break;
         }
     }

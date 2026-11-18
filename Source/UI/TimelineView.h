@@ -135,6 +135,8 @@ public:
     void setProjectFolder (const juce::File& f)     { projectFolderRoot = f; }
     /** A sound card dropped on a track (9b): the board box, the card, the track, the start here. */
     std::function<void (const juce::String& boardBoxId, const juce::String& cardId, juce::ValueTree track, double start)> onDropSoundCard;
+    /** A gesture dropped from a board (9c): a text box with its energy and curves. */
+    std::function<void (const juce::String& boardBoxId, const juce::String& gestureId, juce::ValueTree track, double start, double length)> onDropGesture;
     /** Brings a box into view (its start, its track). */
     void revealBox (const juce::ValueTree& box);
     bool isInterestedInDragSource (const SourceDetails&) override;

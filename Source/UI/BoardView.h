@@ -7,6 +7,10 @@
 // (or Space), its fragment set by dragging its ends on the waveform; marked
 // out, it plays in the piece. Dragged up onto a track, it makes a sound box.
 // A box Alt-dragged from the timeline onto the board makes a link to it.
+// Morphogram regions (M) hold time across and register up; energy gestures
+// (E) are paths drawn with an energy's glyph (9c), their factor curves in
+// the panel; dragged up onto a track, a gesture makes a text box with its
+// energy and curves.
 // Scroll pans, Cmd-scroll or pinch zooms; items snap to a 10-unit grid
 // unless Cmd is held. Double-click a card to write in it (or the empty board
 // for a new card), a shape or arrow for its label, an image for its caption.
@@ -36,7 +40,7 @@ public:
     /** After any change to the model: repaint, and forget selected items that went. */
     void modelChanged();
 
-    enum class Tool { select, card, arrow, shape, pen, image, sound, link };
+    enum class Tool { select, card, arrow, shape, pen, image, sound, link, region, gesture };
     void setTool (Tool);
     Tool getTool() const noexcept                   { return tool; }
 
@@ -81,6 +85,11 @@ public:
     std::function<bool()> canDragOut;
     /** A sound card placed at a point (from a project sound). */
     juce::ValueTree addSoundCard (const juce::String& soundId, juce::Point<float> boardPoint, bool undoable = true);
+    /** The energy new gestures are drawn with (a value of the main glyph category). */
+    void setGestureEnergy (const juce::String& valueId)     { gestureEnergy = valueId; }
+    const juce::String& getGestureEnergy() const            { return gestureEnergy; }
+    /** Called when the framework changes: the glyph scripts again. */
+    void frameworkReloaded();
     /** Points a link to another box (a menu of the piece's boxes). */
     void relink (juce::ValueTree link)              { showLinkMenu (Board::rect (link).getTopLeft(), link); }
     /** The selected item when it is the only one, else invalid. */
@@ -147,7 +156,7 @@ private:
     float tolerance() const                         { return 5.0f / zoom; }
 
     // Dragging
-    enum class Drag { none, pan, move, rubber, corner, end, bend, newCard, newShape, newArrow, pen, trimIn, trimOut, dragOut };
+    enum class Drag { none, pan, move, rubber, corner, end, bend, newCard, newShape, newArrow, pen, trimIn, trimOut, dragOut, newRegion, gesture };
     Drag drag = Drag::none;
     juce::Point<float> downScreen, downBoard, lastScreen;
     juce::Point<float> current;                     // the board point under the mouse while dragging
@@ -179,6 +188,12 @@ private:
     double soundSeconds (const juce::ValueTree& card) const;
     void startDragOut (const juce::ValueTree& card);
     bool linkDragOver = false;
+    // 9c
+    Glyphs::Set glyphs;
+    juce::String gestureEnergy;
+    std::vector<std::pair<juce::ValueTree, juce::ValueTree>> regionGestures;   // a region's gestures as they were, while it is resized
+    void showEnergyMenu();
+    void startGestureOut (const juce::ValueTree& gesture);
     void showBoardMenu (juce::Point<float> boardPoint);
     void addImages (const juce::Array<juce::File>&, juce::Point<float> at);
     void addCardAt (juce::Point<float> boardPoint, bool edit);
