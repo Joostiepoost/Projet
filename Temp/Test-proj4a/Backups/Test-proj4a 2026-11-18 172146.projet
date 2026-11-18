@@ -1,0 +1,2135 @@
+{
+  "type": "PROJET",
+  "formatVersion": 1,
+  "name": "Test-proj4a",
+  "sampleRate": 96000.0,
+  "placeholderFormat": "ogg",
+  "vorbisQuality": 7,
+  "viewStart": 0.0,
+  "pixelsPerSecond": 13.592200258737197,
+  "playhead": 25.929476305091001,
+  "activeLayer": "6787a7cd19124155930d27aa39282a06",
+  "fwLanguage": "en",
+  "frameLength": 66.488327058680468,
+  "showTakes": "1",
+  "spanStart": 8.311040882335059,
+  "spanEnd": 52.460865803653761,
+  "children": [
+    {
+      "type": "SOUNDS",
+      "children": [
+        {
+          "type": "SOUND",
+          "id": "637c395969e347f092c99b70d65f44fd",
+          "name": "Untitled capture 2026-11-07 130840",
+          "file": "Sounds/Untitled capture 2026-11-07 130840.ogg",
+          "originalPath": "/Users/jvkmuz/Music/Effet Captures/Untitled capture 2026-11-07 130840.wav",
+          "originalHash": "f66df5c47265019a79d053703919f389",
+          "lengthSamples": 32180535,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "a92446ffd65549b3857468c9fb0a0ce4",
+          "name": "Untitled capture 2026-11-07 143018",
+          "file": "Sounds/Untitled capture 2026-11-07 143018.ogg",
+          "originalPath": "/Users/jvkmuz/Music/Effet Captures/Untitled capture 2026-11-07 143018.wav",
+          "originalHash": "32334ef65b1bb146f1517b482c7f36c9",
+          "lengthSamples": 955456,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        },
+        {
+          "type": "SOUND",
+          "id": "3409b6af9fad47d2bfbf42c0a5420a6e",
+          "name": "Goblet 2026-11-05 153739 render",
+          "file": "Sounds/Goblet 2026-11-05 153739 render.ogg",
+          "originalPath": "/Users/jvkmuz/Music/Goblet Captures/Goblet 2026-11-05 153739 render.wav",
+          "originalHash": "744455cf02eb8f17f5a68451c541afab",
+          "lengthSamples": 6542421,
+          "originalRate": 96000.0,
+          "originalChannels": 2,
+          "format": "ogg"
+        }
+      ]
+    },
+    {
+      "type": "TRACKS",
+      "children": [
+        {
+          "type": "TRACK",
+          "id": "87ddecf701754f9d881146b9dc3aa5f9",
+          "name": "Track 1",
+          "colour": 0,
+          "height": 147,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "152b70f303a342598f768ccabd5e1881",
+              "kind": "container",
+              "name": "Bell_scape_01",
+              "start": 4.068995368909734,
+              "length": 6.844097002329602,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": 0.0,
+              "fadeIn": 0.0,
+              "fadeOut": 0.0,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "innerLength": 6.844097002329602,
+              "fw.vandegorne.writing": "weaving",
+              "children": [
+                {
+                  "type": "TIMELINE",
+                  "activeLayer": "815ae800955d49e7bc9c108fada628f6",
+                  "spanStart": 2.2813656674432,
+                  "spanEnd": 5.61867045089276,
+                  "children": [
+                    {
+                      "type": "TRACKS",
+                      "children": [
+                        {
+                          "type": "TRACK",
+                          "id": "93781fb1659b43fcafc9bf53fe5a9b7f",
+                          "name": "Track 1",
+                          "colour": 5,
+                          "height": 140,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "96dcca7bdb314ee7b68db61052719172",
+                              "name": "Ruw idee v1",
+                              "start": 0.915459398520299,
+                              "notes": "Dit is take 1 met goede opname maar juist te kort voor de tijd;\n\n",
+                              "activeTake": "7ff3ced309914e98b130bcb3525fd96e",
+                              "sharedNotes": "",
+                              "kind": "text",
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "children": [
+                                {
+                                  "type": "TAKES",
+                                  "children": [
+                                    {
+                                      "type": "TAKE",
+                                      "id": "7ff3ced309914e98b130bcb3525fd96e",
+                                      "name": "A"
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "46d50d231b4b4eda834a05558f238202",
+                                      "name": "B",
+                                      "kind": "text",
+                                      "length": 2.0,
+                                      "opacity": 1.0,
+                                      "notes": "Dit is take 1 met goede opname maar juist te kort voor de tijd;\n\n"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "b1d8eb3c4d1d435982e276f48e593680",
+                          "name": "Track 2",
+                          "colour": 1,
+                          "height": 357,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "25f1639ba64e43aab643691542c35485",
+                              "name": "Start-idee",
+                              "start": 0.8555121252912,
+                              "notes": "Dit zijn de algemene notes\n",
+                              "activeTake": "d1ce2d2e0c894b5eacdae83255de7cb3",
+                              "kind": "sound",
+                              "length": 2.389597091928442,
+                              "soundId": "637c395969e347f092c99b70d65f44fd",
+                              "offset": 20.950869140624999,
+                              "gainDb": -17.599999999999998,
+                              "fadeIn": 1.687137375474304,
+                              "fadeOut": 0.005,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "opacity": 1.0,
+                              "fw.composition.energy": "percussion-resonance",
+                              "fw.composition.energy.factors": "attaque=0.0694:1 0.2172:0;dynamique=0.3177:0.232 0.5017:0.8307 1:0.0341;entretien=0.3888:0.4158 0.7769:0.8704;halo=0.041:0 0.9721:0.8798",
+                              "fw.composition.energy2": "oscillation",
+                              "fw.composition.energy2.factors": "dynamique=0:0.9229 0.2765:0;force=0.1842:0.5898 0.5486:0.2877 0.6651:0.7599 1:0;grain=0.5283:0;iteratif=0.0309:1 1:0;vitesse=0.5634:1",
+                              "children": [
+                                {
+                                  "type": "TAKES",
+                                  "children": [
+                                    {
+                                      "type": "TAKE",
+                                      "id": "d1ce2d2e0c894b5eacdae83255de7cb3",
+                                      "name": "A",
+                                      "takeNote": "Untitled capture 2026-11-07 130840"
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "3d18ea3a839043198d028dce063489a1",
+                                      "name": "B",
+                                      "takeNote": "Untitled capture 2026-11-07 143018",
+                                      "kind": "sound",
+                                      "soundId": "a92446ffd65549b3857468c9fb0a0ce4",
+                                      "offset": 0.561912821561067,
+                                      "length": 2.389597091928442,
+                                      "gainDb": 0.0,
+                                      "fadeIn": 0.01,
+                                      "fadeOut": 0.005,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "bdc9c925c38041269722178c5293d17d",
+                                      "name": "C",
+                                      "kind": "sound",
+                                      "length": 2.389597091928442,
+                                      "soundId": "637c395969e347f092c99b70d65f44fd",
+                                      "offset": 20.950869140624999,
+                                      "gainDb": -4.999999999999996,
+                                      "fadeIn": 0.252,
+                                      "fadeOut": 0.005,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2,
+                                      "opacity": 1.0
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "0c92ba05cab44afa9e1cf6f4157fb760",
+                                      "name": "D",
+                                      "kind": "text",
+                                      "length": 2.389597091928442,
+                                      "opacity": 1.0,
+                                      "fadeIn": 0.0,
+                                      "fadeOut": 0.005,
+                                      "notes": "This has a few extra ideas for sound files"
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "fe1256e02d404cf2898bec83223ae3da",
+                                      "name": "F",
+                                      "kind": "container",
+                                      "length": 2.389597091928442,
+                                      "gainDb": 0.0,
+                                      "fadeIn": 0.0,
+                                      "fadeOut": 0.005,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2,
+                                      "innerLength": 2.389597091928442,
+                                      "children": [
+                                        {
+                                          "type": "TIMELINE",
+                                          "activeLayer": "174e3dc7363e4fe4bbddfe516bfa645b",
+                                          "children": [
+                                            {
+                                              "type": "TRACKS",
+                                              "children": [
+                                                {
+                                                  "type": "TRACK",
+                                                  "id": "d75da5ac2b274559a1116b5a5688e60f",
+                                                  "name": "Track 1",
+                                                  "colour": 0,
+                                                  "height": 72,
+                                                  "mute": false,
+                                                  "solo": false
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "MARKS"
+                                            },
+                                            {
+                                              "type": "DRAWN"
+                                            },
+                                            {
+                                              "type": "NODES"
+                                            },
+                                            {
+                                              "type": "RULERS",
+                                              "children": [
+                                                {
+                                                  "type": "LAYER",
+                                                  "id": "e546fdfb67e543d58dd3b76e9d8ab131",
+                                                  "kind": "time",
+                                                  "name": "Time",
+                                                  "height": 30,
+                                                  "visible": true,
+                                                  "frame": "piece"
+                                                },
+                                                {
+                                                  "type": "LAYER",
+                                                  "id": "174e3dc7363e4fe4bbddfe516bfa645b",
+                                                  "kind": "proportion",
+                                                  "name": "Proportion",
+                                                  "height": 22,
+                                                  "visible": true,
+                                                  "snap": true,
+                                                  "frame": "piece",
+                                                  "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                                  "autoDivisions": true
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "a82299293b79470ba3c8c1076748e66b",
+                                      "name": "E",
+                                      "kind": "sound",
+                                      "soundId": "a92446ffd65549b3857468c9fb0a0ce4",
+                                      "offset": 0.561912821561067,
+                                      "length": 2.389597091928442,
+                                      "gainDb": 0.0,
+                                      "fadeIn": 0.01,
+                                      "fadeOut": 0.005,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "ba8da294cea449d98ddf9760a8e1071d",
+                              "name": "Start-idee",
+                              "start": 3.638220310195505,
+                              "notes": "This has a few extra ideas for sound files",
+                              "activeTake": "d1a8a80a4b574b4b841972b6190a74df",
+                              "kind": "sound",
+                              "soundId": "a92446ffd65549b3857468c9fb0a0ce4",
+                              "offset": 2.95150991348951,
+                              "length": 2.873179286097868,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.005,
+                              "fadeOut": 0.01,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "fw.composition.energy2": "percussion-resonance",
+                              "fw.composition.energy2.factors": "dynamique=0.4167:0 0.4205:1 0.4915:0.3769 0.6477:0;entretien=0:0 0.5872:0.752;halo=0:0.2L 0.33:0.2L 0.34:0.5L 0.66:0.5L 0.67:0.8L 1:0.8L",
+                              "fw.composition.profile": "delta",
+                              "children": [
+                                {
+                                  "type": "TAKES",
+                                  "children": [
+                                    {
+                                      "type": "TAKE",
+                                      "id": "1211bcc5c4154143ab71cd985567b462",
+                                      "name": "A",
+                                      "takeNote": "Untitled capture 2026-11-07 130840",
+                                      "kind": "sound",
+                                      "length": 3.068444053962706,
+                                      "soundId": "637c395969e347f092c99b70d65f44fd",
+                                      "offset": 23.340466232553442,
+                                      "gainDb": -17.599999999999998,
+                                      "fadeIn": 0.005,
+                                      "fadeOut": 0.514781661760837,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2,
+                                      "opacity": 1.0
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "d1a8a80a4b574b4b841972b6190a74df",
+                                      "name": "B",
+                                      "takeNote": "Untitled capture 2026-11-07 143018"
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "76781d0f323647c5988046a4f54d53ed",
+                                      "name": "C",
+                                      "kind": "sound",
+                                      "length": 3.068444053962706,
+                                      "soundId": "637c395969e347f092c99b70d65f44fd",
+                                      "offset": 23.340466232553442,
+                                      "gainDb": -4.999999999999996,
+                                      "fadeIn": 0.005,
+                                      "fadeOut": 0.515,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2,
+                                      "opacity": 1.0
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "7f4f6775459e458aa55aad7276b09bc6",
+                                      "name": "D",
+                                      "kind": "text",
+                                      "length": 2.873179286097868,
+                                      "opacity": 1.0,
+                                      "fadeIn": 0.005,
+                                      "fadeOut": 0.0,
+                                      "notes": "This has a few extra ideas for sound files"
+                                    },
+                                    {
+                                      "type": "TAKE",
+                                      "id": "87ad4c0533fa41efa6d9051f6a2d1f70",
+                                      "name": "F",
+                                      "kind": "container",
+                                      "length": 3.068444053962706,
+                                      "gainDb": 0.0,
+                                      "fadeIn": 0.005,
+                                      "fadeOut": 0.676523219384126,
+                                      "fadeInShape": 2,
+                                      "fadeOutShape": 2,
+                                      "innerLength": 3.068444053962706,
+                                      "innerOffset": 2.389597091928442,
+                                      "children": [
+                                        {
+                                          "type": "TIMELINE",
+                                          "activeLayer": "c9f193bac76f4c76ab281ce0e6364c28",
+                                          "children": [
+                                            {
+                                              "type": "TRACKS",
+                                              "children": [
+                                                {
+                                                  "type": "TRACK",
+                                                  "id": "145134a358e74024978e98f914b29be2",
+                                                  "name": "Track 1",
+                                                  "colour": 0,
+                                                  "height": 72,
+                                                  "mute": false,
+                                                  "solo": false
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "MARKS"
+                                            },
+                                            {
+                                              "type": "DRAWN"
+                                            },
+                                            {
+                                              "type": "NODES"
+                                            },
+                                            {
+                                              "type": "RULERS",
+                                              "children": [
+                                                {
+                                                  "type": "LAYER",
+                                                  "id": "9ab622090ef84bb6b650432c8e6ad18f",
+                                                  "kind": "time",
+                                                  "name": "Time",
+                                                  "height": 30,
+                                                  "visible": true,
+                                                  "frame": "piece"
+                                                },
+                                                {
+                                                  "type": "LAYER",
+                                                  "id": "c9f193bac76f4c76ab281ce0e6364c28",
+                                                  "kind": "proportion",
+                                                  "name": "Proportion",
+                                                  "height": 22,
+                                                  "visible": true,
+                                                  "snap": true,
+                                                  "frame": "piece",
+                                                  "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                                                  "autoDivisions": true
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "bc394c17d04f4dc88086f48a6af72959",
+                          "name": "Track 3",
+                          "colour": 2,
+                          "height": 148,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "856945edf18641ff870ec621ac307efc",
+                              "kind": "sound",
+                              "name": "Untitled capture 2026-11-07 130840",
+                              "start": 2.2813656674432,
+                              "length": 3.33730478344956,
+                              "opacity": 1.0,
+                              "notes": "",
+                              "gainDb": -2.099999999999996,
+                              "offset": 0.712869142837828,
+                              "fadeIn": 0.01,
+                              "fadeOut": 0.01,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "soundId": "a92446ffd65549b3857468c9fb0a0ce4",
+                              "propStart": "0",
+                              "propLength": "1",
+                              "propFrame": "span",
+                              "propLock": true,
+                              "fw.composition.energy": "frottement-granulation",
+                              "fw.composition.energy.factors": "dynamique=0:1 0.0435:0.1647 0.185:0 0.5555:0.0152 0.5589:1 0.6318:0.2361 0.761:0;grain=0.1497:0.1578 0.4039:0.8757 0.748:0.5968;iteratif=0:0 0.4432:1 0.8949:0 0.9829:0;vitesse=0.0053:1 0.3363:0.1219 0.7103:1",
+                              "fw.composition.profile": "decrescendo",
+                              "fw.composition.level": "ison",
+                              "fw.composition.role": "F",
+                              "fw.composition.energy2": "flux",
+                              "fw.composition.energy2.factors": "dynamique=1:1"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "MARKS"
+                    },
+                    {
+                      "type": "DRAWN"
+                    },
+                    {
+                      "type": "NODES"
+                    },
+                    {
+                      "type": "RULERS",
+                      "children": [
+                        {
+                          "type": "LAYER",
+                          "id": "a0adc873efd1423d859e917dec24a5fc",
+                          "kind": "time",
+                          "name": "Time",
+                          "height": 30,
+                          "visible": true,
+                          "frame": "piece"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "815ae800955d49e7bc9c108fada628f6",
+                          "kind": "proportion",
+                          "name": "Proportion",
+                          "height": 90,
+                          "visible": true,
+                          "snap": true,
+                          "frame": "span",
+                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                          "autoDivisions": true
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "328c3682c7e1459897f80c481cc610cf",
+                          "kind": "lane",
+                          "lane": "composition.energies",
+                          "name": "Energies",
+                          "height": 154,
+                          "visible": true,
+                          "laneFactor": "entretien"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "047618f8f02941b08d395a9d85be815d",
+                          "kind": "lane",
+                          "lane": "composition.semiotic",
+                          "name": "Semiotic profile",
+                          "height": 124,
+                          "visible": true
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "9389583c79c744838dff3fd33e6cdfa4",
+              "kind": "container",
+              "name": "Bell_scape_continuation",
+              "start": 13.329056756748265,
+              "length": 5.569151576585067,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": 0.0,
+              "fadeIn": 0.0,
+              "fadeOut": 0.005,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "innerLength": 2.553464955663772,
+              "children": [
+                {
+                  "type": "TIMELINE",
+                  "activeLayer": "798b56a088a440b0992975f2e7391580",
+                  "spanStart": 2.052363788097004,
+                  "spanEnd": 3.441927270340844,
+                  "children": [
+                    {
+                      "type": "TRACKS",
+                      "children": [
+                        {
+                          "type": "TRACK",
+                          "id": "c7a8b1e5a13442cbbd3e61bd41ec80c2",
+                          "name": "Track 1",
+                          "colour": 0,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "6eca57149f284475bf84536b24de19e1",
+                              "kind": "container",
+                              "name": "Text",
+                              "start": 0.533000125435182,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": "",
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "innerLength": 2.0,
+                              "fw.composition.energy": "frottement-granulation",
+                              "fw.composition.level": "ison",
+                              "fw.composition.role": "F",
+                              "fw.composition.profile": "crescendo",
+                              "fw.schaeffer.type": "X''",
+                              "fw.thoresen.ending": "cut",
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "865202b647244810838efd72ddefdd1a",
+                                          "name": "Track 1",
+                                          "colour": 0,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "87fb7e0bfa634dfbbf8defd0cf330224",
+                              "kind": "container",
+                              "name": "Text",
+                              "start": 2.28303087037385,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": "",
+                              "fw.example.density": 10.0,
+                              "gainDb": -29.599999999999998,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "innerLength": 2.0,
+                              "fw.composition.role.along": "0.5:B:0",
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "b1e255f4c77f40d9b8bb0a0136de90eb",
+                                          "name": "Track 1",
+                                          "colour": 0,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "c7981e149db441ada0e7d58772e6a0b2",
+                          "name": "Track 2",
+                          "colour": 1,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "4ed20eb791d548d0bc36e42b701e5b70",
+                              "kind": "text",
+                              "name": "Text",
+                              "start": 1.933939606709187,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": ""
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "f5fadce1362d48d89916512b3188fec3",
+                          "name": "Track 3",
+                          "colour": 2,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "48908b7afdee413bbd7fd988035cafe0",
+                              "kind": "container",
+                              "name": "Container",
+                              "start": 0.801358068033353,
+                              "length": 1.306485555975642,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "stretch": true,
+                              "innerLength": 4.0,
+                              "innerOffset": 0.0,
+                              "notes": "",
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "b6d798a0a8804502953fe97614f705fa",
+                                          "name": "Track 1",
+                                          "colour": 2,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "acc71105ec424cddaae5947d04a2dfe9",
+                              "kind": "container",
+                              "name": "Container",
+                              "start": 2.792495936976459,
+                              "length": 1.293499219182825,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "stretch": false,
+                              "innerLength": 1.490221282488939,
+                              "innerOffset": 0.0,
+                              "notes": "",
+                              "propStart": "-0.006411",
+                              "propLength": "1.006411",
+                              "propLock": true,
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "57efa99c10ca4f179e37e1136e0e91ee",
+                                          "name": "Track 1",
+                                          "colour": 2,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "MARKS"
+                    },
+                    {
+                      "type": "DRAWN"
+                    },
+                    {
+                      "type": "NODES"
+                    },
+                    {
+                      "type": "RULERS",
+                      "children": [
+                        {
+                          "type": "LAYER",
+                          "id": "a297e28c30f845f1a4800c6371db48d7",
+                          "kind": "time",
+                          "name": "Time",
+                          "height": 30,
+                          "visible": true,
+                          "frame": "piece"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "798b56a088a440b0992975f2e7391580",
+                          "kind": "proportion",
+                          "name": "Proportion",
+                          "height": 90,
+                          "visible": true,
+                          "snap": true,
+                          "frame": "span",
+                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                          "autoDivisions": true,
+                          "series": "harmonic:6;geometric:2;geometric.to:32"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "75c25315c3ca432e91217d7f4bd5fb0e",
+              "kind": "container",
+              "name": "Bell_scape_continuation",
+              "start": 18.898208333333333,
+              "length": 4.917503910340116,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": 0.0,
+              "fadeIn": 0.005,
+              "fadeOut": 0.0,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "innerLength": 2.254683452536345,
+              "innerOffset": 2.553464955663772,
+              "children": [
+                {
+                  "type": "TIMELINE",
+                  "activeLayer": "79af1023890a488bb241dff70b184354",
+                  "spanStart": 2.052363788097004,
+                  "spanEnd": 3.441927270340844,
+                  "children": [
+                    {
+                      "type": "TRACKS",
+                      "children": [
+                        {
+                          "type": "TRACK",
+                          "id": "9dc6df4117eb4f46a21cd90750652a9f",
+                          "name": "Track 1",
+                          "colour": 0,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "5e91d5ac16a4421f8b314966a4f5b19a",
+                              "kind": "container",
+                              "name": "Text",
+                              "start": 0.533000125435182,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": "",
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "innerLength": 2.0,
+                              "fw.composition.energy": "frottement-granulation",
+                              "fw.composition.level": "ison",
+                              "fw.composition.role": "F",
+                              "fw.composition.profile": "crescendo",
+                              "fw.schaeffer.type": "X''",
+                              "fw.thoresen.ending": "cut",
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "e5b5cda910f54a6e8759be794ddf22d9",
+                                          "name": "Track 1",
+                                          "colour": 0,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "8457e4372a1a4b98aad92c27dbbd52f7",
+                              "kind": "container",
+                              "name": "Text",
+                              "start": 2.28303087037385,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": "",
+                              "fw.example.density": 10.0,
+                              "gainDb": -29.599999999999998,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "innerLength": 2.0,
+                              "fw.composition.role.along": "0.5:B:0",
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "3a1f33f96d744676b9c47e7f122b7c1a",
+                                          "name": "Track 1",
+                                          "colour": 0,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "463c6ae646644a7bafc0cfb625129956",
+                          "name": "Track 2",
+                          "colour": 1,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "c956ea9b8f394aaeb2a7981833c46bd5",
+                              "kind": "text",
+                              "name": "Text",
+                              "start": 1.933939606709187,
+                              "length": 2.0,
+                              "opacity": 1.0,
+                              "notes": ""
+                            }
+                          ]
+                        },
+                        {
+                          "type": "TRACK",
+                          "id": "b090ff02aa0740a2bd16482ca7836a8d",
+                          "name": "Track 3",
+                          "colour": 2,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false,
+                          "children": [
+                            {
+                              "type": "BOX",
+                              "id": "5127cdb9600b43dcb38b1feaab1a20d0",
+                              "kind": "container",
+                              "name": "Container",
+                              "start": 0.801358068033353,
+                              "length": 1.306485555975642,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "stretch": true,
+                              "innerLength": 4.0,
+                              "innerOffset": 0.0,
+                              "notes": "",
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "d731b779dfac40a2884ac85220b90f7f",
+                                          "name": "Track 1",
+                                          "colour": 2,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "BOX",
+                              "id": "1e7e416041e84b4ca096b6d41ecfb15e",
+                              "kind": "container",
+                              "name": "Container",
+                              "start": 2.792495936976459,
+                              "length": 1.293499219182825,
+                              "gainDb": 0.0,
+                              "fadeIn": 0.0,
+                              "fadeOut": 0.0,
+                              "fadeInShape": 2,
+                              "fadeOutShape": 2,
+                              "stretch": false,
+                              "innerLength": 1.490221282488939,
+                              "innerOffset": 0.0,
+                              "notes": "",
+                              "propStart": "-0.006411",
+                              "propLength": "1.006411",
+                              "propLock": true,
+                              "children": [
+                                {
+                                  "type": "TIMELINE",
+                                  "children": [
+                                    {
+                                      "type": "TRACKS",
+                                      "children": [
+                                        {
+                                          "type": "TRACK",
+                                          "id": "218849867c3e403db2a343df61bf1de4",
+                                          "name": "Track 1",
+                                          "colour": 2,
+                                          "height": 72,
+                                          "mute": false,
+                                          "solo": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "MARKS"
+                                    },
+                                    {
+                                      "type": "DRAWN"
+                                    },
+                                    {
+                                      "type": "NODES"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "MARKS"
+                    },
+                    {
+                      "type": "DRAWN"
+                    },
+                    {
+                      "type": "NODES"
+                    },
+                    {
+                      "type": "RULERS",
+                      "children": [
+                        {
+                          "type": "LAYER",
+                          "id": "04866dbe1b284ffea8482ff42021f7ca",
+                          "kind": "time",
+                          "name": "Time",
+                          "height": 30,
+                          "visible": true,
+                          "frame": "piece"
+                        },
+                        {
+                          "type": "LAYER",
+                          "id": "79af1023890a488bb241dff70b184354",
+                          "kind": "proportion",
+                          "name": "Proportion",
+                          "height": 90,
+                          "visible": true,
+                          "snap": true,
+                          "frame": "span",
+                          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                          "autoDivisions": true,
+                          "series": "harmonic:6;geometric:2;geometric.to:32"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "d3d8e88cc7464aad908a92b54aa861cd",
+              "kind": "sound",
+              "name": "Untitled capture 2026-11-07 143018",
+              "start": 32.358086916129999,
+              "length": 9.952666666666667,
+              "opacity": 1.0,
+              "notes": "",
+              "gainDb": -0.899999999999996,
+              "offset": 0.0,
+              "fadeIn": 0.01,
+              "fadeOut": 0.01,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "soundId": "a92446ffd65549b3857468c9fb0a0ce4"
+            },
+            {
+              "type": "BOX",
+              "id": "9448bb3015734922ae1a7642c8a8560c",
+              "kind": "container",
+              "name": "Container",
+              "start": 52.460865803653761,
+              "length": 18.535733836620722,
+              "gainDb": 0.0,
+              "fadeIn": 0.0,
+              "fadeOut": 0.0,
+              "fadeInShape": 2,
+              "fadeOutShape": 2,
+              "stretch": true,
+              "innerLength": 8.697565741562569,
+              "innerOffset": 0.0,
+              "notes": "",
+              "children": [
+                {
+                  "type": "TIMELINE",
+                  "children": [
+                    {
+                      "type": "TRACKS",
+                      "children": [
+                        {
+                          "type": "TRACK",
+                          "id": "53771165bcac45b9a0dfb9755db304cd",
+                          "name": "Track 1",
+                          "colour": 0,
+                          "height": 72,
+                          "mute": false,
+                          "solo": false
+                        }
+                      ]
+                    },
+                    {
+                      "type": "MARKS"
+                    },
+                    {
+                      "type": "DRAWN"
+                    },
+                    {
+                      "type": "NODES"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TRACK",
+          "id": "77c75925e15b400f82c6b4af1f522372",
+          "name": "Track 2",
+          "colour": 1,
+          "height": 189,
+          "mute": false,
+          "solo": false,
+          "children": [
+            {
+              "type": "BOX",
+              "id": "1fa07a7f26b64ae784f30cd38d29a569",
+              "kind": "board",
+              "name": "Board",
+              "start": 6.648832705868047,
+              "length": 7.169990276949767,
+              "opacity": 1.0,
+              "notes": "",
+              "children": [
+                {
+                  "type": "BOARD",
+                  "showX": 628.0,
+                  "showY": 108.0,
+                  "showW": 204.56427001953125,
+                  "showH": 144.0,
+                  "children": [
+                    {
+                      "type": "CARD",
+                      "id": "648a9905c0c24b9bb0c227ab2688a28e",
+                      "x": 50.0,
+                      "y": 50.0,
+                      "w": 110.0,
+                      "h": 110.0,
+                      "colour": -3570796,
+                      "notes": "reverb > \n\ndit komt niet goed door"
+                    },
+                    {
+                      "type": "CARD",
+                      "id": "3e41d90c814443d7b51916762cc240c9",
+                      "x": 310.0,
+                      "y": 70.0,
+                      "w": 240.0,
+                      "h": 190.0,
+                      "colour": -6647944,
+                      "notes": "Mixing splits chain into 2 chains:\n\n- upper left channel: r\n- lower left channel: q\n\n*\n*- upper right channel: s\n**- upper left channel: p**",
+                      "label": "Means"
+                    },
+                    {
+                      "type": "ARROW",
+                      "id": "406a7449cd124e81a938e5a6f43ebb4f",
+                      "x1": 105.0,
+                      "y1": 105.0,
+                      "x2": 480.0,
+                      "y2": 110.0,
+                      "fromItem": "648a9905c0c24b9bb0c227ab2688a28e",
+                      "toItem": "3e41d90c814443d7b51916762cc240c9",
+                      "colour": -3157028,
+                      "lineWidth": 1.5,
+                      "bend": 22.0,
+                      "dashed": true
+                    },
+                    {
+                      "type": "IMAGE",
+                      "id": "636119b3b4bf47f6a2fcb3dac2f5ee5e",
+                      "file": "Boards/DSC_2910 - koepel HQ.JPG",
+                      "x": 640.0,
+                      "y": 120.0,
+                      "w": 180.56427001953125,
+                      "h": 120.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "72dbffa8ff784521bf830055c26c30d6",
+                      "shape": "ellipse",
+                      "x": 200.0,
+                      "y": 320.0,
+                      "w": 110.0,
+                      "h": 70.0,
+                      "colour": -3570796,
+                      "lineWidth": 1.5
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "83faae12f1f34b7a8b02f0efd636bf15",
+                      "x": 360.0,
+                      "y": 360.0,
+                      "w": 206.66796875,
+                      "h": 36.70703125,
+                      "points": "0.0,0.0 0.0,21.1 0.0,28.3 0.0,33.6 0.0,36.8 8.6,34.2 21.1,28.0 36.9,21.0 49.2,15.3 57.4,11.5 61.9,9.4 64.4,12.3 63.9,16.1 63.6,19.8 63.6,22.8 66.3,25.8 76.9,26.2 84.5,26.4 85.1,30.7 88.6,35.0 97.0,36.1 103.4,34.5 113.3,30.5 126.2,24.5 140.8,18.2 152.9,13.9 159.4,11.7 167.8,13.7 175.7,14.7 183.7,16.5 192.1,19.1 198.4,21.8 204.5,26.4 206.7,27.6",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "c07a073fbbf04677a6f6eab3b4aa4358",
+                      "x": 300.0,
+                      "y": 510.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "f4c9389108fd4cafb31c5c2f2dcbdfd0",
+                      "shape": "line",
+                      "x": 540.0,
+                      "y": 490.0,
+                      "w": 280.0,
+                      "h": 30.0,
+                      "colour": -10648899,
+                      "lineWidth": 2.5,
+                      "dashed": true
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "aa93ea538f8c4d6ca814f3baef476662",
+                      "x": 450.0,
+                      "y": 640.0,
+                      "w": 130.0,
+                      "h": 106.66015625,
+                      "points": "0.0,0.0 9.1,0.0 19.8,1.4 31.8,6.2 46.6,15.8 64.7,30.6 85.0,51.1 102.1,70.6 113.8,84.6 121.7,94.6 126.1,100.3 128.4,103.5 130.0,106.7 129.1,103.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "cb3b4d4cf2f54da186ca23590ebce700",
+                      "x": 290.0,
+                      "y": 530.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "ARROW",
+                      "id": "abb2f5a148474479a8c1d273ce05316b",
+                      "x1": 430.0,
+                      "y1": 165.0,
+                      "x2": 610.0,
+                      "y2": 495.0,
+                      "fromItem": "3e41d90c814443d7b51916762cc240c9",
+                      "toItem": "f4c9389108fd4cafb31c5c2f2dcbdfd0",
+                      "colour": -3157028,
+                      "lineWidth": 1.5,
+                      "bend": -41.0
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "c24aae8ca5ab4267b9ed7996337f1745",
+              "kind": "board",
+              "name": "Board",
+              "start": 20.914007466538088,
+              "length": 7.851603967510123,
+              "opacity": 1.0,
+              "notes": "",
+              "fadeIn": 0.0,
+              "fadeOut": 0.005,
+              "children": [
+                {
+                  "type": "BOARD",
+                  "showX": 628.0,
+                  "showY": 108.0,
+                  "showW": 204.56427001953125,
+                  "showH": 144.0,
+                  "children": [
+                    {
+                      "type": "REGION",
+                      "id": "3f3d7737c7c44c8486aeeedfa28c9eed",
+                      "x": 250.0,
+                      "y": 370.0,
+                      "w": 730.0,
+                      "h": 330.0,
+                      "colour": -3570796,
+                      "registerScale": "bands",
+                      "timeMode": "box"
+                    },
+                    {
+                      "type": "CARD",
+                      "id": "4ece335b174c45c19ba35310b56a8f30",
+                      "x": 50.0,
+                      "y": 50.0,
+                      "w": 110.0,
+                      "h": 110.0,
+                      "colour": -3570796,
+                      "notes": "reverb > "
+                    },
+                    {
+                      "type": "CARD",
+                      "id": "5f6696e6a9e345338ab414f17424dfd0",
+                      "x": 270.0,
+                      "y": 60.0,
+                      "w": 340.0,
+                      "h": 200.0,
+                      "colour": -6647944,
+                      "notes": "Mixing splits chain into 2 chains:\n\n- upper ",
+                      "label": "Means"
+                    },
+                    {
+                      "type": "ARROW",
+                      "id": "2c151ad4562041cd80af38af483f5f6a",
+                      "x1": 105.0,
+                      "y1": 105.0,
+                      "x2": 480.0,
+                      "y2": 110.0,
+                      "fromItem": "4ece335b174c45c19ba35310b56a8f30",
+                      "toItem": "5f6696e6a9e345338ab414f17424dfd0",
+                      "colour": -3157028,
+                      "lineWidth": 1.5,
+                      "bend": 22.0
+                    },
+                    {
+                      "type": "IMAGE",
+                      "id": "eeea34d1cc244251ac039db8672c738d",
+                      "file": "Boards/DSC_2910 - koepel HQ.JPG",
+                      "x": 640.0,
+                      "y": 120.0,
+                      "w": 180.56427001953125,
+                      "h": 120.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "d46a7a0a476e49efbb38380762d8f292",
+                      "shape": "ellipse",
+                      "x": -200.0,
+                      "y": 220.0,
+                      "w": 110.0,
+                      "h": 70.0,
+                      "colour": -3570796,
+                      "lineWidth": 1.5
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "3f461984b7374ffcba01c1789917e1ef",
+                      "x": -40.0,
+                      "y": 260.0,
+                      "w": 206.66796875,
+                      "h": 36.70703125,
+                      "points": "0.0,0.0 0.0,21.1 0.0,28.3 0.0,33.6 0.0,36.8 8.6,34.2 21.1,28.0 36.9,21.0 49.2,15.3 57.4,11.5 61.9,9.4 64.4,12.3 63.9,16.1 63.6,19.8 63.6,22.8 66.3,25.8 76.9,26.2 84.5,26.4 85.1,30.7 88.6,35.0 97.0,36.1 103.4,34.5 113.3,30.5 126.2,24.5 140.8,18.2 152.9,13.9 159.4,11.7 167.8,13.7 175.7,14.7 183.7,16.5 192.1,19.1 198.4,21.8 204.5,26.4 206.7,27.6",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "b7e0ba2dbc8a408d8045088d54550063",
+                      "x": -100.0,
+                      "y": 410.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "6e6819ad11c842aeb66be833465a2ba7",
+                      "shape": "line",
+                      "x": -160.0,
+                      "y": 330.0,
+                      "w": 320.0,
+                      "h": 0.0,
+                      "colour": -10648899,
+                      "lineWidth": 2.5,
+                      "dashed": true
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "c539767063fc40b499710a725847ab94",
+                      "x": -40.0,
+                      "y": 400.0,
+                      "w": 130.0,
+                      "h": 106.66015625,
+                      "points": "0.0,0.0 9.1,0.0 19.8,1.4 31.8,6.2 46.6,15.8 64.7,30.6 85.0,51.1 102.1,70.6 113.8,84.6 121.7,94.6 126.1,100.3 128.4,103.5 130.0,106.7 129.1,103.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "a5fcc740019843cd8ab1c5a64162bcec",
+                      "x": -110.0,
+                      "y": 430.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "SOUNDCARD",
+                      "id": "31caff8103b6411cbccccb41b5bdc01b",
+                      "soundId": "637c395969e347f092c99b70d65f44fd",
+                      "x": -30.0,
+                      "y": 730.0,
+                      "w": 220.0,
+                      "h": 100.0,
+                      "colour": -11623017,
+                      "srcOut": 53.40000966144958,
+                      "srcIn": 48.265720429297069,
+                      "temporalOut": true,
+                      "gainDb": -17.399999999999999
+                    },
+                    {
+                      "type": "SOUNDCARD",
+                      "id": "0744707e256b4e2a9b7f3dcb2ec67769",
+                      "soundId": "3409b6af9fad47d2bfbf42c0a5420a6e",
+                      "x": -110.0,
+                      "y": 620.0,
+                      "w": 240.0,
+                      "h": 92.0,
+                      "colour": -11623017,
+                      "temporalOut": true,
+                      "gainDb": 12.0,
+                      "outStart": 5.0,
+                      "srcIn": 10.815733487746677,
+                      "srcOut": 33.879354179872195
+                    },
+                    {
+                      "type": "GESTURE",
+                      "id": "4b70eab4b7e942f4a56a9ba5751b7a55",
+                      "x": 417.00836181640625,
+                      "y": 520.168701171875,
+                      "w": 277.18829345703125,
+                      "h": 54.56793212890625,
+                      "points": "0.0,54.5 19.0,53.3 43.6,49.0 83.9,39.7 116.9,31.7 135.5,27.9 152.2,25.0 160.2,23.5 175.1,19.9 196.1,14.7 219.1,9.4 238.4,5.3 250.2,2.8 257.6,1.4 267.2,0.4 275.0,0.0 277.1,1.6",
+                      "thickness": 36.0,
+                      "regionId": "3f3d7737c7c44c8486aeeedfa28c9eed",
+                      "fw.composition.energy": "accumulation-corpuscules"
+                    },
+                    {
+                      "type": "GESTURE",
+                      "id": "bd6c4920da54463a97401db3ff4bdf15",
+                      "x": 752.0711669921875,
+                      "y": 414.626495361328125,
+                      "w": 155.34716796875,
+                      "h": 66.111602783203125,
+                      "points": "0.0,66.1 38.5,52.2 48.6,48.1 56.2,45.1 65.1,42.4 79.7,36.4 96.7,28.5 116.1,18.9 133.2,10.6 145.5,5.2 152.2,1.3 155.4,0.0",
+                      "thickness": 36.0,
+                      "regionId": "3f3d7737c7c44c8486aeeedfa28c9eed",
+                      "fw.composition.energy": "accumulation-corpuscules"
+                    },
+                    {
+                      "type": "GESTURE",
+                      "id": "0c8b793d3943402e8f963cee3d08af52",
+                      "x": 318.354339599609375,
+                      "y": 523.430419921875,
+                      "w": 48.724395751953125,
+                      "h": 129.56298828125,
+                      "points": "0.0,0.0 9.0,0.0 17.8,0.0 27.5,0.0 35.8,0.0 41.5,0.0 45.4,0.0 48.8,0.0",
+                      "thickness": 36.0,
+                      "regionId": "3f3d7737c7c44c8486aeeedfa28c9eed",
+                      "fw.composition.energy": "percussion-resonance",
+                      "fw.composition.energy.factors": "attaque=0.521:1;dynamique=0.5639:1"
+                    },
+                    {
+                      "type": "GESTURE",
+                      "id": "fb181106a2594985823a5812d82e702d",
+                      "x": 401.903167724609375,
+                      "y": 660.4036865234375,
+                      "w": 424.956207275390625,
+                      "h": 4.826416015625,
+                      "points": "0.0,1.6 7.7,1.6 12.4,1.6 19.1,1.6 27.3,1.6 35.4,1.6 41.7,1.6 49.0,1.6 54.2,1.6 61.1,1.6 71.8,1.2 84.0,0.6 95.0,0.2 104.6,0.0 113.1,0.0 119.3,0.0 125.6,0.0 131.1,0.0 137.0,0.2 144.2,0.5 151.5,0.8 158.8,1.2 166.1,1.4 174.0,1.6 182.7,1.7 190.9,1.7 198.0,1.7 204.8,1.7 210.8,1.7 216.4,1.7 222.5,1.7 229.8,1.9 237.0,2.3 243.0,2.5 248.9,2.9 253.8,3.1 261.0,3.1 268.4,3.1 272.8,3.1 278.8,3.1 286.6,3.1 294.3,3.1 301.3,2.9 308.3,2.5 315.0,2.4 320.0,2.4 328.0,2.4 338.3,2.4 346.2,2.4 355.4,2.4 365.3,2.4 374.5,2.4 383.5,2.4 390.4,2.4 398.7,1.7 406.0,1.0 413.0,0.6 417.8,0.6 424.9,0.6",
+                      "thickness": 36.0,
+                      "regionId": "3f3d7737c7c44c8486aeeedfa28c9eed",
+                      "fw.composition.energy": "frottement-granulation"
+                    },
+                    {
+                      "type": "GESTURE",
+                      "id": "c2e6df776e32420685c4b9b326ee357d",
+                      "x": 332.685028076171875,
+                      "y": 620.119140625,
+                      "w": 120.377960205078125,
+                      "h": 16.078369140625,
+                      "points": "0.0,0.0 12.8,0.0 31.5,0.0 53.4,0.0 74.3,0.0 89.9,0.0 100.9,0.0 108.2,0.0 112.2,0.0 117.9,0.0 120.4,0.0",
+                      "thickness": 36.0,
+                      "regionId": "3f3d7737c7c44c8486aeeedfa28c9eed",
+                      "fw.composition.energy": "percussion-resonance"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "c935128bd51b43e4977bf82b6dec7d09",
+              "kind": "board",
+              "name": "Board",
+              "start": 29.329227913967411,
+              "length": 3.091682626874054,
+              "opacity": 1.0,
+              "notes": "",
+              "fadeIn": 0.005,
+              "fadeOut": 0.0,
+              "children": [
+                {
+                  "type": "BOARD",
+                  "showX": -442.0,
+                  "showY": 28.0,
+                  "showW": 324.0,
+                  "showH": 264.0,
+                  "children": [
+                    {
+                      "type": "CARD",
+                      "id": "47aa5df06d144fee833e21633262727e",
+                      "x": 50.0,
+                      "y": 50.0,
+                      "w": 110.0,
+                      "h": 110.0,
+                      "colour": -3570796,
+                      "notes": "reverb > "
+                    },
+                    {
+                      "type": "CARD",
+                      "id": "4256404d023a48819af921bd1d6e24a7",
+                      "x": 270.0,
+                      "y": 60.0,
+                      "w": 340.0,
+                      "h": 200.0,
+                      "colour": -6647944,
+                      "notes": "Mixing splits chain into 2 chains:\n\n- upper ",
+                      "label": "Means"
+                    },
+                    {
+                      "type": "ARROW",
+                      "id": "559bc06af54b442faa11c858410af8fd",
+                      "x1": 105.0,
+                      "y1": 105.0,
+                      "x2": 480.0,
+                      "y2": 110.0,
+                      "fromItem": "47aa5df06d144fee833e21633262727e",
+                      "toItem": "4256404d023a48819af921bd1d6e24a7",
+                      "colour": -3157028,
+                      "lineWidth": 1.5,
+                      "bend": 22.0
+                    },
+                    {
+                      "type": "IMAGE",
+                      "id": "3d6c2b4113394769a230335bcba10651",
+                      "file": "Boards/DSC_2910 - koepel HQ.JPG",
+                      "x": 640.0,
+                      "y": 120.0,
+                      "w": 180.56427001953125,
+                      "h": 120.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "70b81b46f8af456aa397f2b8068496a0",
+                      "shape": "ellipse",
+                      "x": 200.0,
+                      "y": 320.0,
+                      "w": 110.0,
+                      "h": 70.0,
+                      "colour": -3570796,
+                      "lineWidth": 1.5
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "7fec9d05e5a44f02930fb9a385d85184",
+                      "x": 360.0,
+                      "y": 360.0,
+                      "w": 206.66796875,
+                      "h": 36.70703125,
+                      "points": "0.0,0.0 0.0,21.1 0.0,28.3 0.0,33.6 0.0,36.8 8.6,34.2 21.1,28.0 36.9,21.0 49.2,15.3 57.4,11.5 61.9,9.4 64.4,12.3 63.9,16.1 63.6,19.8 63.6,22.8 66.3,25.8 76.9,26.2 84.5,26.4 85.1,30.7 88.6,35.0 97.0,36.1 103.4,34.5 113.3,30.5 126.2,24.5 140.8,18.2 152.9,13.9 159.4,11.7 167.8,13.7 175.7,14.7 183.7,16.5 192.1,19.1 198.4,21.8 204.5,26.4 206.7,27.6",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "9e403cc711ea49c0aa8c63491c5edcbc",
+                      "x": 300.0,
+                      "y": 510.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "04d1a8ea6ff3463f9e2b6ed145365076",
+                      "shape": "line",
+                      "x": 470.0,
+                      "y": 480.0,
+                      "w": 280.0,
+                      "h": 30.0,
+                      "colour": -10648899,
+                      "lineWidth": 2.5,
+                      "dashed": true
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "4c4bd49f007243419dcffe0b2a62a804",
+                      "x": 450.0,
+                      "y": 640.0,
+                      "w": 130.0,
+                      "h": 106.66015625,
+                      "points": "0.0,0.0 9.1,0.0 19.8,1.4 31.8,6.2 46.6,15.8 64.7,30.6 85.0,51.1 102.1,70.6 113.8,84.6 121.7,94.6 126.1,100.3 128.4,103.5 130.0,106.7 129.1,103.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "558e97c983244390a19b0f83bba56d58",
+                      "x": 290.0,
+                      "y": 530.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "LINK",
+                      "id": "827acde603854982b4c54af8a6a3b5f0",
+                      "targetBox": "9448bb3015734922ae1a7642c8a8560c",
+                      "x": -430.0,
+                      "y": 40.0,
+                      "w": 300.0,
+                      "h": 240.0,
+                      "colour": -10648899,
+                      "name": "Container"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "c96640e0f30047eaa29a1bb13232e8f4",
+              "kind": "text",
+              "name": "Text",
+              "start": 13.099831172291619,
+              "length": 5.896833701617084,
+              "opacity": 0.32,
+              "notes": "ideetjes waar ik nog mee verder moet\n",
+              "children": [
+                {
+                  "type": "BOARD"
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "a7d34dfc45e147358171dff64381fd4c",
+              "kind": "board",
+              "name": "Board",
+              "start": 33.932225066638999,
+              "length": 3.091682626874054,
+              "opacity": 1.0,
+              "notes": "",
+              "fadeIn": 0.005,
+              "fadeOut": 0.0,
+              "children": [
+                {
+                  "type": "BOARD",
+                  "showX": 628.0,
+                  "showY": -72.0,
+                  "showW": 264.0,
+                  "showH": 80.0,
+                  "children": [
+                    {
+                      "type": "CARD",
+                      "id": "a97ccbb3ea63422080e1af02fbc6845a",
+                      "x": 50.0,
+                      "y": 50.0,
+                      "w": 110.0,
+                      "h": 110.0,
+                      "colour": -3570796,
+                      "notes": "reverb > "
+                    },
+                    {
+                      "type": "CARD",
+                      "id": "4759cf33a62744b3a1b4001df9400267",
+                      "x": 270.0,
+                      "y": 60.0,
+                      "w": 340.0,
+                      "h": 200.0,
+                      "colour": -6647944,
+                      "notes": "Mixing splits chain into 2 chains:\n\n- upper ",
+                      "label": "Means"
+                    },
+                    {
+                      "type": "ARROW",
+                      "id": "eae74d7780c8490fb51226850e48964d",
+                      "x1": 105.0,
+                      "y1": 105.0,
+                      "x2": 480.0,
+                      "y2": 110.0,
+                      "fromItem": "a97ccbb3ea63422080e1af02fbc6845a",
+                      "toItem": "4759cf33a62744b3a1b4001df9400267",
+                      "colour": -3157028,
+                      "lineWidth": 1.5,
+                      "bend": 22.0
+                    },
+                    {
+                      "type": "IMAGE",
+                      "id": "d460264d26f2478099fe1128ff0a73b3",
+                      "file": "Boards/DSC_2910 - koepel HQ.JPG",
+                      "x": 640.0,
+                      "y": 120.0,
+                      "w": 180.56427001953125,
+                      "h": 120.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "56ed3a11cfe9454db8233492d9b4e635",
+                      "shape": "ellipse",
+                      "x": 200.0,
+                      "y": 320.0,
+                      "w": 110.0,
+                      "h": 70.0,
+                      "colour": -3570796,
+                      "lineWidth": 1.5
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "455b2ac48dd84c2eb147e1db10d17c4f",
+                      "x": 360.0,
+                      "y": 360.0,
+                      "w": 206.66796875,
+                      "h": 36.70703125,
+                      "points": "0.0,0.0 0.0,21.1 0.0,28.3 0.0,33.6 0.0,36.8 8.6,34.2 21.1,28.0 36.9,21.0 49.2,15.3 57.4,11.5 61.9,9.4 64.4,12.3 63.9,16.1 63.6,19.8 63.6,22.8 66.3,25.8 76.9,26.2 84.5,26.4 85.1,30.7 88.6,35.0 97.0,36.1 103.4,34.5 113.3,30.5 126.2,24.5 140.8,18.2 152.9,13.9 159.4,11.7 167.8,13.7 175.7,14.7 183.7,16.5 192.1,19.1 198.4,21.8 204.5,26.4 206.7,27.6",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "81b27576b01f4dc9b494fbd9577a93da",
+                      "x": 300.0,
+                      "y": 510.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "3685f97187e74d3dacd0cf7043bdae16",
+                      "shape": "line",
+                      "x": 470.0,
+                      "y": 480.0,
+                      "w": 280.0,
+                      "h": 30.0,
+                      "colour": -10648899,
+                      "lineWidth": 2.5,
+                      "dashed": true
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "acf8df3616c14db3a00cd933e2251df2",
+                      "x": 450.0,
+                      "y": 640.0,
+                      "w": 130.0,
+                      "h": 106.66015625,
+                      "points": "0.0,0.0 9.1,0.0 19.8,1.4 31.8,6.2 46.6,15.8 64.7,30.6 85.0,51.1 102.1,70.6 113.8,84.6 121.7,94.6 126.1,100.3 128.4,103.5 130.0,106.7 129.1,103.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "7972dc1c8cb14467bc2f4749de3d32fa",
+                      "x": 290.0,
+                      "y": 530.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "LINK",
+                      "id": "38a01a9524f749c78b08c93d976ad1af",
+                      "targetBox": "d3d8e88cc7464aad908a92b54aa861cd",
+                      "x": 640.0,
+                      "y": -60.0,
+                      "w": 240.0,
+                      "h": 56.0,
+                      "colour": -10648899,
+                      "name": "Untitled capture 2026-11-07 143018"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BOX",
+              "id": "084d07be49a945c7ba9603c69290b773",
+              "kind": "board",
+              "name": "Board",
+              "start": 39.666647196387089,
+              "length": 3.091682626874054,
+              "opacity": 1.0,
+              "notes": "",
+              "fadeIn": 0.005,
+              "fadeOut": 0.0,
+              "children": [
+                {
+                  "type": "BOARD",
+                  "showX": 628.0,
+                  "showY": 108.0,
+                  "showW": 204.56427001953125,
+                  "showH": 144.0,
+                  "children": [
+                    {
+                      "type": "CARD",
+                      "id": "7702dc8e245b495c91e9f2a3bf53c016",
+                      "x": 50.0,
+                      "y": 50.0,
+                      "w": 110.0,
+                      "h": 110.0,
+                      "colour": -3570796,
+                      "notes": "reverb > "
+                    },
+                    {
+                      "type": "CARD",
+                      "id": "20200294d6674261bcf8f0fec9d14848",
+                      "x": 270.0,
+                      "y": 60.0,
+                      "w": 340.0,
+                      "h": 200.0,
+                      "colour": -6647944,
+                      "notes": "Mixing splits chain into 2 chains:\n\n- upper ",
+                      "label": "Means"
+                    },
+                    {
+                      "type": "ARROW",
+                      "id": "e49ea28866ee473a9f15ce3ed3213d4c",
+                      "x1": 105.0,
+                      "y1": 105.0,
+                      "x2": 480.0,
+                      "y2": 110.0,
+                      "fromItem": "7702dc8e245b495c91e9f2a3bf53c016",
+                      "toItem": "20200294d6674261bcf8f0fec9d14848",
+                      "colour": -3157028,
+                      "lineWidth": 1.5,
+                      "bend": 22.0
+                    },
+                    {
+                      "type": "IMAGE",
+                      "id": "cd808b519a6e4d268ad82a6b3e77d237",
+                      "file": "Boards/DSC_2910 - koepel HQ.JPG",
+                      "x": 640.0,
+                      "y": 120.0,
+                      "w": 180.56427001953125,
+                      "h": 120.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "c9e8ddd43d3145189e278f6c5efb68d7",
+                      "shape": "ellipse",
+                      "x": 200.0,
+                      "y": 320.0,
+                      "w": 110.0,
+                      "h": 70.0,
+                      "colour": -3570796,
+                      "lineWidth": 1.5
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "9ac8f2d378af466ea82806e3323e16c8",
+                      "x": 360.0,
+                      "y": 360.0,
+                      "w": 206.66796875,
+                      "h": 36.70703125,
+                      "points": "0.0,0.0 0.0,21.1 0.0,28.3 0.0,33.6 0.0,36.8 8.6,34.2 21.1,28.0 36.9,21.0 49.2,15.3 57.4,11.5 61.9,9.4 64.4,12.3 63.9,16.1 63.6,19.8 63.6,22.8 66.3,25.8 76.9,26.2 84.5,26.4 85.1,30.7 88.6,35.0 97.0,36.1 103.4,34.5 113.3,30.5 126.2,24.5 140.8,18.2 152.9,13.9 159.4,11.7 167.8,13.7 175.7,14.7 183.7,16.5 192.1,19.1 198.4,21.8 204.5,26.4 206.7,27.6",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "4878f8c4d3634a5d8235e1615bf8060d",
+                      "x": 300.0,
+                      "y": 510.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "SHAPE",
+                      "id": "eaf8a54eb8724718a9a7a3e4c44e0bb2",
+                      "shape": "line",
+                      "x": 470.0,
+                      "y": 480.0,
+                      "w": 280.0,
+                      "h": 30.0,
+                      "colour": -10648899,
+                      "lineWidth": 2.5,
+                      "dashed": true
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "16b20dd038d64be7ba7efacbfce255cb",
+                      "x": 450.0,
+                      "y": 640.0,
+                      "w": 130.0,
+                      "h": 106.66015625,
+                      "points": "0.0,0.0 9.1,0.0 19.8,1.4 31.8,6.2 46.6,15.8 64.7,30.6 85.0,51.1 102.1,70.6 113.8,84.6 121.7,94.6 126.1,100.3 128.4,103.5 130.0,106.7 129.1,103.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    },
+                    {
+                      "type": "STROKE",
+                      "id": "0a5554ac16c74bc9b5c2a6dad5a568cb",
+                      "x": 290.0,
+                      "y": 530.0,
+                      "w": 190.0,
+                      "h": 70.0,
+                      "points": "0.0,13.2 0.0,18.0 0.0,24.0 0.0,32.3 0.0,41.1 0.0,49.8 0.0,55.5 0.0,58.6 2.9,58.1 12.0,53.4 28.4,46.9 46.5,41.2 61.4,37.6 71.6,35.5 78.3,34.2 80.8,37.0 80.8,43.6 80.8,51.6 81.8,57.6 82.7,63.5 83.9,67.0 86.4,69.5 90.2,68.4 94.7,67.4 100.7,68.4 105.4,70.0 109.2,67.3 116.8,59.0 126.3,49.5 135.4,40.6 142.8,33.4 148.1,28.0 151.5,25.0 154.3,22.6 156.8,20.5 160.6,18.2 165.8,15.6 170.1,13.1 173.8,11.1 177.6,9.6 180.5,7.5 183.3,4.9 186.6,2.6 189.0,0.8 190.0,0.0",
+                      "colour": -3157028,
+                      "lineWidth": 2.0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RULERS",
+      "children": [
+        {
+          "type": "LAYER",
+          "id": "0e283e7586f34018b9c5744d2ed993f3",
+          "kind": "time",
+          "name": "Time",
+          "height": 30,
+          "visible": true
+        },
+        {
+          "type": "LAYER",
+          "id": "002a4fc541114efb8217754d03f8b902",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 71,
+          "visible": true,
+          "snap": true,
+          "frame": "piece",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true,
+          "series": "primes.dir:reversed;primes:7"
+        },
+        {
+          "type": "LAYER",
+          "id": "6787a7cd19124155930d27aa39282a06",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 63,
+          "visible": true,
+          "snap": true,
+          "frame": "1fa07a7f26b64ae784f30cd38d29a569",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "a7ea80fd93eb4424a9767dd59619e2e5",
+          "kind": "proportion",
+          "name": "Proportion",
+          "height": 68,
+          "visible": true,
+          "snap": true,
+          "frame": "9448bb3015734922ae1a7642c8a8560c",
+          "denominators": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "autoDivisions": true
+        },
+        {
+          "type": "LAYER",
+          "id": "3edc381ff8664be88fbdb00e54cb82dd",
+          "kind": "lane",
+          "lane": "composition.energies",
+          "name": "Energies",
+          "height": 113,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "type": "MARKS"
+    },
+    {
+      "type": "DRAWN"
+    },
+    {
+      "type": "NODES"
+    }
+  ]
+}

@@ -7,13 +7,16 @@
   "vorbisQuality": 7,
   "viewStart": 0.0,
   "pixelsPerSecond": 13.592200258737197,
-  "playhead": 25.929476305091001,
+  "playhead": 6.50084375,
   "activeLayer": "6787a7cd19124155930d27aa39282a06",
   "fwLanguage": "en",
   "frameLength": 66.488327058680468,
   "showTakes": "1",
   "spanStart": 8.311040882335059,
   "spanEnd": 52.460865803653761,
+  "loopStart": 4.895766125222227,
+  "loopEnd": 10.796294516940666,
+  "loopOn": true,
   "children": [
     {
       "type": "SOUNDS",

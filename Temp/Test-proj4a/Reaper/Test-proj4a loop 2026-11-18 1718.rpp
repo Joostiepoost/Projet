@@ -1,0 +1,977 @@
+<REAPER_PROJECT 0.1 "7.0/macOS-arm64" 1795018724
+  RIPPLE 0
+  AUTOXFADE 0
+  PEAKGAIN 1
+  CURSOR 0
+  SAMPLERATE 96000 0 0
+  LOOP 1
+  SELECTION 0 24.0676620561
+  SELECTION2 0 24.0676620561
+  <NOTES 0 2
+    |Exported from Projet: Test-proj4a, 18 November 2026 17:18.
+    |The span from 4.6979493779 s to 28.765611434 s, moved to 0:00.
+    |Containers are folder tracks: their gain is the folder's volume, their fades its volume envelope.
+    |Not carried over: glyphs, factor curves, boards (their text is in the items' notes), relations.
+  >
+  MARKER 1 0 "Bell_scape_01" 1 0 1 R
+  MARKER 1 6.2151429933 "" 1
+  MARKER 2 8.6311073788 "Bell_scape_continuation" 1 0 1 R
+  MARKER 2 14.2002589554 "" 1
+  MARKER 3 14.2002589554 "Bell_scape_continuation" 1 0 1 R
+  MARKER 3 19.1177628658 "" 1
+  <TRACK {8611DF91-E57B-4B3E-B4D3-41C4443E1222}
+    NAME "Track 1"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {47430027-6937-46E9-A51C-8074F882F682}
+    MAINSEND 1 0
+  >
+  <TRACK {EA298913-1D1D-46DE-A479-3FCF8DA731ED}
+    NAME "Bell_scape_01"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {0BB1AFE9-564C-4960-BF07-02A08EC142FE}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 0
+      SNAPOFFS 0
+      LENGTH 6.2151429933
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {47F4E4A4-6FFC-4B5F-9BDC-2F2FDC4601DB}
+      IID 1
+      <NOTES
+        |Bell_scape_01
+        |Writing type: weaving, texture
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {9721B235-1D71-4C2B-B011-30C762F00564}
+    NAME "Track 1"
+    PEAKCOL 25144940
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 0 0
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {E4AFCC03-581B-4A2E-889F-67820DAC1ED5}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 0.2865053895
+      SNAPOFFS 0
+      LENGTH 2
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {47BC5D94-BCE9-4585-B14B-CF66F948043F}
+      IID 2
+      <NOTES
+        |Ruw idee v1
+        |
+        |Dit is take 1 met goede opname maar juist te kort voor de tijd;
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {AD8AA9B2-ACF5-4C34-A12C-18A79431290F}
+    NAME "Track 2"
+    PEAKCOL 21931415
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 0 0
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {755F745A-B557-418C-B312-330DA254FB09}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 0.2265581163
+      SNAPOFFS 0
+      LENGTH 2.3895970919
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 5 1.6871373755 0 5 0 0 0
+      FADEOUT 5 0.005 0 5 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {07F22069-C47C-42F1-9E3A-941E6A4A16D0}
+      IID 3
+      <NOTES
+        |Start-idee
+        |Energy: Percussion-resonance (curves: dynamics, harmonic halo, attack, sustainment)
+        |Second energy: Oscillation (curves: dynamics, triggering force, speed)
+        |
+        |Dit zijn de algemene notes
+      >
+      NAME "A: Untitled capture 2026-11-07 130840"
+      VOLPAN 1 0 0.1318256706 -1
+      SOFFS 20.9508691406
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {E6591E66-5645-42B0-9D12-B096F6DAB487}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 130840.ogg"
+      >
+      TAKE
+      NAME "B: Untitled capture 2026-11-07 143018"
+      TAKEVOLPAN 0 1 -1
+      SOFFS 0.5619128216
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {D7BBB105-4709-4703-8EC9-37FC7FAE1DE6}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 143018.ogg"
+      >
+      TAKE
+      NAME "C: Untitled capture 2026-11-07 130840"
+      TAKEVOLPAN 0 0.5623413324 -1
+      SOFFS 20.9508691406
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {F2AC0520-C02D-4FDA-9D14-5A4E1F015418}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 130840.ogg"
+      >
+      TAKE
+      NAME "E: Untitled capture 2026-11-07 143018"
+      TAKEVOLPAN 0 1 -1
+      SOFFS 0.5619128216
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {9E9FA3BA-F9CE-4E83-AC1A-A3AA9960603E}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 143018.ogg"
+      >
+    >
+    <ITEM
+      POSITION 3.0092663012
+      SNAPOFFS 0
+      LENGTH 2.8731792861
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 5 0.005 0 5 0 0 0
+      FADEOUT 5 0.01 0 5 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {59A3FFA3-8360-45E8-91EC-C2649E15CEA4}
+      IID 4
+      <NOTES
+        |Start-idee
+        |Second energy: Percussion-resonance (curves: dynamics, harmonic halo, sustainment)
+        |Dynamic profile: delta
+        |
+        |This has a few extra ideas for sound files
+      >
+      NAME "A: Untitled capture 2026-11-07 130840"
+      VOLPAN 1 0 0.1318256706 -1
+      SOFFS 23.3404662326
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {38C11923-048A-40EC-92F9-AF66D1A75C15}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 130840.ogg"
+      >
+      TAKE SEL
+      NAME "B: Untitled capture 2026-11-07 143018"
+      TAKEVOLPAN 0 1 -1
+      SOFFS 2.9515099135
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {7556E744-BC6E-428E-9B9C-FDB6BBF2B1FB}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 143018.ogg"
+      >
+      TAKE
+      NAME "C: Untitled capture 2026-11-07 130840"
+      TAKEVOLPAN 0 0.5623413324 -1
+      SOFFS 23.3404662326
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {82FFDE14-F4A8-4BA2-B25E-E236D5E3429F}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 130840.ogg"
+      >
+    >
+  >
+  <TRACK {1E93F3A9-461B-4FAE-98D3-87A43BFD6B1E}
+    NAME "Track 3"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {6CED6B5B-1A38-4340-8DEC-97B6866E0253}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 1.6524116584
+      SNAPOFFS 0
+      LENGTH 3.3373047834
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 5 0.01 0 5 0 0 0
+      FADEOUT 5 0.01 0 5 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {BC5DA38C-2236-4648-9413-C9E4E7448694}
+      IID 5
+      <NOTES
+        |Untitled capture 2026-11-07 130840
+        |Energy: Friction-granulation (curves: dynamics, speed, grain, iterative sustainment)
+        |Second energy: Flow (curves: dynamics)
+        |Semiotic level: I-son
+        |Role: F foreground / figure
+        |Dynamic profile: decrescendo
+      >
+      NAME "Untitled capture 2026-11-07 130840"
+      VOLPAN 1 0 0.7852356434 -1
+      SOFFS 0.7128691428
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {372F34FE-B460-402C-ACF5-FADD95AD9B1D}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 143018.ogg"
+      >
+    >
+  >
+  <TRACK {F975768D-BE86-42E9-B13D-5B06D303F0A1}
+    NAME "Bell_scape_continuation"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {8732A277-E800-485F-9886-9DD73E812F1B}
+    MAINSEND 1 0
+    <VOLENV2
+      EGUID {81C9D58A-08D4-46B2-9837-92DF75522BC8}
+      ACT 1 -1
+      VIS 1 1 1
+      LANEHEIGHT 0 0
+      ARM 0
+      DEFSHAPE 0 -1 -1
+      PT 8.6311073788 1 0
+      PT 14.1952589554 1 2
+      PT 14.2002589554 0 0
+    >
+    <ITEM
+      POSITION 8.6311073788
+      SNAPOFFS 0
+      LENGTH 5.5691515766
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {D71A737F-50DD-405C-A723-DC3DC79E7088}
+      IID 6
+      <NOTES
+        |Bell_scape_continuation
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {4280553A-473F-429D-8491-A7CA1A9CA382}
+    NAME "Track 1"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {A1DE3675-0F0C-4E9C-B15E-0B454F3EA685}
+    MAINSEND 1 0
+  >
+  <TRACK {D668E5F2-45D6-4B46-9396-B5BF8E82FBD6}
+    NAME "Text"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {6FA9D9AE-B5B9-4F0A-A72E-CEAB7D6F2C4F}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 9.7935899429
+      SNAPOFFS 0
+      LENGTH 4.3620348611
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {88FB6F7C-4DE7-43C9-A926-54F29C5BF8FA}
+      IID 7
+      <NOTES
+        |Text
+        |Energy: Friction-granulation
+        |Semiotic level: I-son
+        |Role: F foreground / figure
+        |Dynamic profile: < crescendo / reversed sound
+        |Type (Schaeffer's typology): formed iterative note, complex
+        |Ending: cut
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {F4FE6C17-67F3-4109-8F5B-F9EA65F1DD08}
+    NAME "Track 1"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {9553A5E8-1679-4DFD-AA6F-992F6B1EAD1E}
+    MAINSEND 1 0
+  >
+  <TRACK {2F8D66B9-3849-4513-BD82-665842B487C8}
+    NAME "Text"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 0.0331131108 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {07DED2A2-E5C2-4D65-9A17-2F612C558EA1}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 13.6104375016
+      SNAPOFFS 0
+      LENGTH 0.5898214538
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {155B1127-E404-46AD-9A43-FA847DD593B9}
+      IID 8
+      <NOTES
+        |Text
+        |Density: 10
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {3A5CB397-BE5A-434F-94D1-4A285545D1BD}
+    NAME "Track 1"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -2
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {83FF2B16-E0A6-4324-9394-526D3A0D566A}
+    MAINSEND 1 0
+  >
+  <TRACK {33E381BA-3D2E-4814-884D-9B08265166CE}
+    NAME "Track 2"
+    PEAKCOL 21931415
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 0 0
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {F0996BE1-D2DE-45CC-8B55-CC358C5D59BE}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 12.8490633707
+      SNAPOFFS 0
+      LENGTH 1.3511955847
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {CB4848F6-85EB-42A5-857B-ACE7ED990DF4}
+      IID 9
+      <NOTES
+        |Text
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {CAC2D684-15F0-457D-99FF-C90354FBFEA0}
+    NAME "Track 3"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {8F8350F1-0224-4FEC-A47C-43A3C276B9F6}
+    MAINSEND 1 0
+  >
+  <TRACK {8C2F74CE-8977-4F2D-92F3-C786E6BD2C30}
+    NAME "Container"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {6B466BC7-D700-4AED-B456-DF22D68AE8D1}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 10.3788832933
+      SNAPOFFS 0
+      LENGTH 2.8494677703
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {5D303BA8-5E77-41CB-914C-C90B4340258C}
+      IID 10
+      <NOTES
+        |Container
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {8D2059F5-F93C-436D-B35F-ECC4E014ED84}
+    NAME "Track 1"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {AA063D07-8A61-484B-8D71-9FEAB3C9ADE9}
+    MAINSEND 1 0
+  >
+  <TRACK {D7773D85-7B3A-4C93-904A-5653631461C4}
+    NAME "Container"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {09D8F754-A46F-4DFE-AE71-FFE11BD19A9F}
+    MAINSEND 1 0
+  >
+  <TRACK {FA1A1069-DE2D-46F8-A8A4-1B9254CCD2E7}
+    NAME "Track 1"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -3
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {CDD76587-5E58-43FA-B34A-FEF7376D3B20}
+    MAINSEND 1 0
+  >
+  <TRACK {037445FF-791E-40AF-9452-8CD8095DD0E1}
+    NAME "Bell_scape_continuation"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {8677EFD2-B1BB-4E83-920B-A0AF669FCF99}
+    MAINSEND 1 0
+    <VOLENV2
+      EGUID {A2C686B3-BE2B-476A-8F0B-9178486AFEE7}
+      ACT 1 -1
+      VIS 1 1 1
+      LANEHEIGHT 0 0
+      ARM 0
+      DEFSHAPE 0 -1 -1
+      PT 14.2002589554 0 2
+      PT 14.2052589554 1 0
+    >
+    <ITEM
+      POSITION 14.2002589554
+      SNAPOFFS 0
+      LENGTH 4.9175039103
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {22BE8A29-AE29-4088-8A99-052AF1843BF8}
+      IID 11
+      <NOTES
+        |Bell_scape_continuation
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {EAACC70C-440E-497D-B82B-67A44DD9AE24}
+    NAME "Track 1"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {9A046AF1-E5EE-481E-BD35-C512B322A8F9}
+    MAINSEND 1 0
+  >
+  <TRACK {BB278400-5C33-497A-B3F2-B9EA177F332C}
+    NAME "Text"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {4A062D1F-6933-4909-AE10-D29C7700E8E5}
+    MAINSEND 1 0
+  >
+  <TRACK {313D1E6E-5A18-433D-8F38-94F0A216D773}
+    NAME "Track 1"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {30FAF4D1-4A25-41FE-92CB-DB809A6B0361}
+    MAINSEND 1 0
+  >
+  <TRACK {5F38F82B-0A89-435A-AAC0-1D8C4135257F}
+    NAME "Text"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 0.0331131108 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {AA0829E0-6C94-4808-AE08-7F6F3A2195AF}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 14.2002589554
+      SNAPOFFS 0
+      LENGTH 3.7722134073
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {96C39107-DC73-4A4D-A4F1-F5F19F4E943D}
+      IID 12
+      <NOTES
+        |Text
+        |Density: 10
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {923F1305-EE72-4417-8EBE-CEF7FCE342DF}
+    NAME "Track 1"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -2
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {EF0EE0DA-49C3-49F8-883C-263F49E81EEF}
+    MAINSEND 1 0
+  >
+  <TRACK {1577018B-1200-4663-BF5A-314F4C288B08}
+    NAME "Track 2"
+    PEAKCOL 21931415
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 0 0
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {5D59A6EE-AC1B-4EE2-A1F9-BC1371FB1082}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 14.2002589554
+      SNAPOFFS 0
+      LENGTH 3.0108392764
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {95CB1958-6E64-4DAF-9B74-DBBEFA4146F0}
+      IID 13
+      <NOTES
+        |Text
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {457E1878-F09B-418E-B366-96FB3C4C5E11}
+    NAME "Track 3"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {F0D4CDB1-2955-4A93-B814-A7593CE3E54D}
+    MAINSEND 1 0
+  >
+  <TRACK {63CA2219-ECEF-4A9A-B2A2-53D634DDDC05}
+    NAME "Container"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {3533CD64-6C46-414B-9BFA-B2B0C871C1F9}
+    MAINSEND 1 0
+  >
+  <TRACK {4F486AB6-C2B6-4EE6-9625-922D1A399A31}
+    NAME "Track 1"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {A9000EAC-43BF-4C78-95E4-CE39FBA0FF90}
+    MAINSEND 1 0
+  >
+  <TRACK {23681A22-822A-4BEF-B091-E5B61DE1273A}
+    NAME "Container"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {7BE98343-ABB8-42EA-BF11-4EEC3DF2142D}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 14.7215896921
+      SNAPOFFS 0
+      LENGTH 2.8211443434
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {AB566C21-7469-47B1-A758-8545CB231F38}
+      IID 14
+      <NOTES
+        |Container
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {E3E2E881-9120-4855-835C-DACA03BD3B31}
+    NAME "Track 1"
+    PEAKCOL 29661770
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -3
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {D503C007-FF90-40EB-BB3C-E19BE7396EAC}
+    MAINSEND 1 0
+  >
+  <TRACK {32D88DF7-BB68-4926-A1DF-3F12B63C3993}
+    NAME "Container"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {3B346B6E-6E97-4700-8158-26CE59427081}
+    MAINSEND 1 0
+  >
+  <TRACK {9CA4D19A-9FDE-498E-8AD8-5CA58D570816}
+    NAME "Track 1"
+    PEAKCOL 22905533
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -2
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {245B8317-1F9E-4424-B79D-228950105FCF}
+    MAINSEND 1 0
+  >
+  <TRACK {EBD65AFF-4E59-4123-9343-EF77250EA16C}
+    NAME "Track 2"
+    PEAKCOL 21931415
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 1 1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {F6EC8594-C00B-493F-87AB-EF6B38433639}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 1.950883328
+      SNAPOFFS 0
+      LENGTH 7.1699902769
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {AFB40120-2829-4707-B283-4405F3D1ECA7}
+      IID 15
+      <NOTES
+        |Board
+        |Board: 2 cards, 2 arrows, 2 shapes, 4 drawings, 1 image
+        |- reverb >   dit komt niet goed door
+        |- Means: Mixing splits chain into 2 chains:  - upper left channel: r - lower left channel: q  * *- upper right channel: s **- upper left channel: p**
+      >
+      IMGRESOURCEFLAGS 0
+    >
+    <ITEM
+      POSITION 8.4018817944
+      SNAPOFFS 0
+      LENGTH 5.8968337016
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {3D070D8F-427F-4FA7-A3C4-A5750405A781}
+      IID 16
+      <NOTES
+        |Text
+        |
+        |ideetjes waar ik nog mee verder moet
+      >
+      IMGRESOURCEFLAGS 0
+    >
+    <ITEM
+      POSITION 16.2160580886
+      SNAPOFFS 0
+      LENGTH 7.8516039675
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {BD2D11A2-50B8-4768-A7DB-B1F1E8D6A0D8}
+      IID 17
+      <NOTES
+        |Board
+        |Board: 2 cards, 1 arrow, 2 shapes, 4 drawings, 1 image, 2 sound cards, 1 morphogram region, 5 gestures, 2 playing in the piece
+        |- reverb >
+        |- Means: Mixing splits chain into 2 chains:  - upper
+      >
+      IMGRESOURCEFLAGS 0
+    >
+  >
+  <TRACK {4EECDD4F-7310-4C0E-9C8F-14DD4CC5AFE9}
+    NAME "Board: temporal outs"
+    PEAKCOL 21931415
+    BEAT -1
+    AUTOMODE 0
+    VOLPAN 1 0 -1 -1 1
+    MUTESOLO 0 0 0
+    IPHASE 0
+    ISBUS 2 -1
+    BUSCOMP 0 0 0 0 0
+    SEL 0
+    NCHAN 2
+    TRACKID {44064A60-9185-4CE3-A317-1C91EF545916}
+    MAINSEND 1 0
+    <ITEM
+      POSITION 16.2160580886
+      SNAPOFFS 0
+      LENGTH 5.1342892322
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {E0C19A47-B901-425F-85F4-9DD02BB630A5}
+      IID 18
+      NAME "Untitled capture 2026-11-07 130840"
+      VOLPAN 1 0 0.1348962933 -1
+      SOFFS 48.2657204293
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {98CCAADE-E2BB-49D3-B676-6CD6EA9FB328}
+      <SOURCE VORBIS
+        FILE "../Sounds/Untitled capture 2026-11-07 130840.ogg"
+      >
+    >
+    <ITEM
+      POSITION 21.2160580886
+      SNAPOFFS 0
+      LENGTH 2.8516039675
+      LOOP 0
+      ALLTAKES 0
+      FADEIN 0 0 0 0 0 0 0
+      FADEOUT 0 0.005 0 0 0 0 0
+      MUTE 0 0
+      SEL 0
+      IGUID {28C14E2E-8807-4038-96A3-3906515F546D}
+      IID 19
+      NAME "Goblet 2026-11-05 153739 render"
+      VOLPAN 1 0 3.9810717106 -1
+      SOFFS 10.8157334877
+      PLAYRATE 1 1 0 -1 0 0.0025
+      CHANMODE 0
+      GUID {6BC0679F-9EDA-409C-8CB5-0747D69CE747}
+      <SOURCE VORBIS
+        FILE "../Sounds/Goblet 2026-11-05 153739 render.ogg"
+      >
+    >
+  >
+>
