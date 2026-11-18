@@ -766,6 +766,32 @@ double Project::levelToPiece (double t) const
     return t;
 }
 
+juce::Range<double> Project::getLoop() const
+{
+    if (! state.hasProperty (IDs::loopStart)) return {};
+    const double a = state[IDs::loopStart], b = state[IDs::loopEnd];
+    return b > a + 1.0e-6 ? juce::Range<double> (juce::jmax (0.0, a), b) : juce::Range<double>();
+}
+
+void Project::setLoop (juce::Range<double> r)
+{
+    if (r.getLength() < 1.0e-3)
+    {
+        state.removeProperty (IDs::loopStart, um());
+        state.removeProperty (IDs::loopEnd, um());
+        return;
+    }
+    r = r.withStart (juce::jmax (0.0, r.getStart()));
+    state.setProperty (IDs::loopStart, r.getStart(), um());
+    state.setProperty (IDs::loopEnd, r.getEnd(), um());
+}
+
+void Project::setLoopOn (bool on)
+{
+    if (on == (bool) state.getProperty (IDs::loopOn, false)) return;
+    state.setProperty (IDs::loopOn, on, nullptr);
+}
+
 double Project::pieceToLevel (double t) const
 {
     for (auto& c : focusPath()) t = toInner (c, t);

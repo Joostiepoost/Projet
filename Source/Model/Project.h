@@ -41,6 +41,17 @@ public:
     juce::String getPlaceholderFormat() const       { return state.getProperty (IDs::placeholderFormat, "ogg").toString(); }
     int getVorbisQuality() const                    { return (int) state.getProperty (IDs::vorbisQuality, 7); }
 
+    //== Loop region (stage 10a) ==============================================
+    // Kept in the piece's time, whatever level is shown; saved with the project.
+    /** The loop region (piece seconds), empty when none is drawn. */
+    juce::Range<double> getLoop() const;
+    bool hasLoop() const                            { return ! getLoop().isEmpty(); }
+    /** Draws (or moves) the loop; undoable. An empty range removes it. */
+    void setLoop (juce::Range<double> pieceSeconds);
+    bool isLoopOn() const                           { return hasLoop() && (bool) state.getProperty (IDs::loopOn, false); }
+    /** Turns looping on or off (not an undo step, like play and stop). */
+    void setLoopOn (bool);
+
     //== Sounds ===============================================================
     juce::ValueTree getSounds()                     { return state.getChildWithName (IDs::SOUNDS); }
     juce::ValueTree findSound (const juce::String& soundId) const;

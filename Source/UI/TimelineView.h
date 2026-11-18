@@ -115,6 +115,8 @@ public:
 
     //== Callbacks ============================================================
     std::function<void (double seconds)> onLocate;
+    /** The loop (10a): 0 turn it on or off, 1 loop the selected boxes, 2 remove it. */
+    std::function<void (int action)> onLoopAction;
     std::function<void()> onSelectionChanged;
     std::function<void (const juce::StringArray& files, juce::ValueTree track, double seconds)> onFilesDropped;
     std::function<void (juce::ValueTree box)> onRevealOriginal;
@@ -189,7 +191,8 @@ private:
                           drawNode, nodeMove, nodeStart, nodeEnd,
                           trackHeight,                                                       // a track's lower edge (after stage 7)
                           factorCurve,                                                       // a factor's curve over a box (stage 8)
-                          linkOut };                                                         // a box Alt-dragged onto a board (9b)
+                          linkOut,                                                           // a box Alt-dragged onto a board (9b)
+                          loopDraw, loopStart, loopEnd, loopMove };                          // the loop region (10a)
     enum class Zone { none, body, startEdge, endEdge, fadeInHandle, fadeOutHandle };
 
     struct TrackRow { juce::ValueTree track; int y = 0, h = 0, depth = 0; bool folder = false; };
@@ -438,6 +441,22 @@ private:
     juce::String selectedTrackId;
 
     DragMode dragMode = DragMode::none;
+
+    // The loop region (10a), in the piece's time
+
+    juce::Range<double> loopWas;
+
+    double loopAnchor = 0.0;
+
+    /** The loop's ends on screen (this view's level), or empty. */
+
+    juce::Range<float> loopOnScreen() const;
+
+    /** -1 near the loop's start, 1 near its end, 0 elsewhere. */
+
+    int loopEdgeAt (float x) const;
+
+    void paintLoop (juce::Graphics&);
     juce::ValueTree dragBox;
     double dragStartTime = 0.0, dragOrigStart = 0.0, dragOrigEnd = 0.0, dragOrigFadeIn = 0.0, dragOrigFadeOut = 0.0;
     float dragGrabOffset = 0.0f;

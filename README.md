@@ -57,13 +57,14 @@ Other options:
 | 8 | Framework, layer 4: variation factors as curves along a box (in its Framework tab or drawn over the box), reshaping its glyph; one factor across the boxes in the energies lane | done |
 | 9a | Board box: a free canvas in a box, opened below the timeline (or filling the area): text cards, arrows between them, shapes, the pen, images; a chosen part of it shown on the box | done |
 | 9b | Board box: sound cards (heard on the board, fragments, dragged onto tracks), temporal outs (a board box that sounds in the piece), timeline links | done |
-| 9c | Board box: morphogram regions (time across, register up) and energy gestures (a path drawn with an energy's glyph, its factor curves along it; dragged onto a track as a text box) | built, to test |
-| 10 | Reaper export and graphic score (SVG to edit, PDF to annotate) | |
+| 9c | Board box: morphogram regions (time across, register up) and energy gestures (a path drawn with an energy's glyph, its factor curves along it; dragged onto a track as a text box) | done |
+| 10a | Loop region (drawn on the seconds ruler, a Loop button by Play), and the Reaper export: the piece as one .rpp, containers as folder tracks, text and boards as empty items with notes, takes, regions and markers | built, to test |
+| 10b | Graphic score (SVG to edit, PDF to annotate) | |
 | 11 | Relations, materials, origin; the operations of the structuring language (once the research is ready) | |
 | 12 | Strata view | |
 | 13 | A framework package template, for packages of your own | |
 
-## Using Projet (stages 1–9c)
+## Using Projet (stages 1–10a)
 
 ### The project folder
 
@@ -400,6 +401,14 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **Onto a track**: with the timeline in view above, drag a gesture up out of the board onto a track: a text box named after its energy, as long as its time span (4 s if it has none), with its energy, second energy and their curves. Drawing first, sound later.
 - **On the timeline**: select a region and *Show it on the box*: the board box then shows the region's gestures each at its own time in the box, register up (taller tracks show them larger). The region is outlined on the board, *in its time*; it stays shown when you move or resize it.
 
+### Loop region and Reaper export (stage 10a)
+
+- **Drawing the loop**: drag along the seconds ruler (a click there still moves the playhead). Drag its ends to change it, and the green band along the top of the ruler to move it; Shift turns snapping off. **Cmd-L** loops the selected boxes. Right-click the seconds ruler: *Loop on*, *Loop the selected boxes*, *Remove the loop*.
+- **Looping**: the **Loop** button beside Play, or **L**, turns it on and off (green when on; the loop stays drawn, grey, when off). Playback that reaches the loop's end goes on from its start, with an 8 ms crossfade at the seam so it does not click; playback started after the loop's end plays on. The loop is in the piece's time: inside a container or in the magnifier it shows where it falls. It is saved with the project; drawing and moving it are undone with Cmd-Z, turning it on and off is not.
+- **Export to Reaper**: *File > Export to Reaper...* (**Cmd-Shift-R**). Choose the whole piece or the loop's span (moved to 0:00), and the regions and markers. It writes a new .rpp in the project's **Reaper** folder each time, named with the date and time, so an export you have worked on in Reaper is never overwritten; then *Open in Reaper*, *Show in Finder* or OK.
+- **What Reaper gets**: the tracks and folders as tracks and folder tracks (names, colours, mute, solo). Sound boxes as items at the same place, with their offset, gain and fades; a box's sound takes as the item's takes, the active one active (named "A: sound", "B: sound"). Each container as a folder track named after it, under its track, holding its tracks: its gain is the folder's volume and its fades the folder's volume envelope, and its sounds sit where they sound, cut at its edges with a 5 ms fade, as Projet plays them. Text boxes as empty items with their name, framework values (energy, level and so on, with the curves drawn) and notes as item text. Board boxes as empty items with the board's summary and its cards' words; their temporal outs as items on a track "name: temporal outs" under them. The piece's containers as regions; the named marks and the nodes as markers. The loop as Reaper's loop and time selection. The project notes say what could not be carried over (glyphs, curves, boards).
+- **The sounds** are the project's copies (Ogg Vorbis or FLAC, as Projet plays them), by paths relative to the .rpp (`../Sounds/...`), so the project folder can move. Replace them with the originals in Reaper as you go.
+
 **Opacity follows gain**: a sound box or a container is drawn fainter the quieter it is, from fully opaque at 0 dB (and above) to the faintest at −72 dB, evenly per dB in between. Text boxes keep their own opacity setting.
 
 ### Folders (stage 3a)
@@ -431,6 +440,13 @@ A **board box** holds a free canvas for working out the logic of a section: card
 - **Audio > Audio settings (Cmd-,)**: output device and sample rate. Set the device to the project's rate: then every sample is played exactly as stored. At another rate Projet still plays correctly (through the sinc kernel), and the status line says so.
 - The meters top right show the output peak.
 - **Audio** (the button top right, or *Audio > Audio engine on*) turns the audio engine off and on. Off, the audio device is closed, so Projet uses no CPU for sound, which saves battery while you sketch; Play (or *Audio settings*) turns it on again. It stays as you left it when you quit.
+
+**Worth testing in stage 10a**:
+- Drag along the seconds ruler: a loop. Play across it: it loops, with no click at the seam. Turn it off and on with the Loop button and with L; play from after its end (it plays on).
+- Drag its ends and its band; Cmd-Z. Select a few boxes and Cmd-L. Dive into a container, or open the magnifier: the loop where it falls. Save, quit, reopen: it is still there.
+- *File > Export to Reaper...*, the whole piece; *Open in Reaper*. Check: the tracks and folders, the colours (if red and blue look swapped, tell me), each container as a folder track holding its tracks, the sounds found and playing as in Projet (stretched and windowed containers, gains, fades), the takes (click an item's take), the notes on text boxes and boards, the regions and markers, the loop.
+- Play the Reaper project against Projet's playback: tell me where they differ.
+- Export the loop's span only; export twice (two files, neither overwritten).
 
 **Worth testing in stage 9c**:
 - On a board: M and drag a region. E, choose an energy, draw a gesture across it (a slow curve, then a quick zigzag). Draw a second with another energy. V.
