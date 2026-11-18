@@ -9,6 +9,11 @@ TransportBar::TransportBar()
     playButton.setClickingTogglesState (false);
     playButton.onClick = [this] { if (onPlayStop) onPlayStop(); };
     startButton.onClick = [this] { if (onToStart) onToStart(); };
+    loopButton.setClickingTogglesState (false);
+    loopButton.onClick = [this] { if (onToggleLoop) onToggleLoop(); };
+    loopButton.setColour (juce::TextButton::buttonOnColourId, Theme::loop);
+    loopButton.setColour (juce::TextButton::textColourOnId, juce::Colour (0xff101114));
+    setLoop (false, false);
     zoomIn.onClick = [this] { if (onZoomIn) onZoomIn(); };
     zoomOut.onClick = [this] { if (onZoomOut) onZoomOut(); };
     zoomFit.onClick = [this] { if (onZoomFit) onZoomFit(); };
@@ -29,7 +34,7 @@ TransportBar::TransportBar()
     zoomFit.setTooltip ("Show the whole piece (Cmd-0)");
     importButton.setTooltip ("Import sounds (Cmd-I)");
 
-    for (auto* b : { &playButton, &startButton, &zoomIn, &zoomOut, &zoomFit, &importButton, &panelButton, &audioButton, &outlineButton })
+    for (auto* b : { &playButton, &startButton, &loopButton, &zoomIn, &zoomOut, &zoomFit, &importButton, &panelButton, &audioButton, &outlineButton })
         addAndMakeVisible (*b);
 
     nameLabel.setFont (Theme::font (15.0f, true));
@@ -39,6 +44,14 @@ TransportBar::TransportBar()
     statusLabel.setColour (juce::Label::textColourId, Theme::textMuted);
     for (auto* l : { &nameLabel, &timeLabel, &statusLabel })
         addAndMakeVisible (*l);
+}
+
+void TransportBar::setLoop (bool on, bool exists)
+{
+    loopButton.setToggleState (on, juce::dontSendNotification);
+    loopButton.setAlpha (exists ? 1.0f : 0.6f);
+    loopButton.setTooltip (exists ? juce::String ("Loop on or off (L). Drag along the seconds ruler to draw another loop; drag its ends or its band to change it.")
+                                  : juce::String ("Loop (L): drag along the seconds ruler to draw one, or Cmd-L to loop the selected boxes."));
 }
 
 void TransportBar::setPlaying (bool p)
@@ -110,6 +123,8 @@ void TransportBar::resized()
     startButton.setBounds (r.removeFromLeft (36));
     r.removeFromLeft (4);
     playButton.setBounds (r.removeFromLeft (64));
+    r.removeFromLeft (4);
+    loopButton.setBounds (r.removeFromLeft (52));
     r.removeFromLeft (12);
     timeLabel.setBounds (r.removeFromLeft (110));
     r.removeFromLeft (12);

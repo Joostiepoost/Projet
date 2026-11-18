@@ -39,6 +39,7 @@ set(PROJET_CORE_SOURCES
     Source/Engine/SoundData.cpp
     Source/Engine/Importer.cpp
     Source/Engine/Arrangement.cpp
+    Source/Engine/ReaperExport.cpp
     Source/Engine/PlaybackEngine.cpp
     Source/Engine/Previewer.cpp
     Source/Model/Project.cpp

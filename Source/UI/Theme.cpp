@@ -99,7 +99,7 @@ void LookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b, cons
                                         bool highlighted, bool down)
 {
     auto r = b.getLocalBounds().toFloat().reduced (0.5f);
-    auto c = b.getToggleState() ? findColour (juce::TextButton::buttonOnColourId) : backgroundColour;
+    auto c = b.getToggleState() ? b.findColour (juce::TextButton::buttonOnColourId) : backgroundColour;   // the button's own (the Loop button's green)
     if (down) c = c.brighter (0.15f);
     else if (highlighted) c = c.brighter (0.07f);
     g.setColour (c);

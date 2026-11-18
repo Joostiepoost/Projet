@@ -56,7 +56,9 @@ public:
         cmdDiveIn, cmdLevelUp, cmdToggleOutline,                 // stage 5b
         cmdMagnify,                                              // stage 6
         cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes,  // stage 7
-        cmdNewBoard                                              // stage 9
+        cmdNewBoard,                                             // stage 9
+        cmdLoopToggle, cmdLoopSelection,                         // stage 10a
+        cmdExportReaper
     };
 
     /** A .projet file opens; sound files are imported on the selected track at the playhead. */
@@ -259,6 +261,11 @@ private:
     void showBox (juce::ValueTree box);
     void importSoundCards (const juce::StringArray& files, juce::Point<float> boardPoint);
     void dropSoundCard (const juce::String& boardBoxId, const juce::String& cardId, juce::ValueTree track, double start);
+    // The loop region (10a)
+    void loopAction (int action);         // 0 on/off, 1 the selected boxes, 2 remove
+    void syncLoop();
+    // The Reaper export (10a)
+    void exportToReaper();
     void dropGesture (const juce::String& boardBoxId, const juce::String& gestureId, juce::ValueTree track, double start, double length);
     bool previewWasPlaying = false;
     ImportPanel importPanel;

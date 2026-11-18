@@ -64,6 +64,9 @@ namespace IDs
     // Project
     PROJET_ID (formatVersion)
     PROJET_ID (sampleRate)
+    PROJET_ID (loopStart)             // the loop region (10a): piece seconds, on the project
+    PROJET_ID (loopEnd)
+    PROJET_ID (loopOn)                //   playback loops it
     PROJET_ID (placeholderFormat)     // "ogg" or "flac"
     PROJET_ID (vorbisQuality)         // 0..10 (JUCE quality index; q = index / 10)
     PROJET_ID (viewStart)             // seconds at the left edge of the timeline

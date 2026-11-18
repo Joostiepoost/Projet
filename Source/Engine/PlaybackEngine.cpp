@@ -10,6 +10,14 @@ PlaybackEngine::PlaybackEngine()
     KernelBank::buildAll();
     reader.prepare (4.0, KernelBank::get (Quality::High).halfWidth());
     for (auto& s : scratch) s.assign (32768, 0.0f);
+    for (auto& b : seamBuffer) b.assign (1024, 0.0f);
+}
+
+void PlaybackEngine::setLoop (bool on, double startSeconds, double endSeconds)
+{
+    loopStartSec.store (juce::jmax (0.0, startSeconds));
+    loopEndSec.store (juce::jmax (0.0, endSeconds));
+    loopOn.store (on && endSeconds > startSeconds + 0.01);
 }
 
 PlaybackEngine::~PlaybackEngine() = default;
@@ -75,6 +83,7 @@ void PlaybackEngine::process (float* const* outputs, int numOutputs, int numSamp
     {
         lastLocate = lc;
         position = pendingLocate.load() * projectRate;
+        seamLeft = 0;
     }
 
     if (! playing.load() || arr == nullptr || numOutputs < 1)
@@ -96,17 +105,14 @@ void PlaybackEngine::process (float* const* outputs, int numOutputs, int numSamp
         {
             const int n = juce::jmin (256, numSamples - done);
             juce::FloatVectorOperations::clear (right, n);
-            if (std::abs (ratio - 1.0) < 1.0e-12) processExact (*arr, l + done, right, n);
-            else                                  processResampled (*arr, l + done, right, n, ratio);
+            renderLooping (*arr, l + done, right, n, ratio);
             juce::FloatVectorOperations::add (l + done, right, n);
             juce::FloatVectorOperations::multiply (l + done, 0.5f, n);
             done += n;
         }
     }
-    else if (std::abs (ratio - 1.0) < 1.0e-12)
-        processExact (*arr, l, r, numSamples);
     else
-        processResampled (*arr, l, r, numSamples, ratio);
+        renderLooping (*arr, l, r, numSamples, ratio);
 
     uiSeconds.store (position / projectRate);
     auto peakOf = [numSamples] (const float* x)
@@ -142,6 +148,78 @@ void PlaybackEngine::mix (const Arrangement& arr, int64_t from, int n, float* l,
             const auto k = (size_t) (s - from);
             l[k] += srcL[src] * g;
             r[k] += srcR[src] * g;
+        }
+    }
+}
+
+void PlaybackEngine::render (const Arrangement& arr, double& pos, float* l, float* r, int numSamples, double ratio) noexcept
+{
+    const double kept = position;
+    position = pos;
+    if (std::abs (ratio - 1.0) < 1.0e-12) processExact (arr, l, r, numSamples);
+    else                                  processResampled (arr, l, r, numSamples, ratio);
+    pos = position;
+    position = kept;
+}
+
+void PlaybackEngine::renderLooping (const Arrangement& arr, float* l, float* r, int numSamples, double ratio) noexcept
+{
+    const double rate = arr.sampleRate;
+    const bool looping = loopOn.load();
+    const double loopStart = loopStartSec.load() * rate, loopEnd = loopEndSec.load() * rate;
+    const int capacity = (int) seamBuffer[0].size();
+
+    for (int done = 0; done < numSamples;)
+    {
+        int n = numSamples - done;
+        // Up to the loop's end, when playback is before it.
+        const bool beforeEnd = looping && position < loopEnd;
+        if (beforeEnd)
+        {
+            const int untilEnd = (int) std::ceil ((loopEnd - position) / ratio - 1.0e-9);
+            if (untilEnd <= 0)
+            {
+                seamFrom = position;
+                position = loopStart + (position - loopEnd);
+                seamTotal = seamLeft = juce::jmax (1, (int) std::lround (loopSeamSeconds * rate / ratio));
+                continue;
+            }
+            n = juce::jmin (n, untilEnd);
+        }
+        if (seamLeft > 0)
+        {
+            // The seam: the new pass fades in while the old one goes on past the end, fading out.
+            n = juce::jmin (n, seamLeft, capacity);
+            float* inL = seamBuffer[0].data();
+            float* inR = seamBuffer[1].data();
+            float* outL = seamBuffer[2].data();
+            float* outR = seamBuffer[3].data();
+            for (auto* b : { inL, inR, outL, outR }) juce::FloatVectorOperations::clear (b, n);
+            double pos = position;
+            render (arr, pos, inL, inR, n, ratio);
+            position = pos;
+            render (arr, seamFrom, outL, outR, n, ratio);
+            for (int k = 0; k < n; ++k)
+            {
+                const double x = (double) (seamTotal - seamLeft + k + 1) / (double) seamTotal;
+                const float gIn = fadeCurve (FadeShape::sCurve, x), gOut = 1.0f - gIn;
+                l[done + k] += inL[k] * gIn + outL[k] * gOut;
+                r[done + k] += inR[k] * gIn + outR[k] * gOut;
+            }
+            seamLeft -= n;
+        }
+        else
+        {
+            double pos = position;
+            render (arr, pos, l + done, r + done, n, ratio);
+            position = pos;
+        }
+        done += n;
+        if (looping && beforeEnd && position >= loopEnd - 1.0e-6)
+        {
+            seamFrom = position;
+            position = loopStart + (position - loopEnd);
+            seamTotal = seamLeft = juce::jmax (1, (int) std::lround (loopSeamSeconds * rate / ratio));
         }
     }
 }

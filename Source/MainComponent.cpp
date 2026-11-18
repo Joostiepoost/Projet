@@ -3,6 +3,7 @@
 #include "MainComponent.h"
 #include "Engine/Arrangement.h"
 #include "UI/TimeFormat.h"
+#include "Engine/ReaperExport.h"
 
 namespace
 {
@@ -161,6 +162,7 @@ MainComponent::MainComponent()
 
     transport.onPlayStop = [this] { playStop(); };
     transport.onToStart = [this] { locate (0.0); };
+    transport.onToggleLoop = [this] { loopAction (0); };
     transport.onZoomIn = [this] { if (boardActive) board.zoomBy (1.25f); else view().zoomBy (1.5, playheadInLevel()); };
     transport.onZoomOut = [this] { if (boardActive) board.zoomBy (0.8f); else view().zoomBy (1.0 / 1.5, playheadInLevel()); };
     transport.onZoomFit = [this] { if (boardActive) board.zoomToFit(); else view().zoomToFit(); };
@@ -340,6 +342,7 @@ void MainComponent::wireView (TimelineView& v)
     v.onOpenBoard = [this] (juce::ValueTree box) { openBoard (box); };
     v.onMagnify = [this, &v] (juce::ValueTree c) { magnify (v, c); };
     v.onLocate = [this] (double t) { locate (t); };
+    v.onLoopAction = [this] (int a) { loopAction (a); };
     v.onSelectionChanged = [this, &v]
     {
         if (&v == active) selectionChanged();
@@ -970,6 +973,7 @@ void MainComponent::modelChanged()
     levelBar.repaint();
     syncSounds();
     rebuildArrangement();
+    syncLoop();
     inspector.refresh();
     if (notesWindow != nullptr) notesWindow->refresh();
     repaintViews();
@@ -1366,6 +1370,118 @@ void MainComponent::setAudioOn (bool on, bool announce)
     commandManager.commandStatusChanged();
 }
 
+//== The Reaper export (stage 10a) =============================================
+
+void MainComponent::exportToReaper()
+{
+    if (! hasProject()) return;
+    juce::Component::SafePointer<MainComponent> safeThis (this);
+    const auto loop = project.getLoop();
+    auto* w = new juce::AlertWindow ("Export to Reaper",
+                                     "A Reaper project (.rpp) in the project's Reaper folder, with the sounds where they are. "
+                                     "Containers become folder tracks; text and boards become empty items with their notes.",
+                                     juce::MessageBoxIconType::NoIcon, this);
+    juce::StringArray what { "The whole piece" };
+    if (! loop.isEmpty()) what.add ("The loop: " + TimeFormat::format (loop.getStart(), 3) + " to " + TimeFormat::format (loop.getEnd(), 3) + ", moved to 0:00");
+    w->addComboBox ("what", what, "What");
+    w->addComboBox ("marks", { "Containers as regions, marks and nodes as markers", "Containers as regions only", "No regions or markers" }, "Regions and markers");
+    w->addButton ("Export", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    w->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    w->enterModalState (true, juce::ModalCallbackFunction::create ([safeThis, w, loop] (int r)
+    {
+        if (safeThis == nullptr || r != 1) return;
+        auto& self = *safeThis;
+        projet::ReaperExport::Options options;
+        if (w->getComboBoxComponent ("what")->getSelectedItemIndex() == 1) options.span = loop;
+        const int marks = w->getComboBoxComponent ("marks")->getSelectedItemIndex();
+        options.regions = marks <= 1;
+        options.markers = marks == 0;
+
+        // A new file each time: an export worked on in Reaper is never overwritten.
+        auto dir = self.folder.getFolder().getChildFile ("Reaper");
+        dir.createDirectory();
+        const auto name = juce::File::createLegalFileName (self.folder.getProjectFile().getFileNameWithoutExtension()
+                                                           + (options.span.isEmpty() ? juce::String() : juce::String (" loop"))
+                                                           + juce::Time::getCurrentTime().formatted (" %Y-%m-%d %H%M"));
+        auto file = dir.getChildFile (name + ".rpp");
+        for (int n = 2; file.exists(); ++n) file = dir.getChildFile (name + " " + juce::String (n) + ".rpp");
+        options.rppFile = file;
+        options.trackColour = [] (int index) { return Theme::trackColour (index); };
+
+        const auto result = projet::ReaperExport::write (self.project, self.framework, self.folder, options);
+        if (! file.replaceWithText (result.text, false, false, "\n"))
+        {
+            self.transport.setStatus ("Could not write " + file.getFullPathName() + ".", true);
+            return;
+        }
+        juce::String message;
+        message << result.tracks << (result.tracks == 1 ? " track, " : " tracks, ") << result.items << (result.items == 1 ? " sound item, " : " sound items, ")
+                << result.emptyItems << (result.emptyItems == 1 ? " empty item" : " empty items");
+        if (result.regions > 0) message << ", " << result.regions << (result.regions == 1 ? " region" : " regions");
+        if (result.markers > 0) message << ", " << result.markers << (result.markers == 1 ? " marker" : " markers");
+        message << ".";
+        if (! result.missing.isEmpty())
+            message << "\n\n" << result.missing.size() << (result.missing.size() == 1 ? " sound file is" : " sound files are") << " missing: "
+                    << result.missing.joinIntoString (", ") << ".";
+        self.transport.setStatus ("Exported to Reaper: " + file.getFileName());
+        auto* done = new juce::AlertWindow ("Exported to Reaper", file.getFileName() + "\n\n" + message, juce::MessageBoxIconType::NoIcon, safeThis.getComponent());
+        done->addButton ("Open in Reaper", 1, juce::KeyPress (juce::KeyPress::returnKey));
+        done->addButton ("Show in Finder", 2);
+        done->addButton ("OK", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+        done->enterModalState (true, juce::ModalCallbackFunction::create ([file] (int choice)
+        {
+            if (choice == 1) file.startAsProcess();
+            else if (choice == 2) file.revealToUser();
+        }), true);
+    }), true);
+}
+
+//== The loop region (stage 10a) ===============================================
+
+void MainComponent::syncLoop()
+{
+    const auto loop = project.getLoop();
+    engine.setLoop (project.isLoopOn(), loop.getStart(), loop.getEnd());
+    transport.setLoop (project.isLoopOn(), project.hasLoop());
+    commandManager.commandStatusChanged();
+}
+
+void MainComponent::loopAction (int action)
+{
+    if (! hasProject()) return;
+    if (action == 2)
+    {
+        project.getUndoManager().beginNewTransaction ("Remove the loop");
+        project.setLoop ({});
+        transport.setStatus ("The loop is removed.");
+        return;
+    }
+    if (action == 1 || ! project.hasLoop())
+    {
+        auto& v = view();
+        const Project::ScopedFocus levelScope (project, v.getLevel());
+        const auto boxes = v.getSelectedBoxes();
+        if (boxes.isEmpty())
+        {
+            transport.setStatus (action == 1 ? "Select the boxes to loop first." : "No loop yet: drag along the seconds ruler to draw one, or select boxes and press Cmd-L.");
+            return;
+        }
+        double a = 1.0e12, b = 0.0;
+        for (auto& box : boxes)
+        {
+            a = juce::jmin (a, project.levelToPiece (Project::boxStart (box)));
+            b = juce::jmax (b, project.levelToPiece (Project::boxEnd (box)));
+        }
+        project.getUndoManager().beginNewTransaction ("Loop the selected boxes");
+        project.setLoop ({ a, b });
+        project.setLoopOn (true);
+        transport.setStatus ("Looping " + TimeFormat::format (a, 3) + " to " + TimeFormat::format (b, 3) + ".");
+        return;
+    }
+    project.setLoopOn (! project.isLoopOn());
+    transport.setStatus (project.isLoopOn() ? "Loop on." : "Loop off.");
+}
+
 void MainComponent::locate (double seconds)
 {
     engine.locate (seconds);
@@ -1473,7 +1589,8 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& c)
                   cmdAddTrack, cmdAudioSettings, cmdAudioEngine, cmdShortcuts,
                   cmdNewTextBox, cmdSplit, cmdCopy, cmdCut, cmdPaste, cmdSelectAll, cmdNotesWindow, cmdTogglePanel,
                   cmdNewContainer, cmdGroup, cmdUngroup, cmdSwap, cmdDiveIn, cmdLevelUp, cmdToggleOutline, cmdMagnify,
-                  cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes, cmdNewBoard });
+                  cmdNextTake, cmdPreviousTake, cmdNewTake, cmdShowTakes, cmdNewBoard,
+                  cmdLoopToggle, cmdLoopSelection, cmdExportReaper });
 }
 
 void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommandInfo& info)
@@ -1595,6 +1712,10 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             break;
         case cmdSwap:          info.setInfo ("Swap the two boxes", "The two selected boxes change places, each keeping its length", "Edit", 0); info.setActive (hasProject() && view().getSelectedBoxes().size() == 2); break;
         case cmdNewBoard:      info.setInfo ("New board", "An empty board box on the selected track at the playhead, opened below", "Edit", 0); info.addDefaultKeypress ('b', cmd | juce::ModifierKeys::altModifier); info.setActive (open); break;
+        case cmdLoopToggle:    info.setInfo ("Loop on", "Loop the loop region (draw it by dragging along the seconds ruler)", "Transport", 0); info.addDefaultKeypress ('l', 0);
+                               info.setActive (open); info.setTicked (open && project.isLoopOn()); break;
+        case cmdLoopSelection: info.setInfo ("Loop the selected boxes", "The loop region becomes the span of the selected boxes, and loops", "Transport", 0); info.addDefaultKeypress ('l', cmd); info.setActive (open); break;
+        case cmdExportReaper:  info.setInfo ("Export to Reaper...", "Write the piece as a Reaper project (.rpp) in the project's Reaper folder", "File", 0); info.addDefaultKeypress ('r', cmd | shift); info.setActive (open); break;
         default: break;
     }
     // While the board is worked on, the editing commands are its own (stage 9).
@@ -1670,6 +1791,9 @@ bool MainComponent::perform (const InvocationInfo& info)
         case cmdNotesWindow:  openNotesWindow(); break;
         case cmdNewContainer: addContainer (view().getSelectedLaneTrack(), playheadInLevel()); break;
         case cmdNewBoard:     addBoard (view().getSelectedLaneTrack(), playheadInLevel()); break;
+        case cmdLoopToggle:   loopAction (0); break;
+        case cmdLoopSelection: loopAction (1); break;
+        case cmdExportReaper: exportToReaper(); break;
         case cmdDiveIn:
         {
             auto box = view().getSelectedBox();
@@ -1788,7 +1912,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             juce::PopupMenu recent;
             recentProjects.createPopupMenuItems (recent, 5000, true, true);
             m.addSubMenu ("Open recent", recent, recent.getNumItems() > 0);
-            add ({ 0, cmdSaveProject, cmdRevealFolder, 0, cmdImport });
+            add ({ 0, cmdSaveProject, cmdRevealFolder, 0, cmdImport, 0, cmdExportReaper });
             break;
         }
         case 1: add ({ cmdUndo, cmdRedo, 0, cmdCut, cmdCopy, cmdPaste, cmdDuplicate, cmdDelete, 0, cmdSplit, cmdNewTextBox, cmdNotesWindow,
@@ -1865,7 +1989,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int menuIndex, const juce::Strin
             m.addItem (6099, "Display...", hasProject());
             break;
         }
-        case 3: add ({ cmdPlayStop, cmdToStart }); break;
+        case 3: add ({ cmdPlayStop, cmdToStart, 0, cmdLoopToggle, cmdLoopSelection }); break;
         case 4:
         {
             add ({ cmdAddTrack });

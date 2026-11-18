@@ -213,6 +213,18 @@ void TimelineView::paintTimeLayer (juce::Graphics& g, const LayerRow& row)
         g.setColour (Theme::accent.withAlpha (0.6f));
         g.fillRect (timeToX (origin) - 1.0f, (float) y0, 2.0f, (float) h - 1.0f);
     }
+    // The loop region (10a): a band along the top of the row.
+    if (const auto lx = loopOnScreen(); ! lx.isEmpty())
+    {
+        const bool on = project.isLoopOn();
+        const auto c = on ? Theme::loop : Theme::textMuted.withAlpha (0.55f);
+        g.setColour (c.withAlpha (on ? 0.22f : 0.12f));
+        g.fillRect (lx.getStart(), (float) y0, lx.getLength(), (float) h - 1.0f);
+        g.setColour (c);
+        g.fillRect (lx.getStart(), (float) y0, lx.getLength(), 5.0f);
+        g.fillRect (lx.getStart(), (float) y0, 2.0f, (float) h - 1.0f);
+        g.fillRect (lx.getEnd() - 2.0f, (float) y0, 2.0f, (float) h - 1.0f);
+    }
     for (double shown = std::floor ((a + b * viewStart) / step) * step; ; shown += step)
     {
         const double t = (shown - a) / b;
@@ -395,6 +407,13 @@ bool TimelineView::rulerMouseMove (const juce::MouseEvent& e)
         return true;
     }
     if (row.lane) { setMouseCursor (juce::MouseCursor::PointingHandCursor); return true; }
+    if (row.time && row.layer.isValid())
+    {
+        // The loop's ends, and its band along the top (10a).
+        const auto lx = loopOnScreen();
+        if (loopEdgeAt (e.position.x) != 0) { setMouseCursor (juce::MouseCursor::LeftRightResizeCursor); return true; }
+        if (! lx.isEmpty() && lx.contains (e.position.x) && e.y < row.y + 7) { setMouseCursor (juce::MouseCursor::DraggingHandCursor); return true; }
+    }
     if (row.layer.isValid() && ! row.time)
     {
         const auto f = project.frameFor (project.layerFrame (row.layer));
@@ -449,7 +468,24 @@ bool TimelineView::rulerMouseDown (const juce::MouseEvent& e)
     if (row.time)
     {
         if (e.mods.isPopupMenu()) { showLayerMenu (row.layer); return true; }
-        dragMode = DragMode::locate;
+        // The loop (10a): its ends resize it, its band along the top moves it.
+        const auto lx = loopOnScreen();
+        if (const int edge = loopEdgeAt (e.position.x); edge != 0)
+        {
+            dragMode = edge < 0 ? DragMode::loopStart : DragMode::loopEnd;
+            loopWas = project.getLoop();
+            project.getUndoManager().beginNewTransaction ("Loop");
+            return true;
+        }
+        if (! lx.isEmpty() && lx.contains (e.position.x) && e.y < row.y + 7)
+        {
+            dragMode = DragMode::loopMove;
+            loopWas = project.getLoop();
+            loopAnchor = project.levelToPiece (xToTime (e.position.x));
+            project.getUndoManager().beginNewTransaction ("Loop");
+            return true;
+        }
+        dragMode = DragMode::locate;      // a drag from here draws the loop (10a)
         if (onLocate) onLocate (juce::jmax (0.0, project.levelToPiece (xToTime (e.position.x))));
         return true;
     }
@@ -506,6 +542,40 @@ bool TimelineView::rulerMouseDrag (const juce::MouseEvent& e)
     if (drawnMouseDrag (e)) return true;            // drawn lanes and nodes (4d.2)
     const bool snapping = ! e.mods.isShiftDown();
     const double t = juce::jmax (0.0, xToTime (e.position.x));
+
+    // The loop region (10a), in the piece's time.
+    if (dragMode == DragMode::locate && std::abs (e.getDistanceFromDragStartX()) > 4)
+    {
+        dragMode = DragMode::loopDraw;
+        loopAnchor = project.levelToPiece (snap (juce::jmax (0.0, xToTime ((float) e.getMouseDownX())), {}, snapping));
+        project.getUndoManager().beginNewTransaction ("Draw the loop");
+    }
+    if (dragMode == DragMode::loopDraw || dragMode == DragMode::loopStart || dragMode == DragMode::loopEnd || dragMode == DragMode::loopMove)
+    {
+        const double at = project.levelToPiece (snap (t, {}, snapping));
+        juce::Range<double> r;
+        if (dragMode == DragMode::loopDraw) r = { juce::jmin (loopAnchor, at), juce::jmax (loopAnchor, at) };
+        else if (dragMode == DragMode::loopStart) r = { juce::jmin (at, loopWas.getEnd()), juce::jmax (at, loopWas.getEnd()) };
+        else if (dragMode == DragMode::loopEnd) r = { juce::jmin (at, loopWas.getStart()), juce::jmax (at, loopWas.getStart()) };
+        else
+        {
+            const double moved = juce::jmax (-loopWas.getStart(), project.levelToPiece (t) - loopAnchor);
+            r = loopWas + moved;
+            // Its start snaps, keeping its length.
+            if (snapping)
+            {
+                const double s = project.levelToPiece (snap (project.pieceToLevel (r.getStart()), {}, true));
+                r = r.movedToStartAt (juce::jmax (0.0, s));
+            }
+        }
+        if (r.getLength() > 0.01)
+        {
+            project.setLoop (r);
+            if (dragMode == DragMode::loopDraw) project.setLoopOn (true);
+        }
+        repaint();
+        return true;
+    }
 
     if (dragMode == DragMode::layerHeight)
     {
@@ -669,6 +739,10 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         else
             count.addItem (32, "The start of a box (select one first)", false);
 
+        m.addSectionHeader ("Loop");
+        m.addItem (60, "Loop on", project.hasLoop(), project.isLoopOn());
+        m.addItem (61, "Loop the selected boxes", selected.isValid());
+        m.addItem (62, "Remove the loop", project.hasLoop());
         m.addSectionHeader (layer[IDs::name].toString());
         m.addSubMenu ("Count from", count);
         m.addSubMenu ("Size", size);
@@ -828,6 +902,7 @@ void TimelineView::showLayerMenu (juce::ValueTree layer)
         };
 
         if (r >= 900 && r < 1000) { safe->addLane (r - 900, p.getRulers().indexOf (layer) + 1); return; }
+        if (r >= 60 && r <= 62) { if (safe->onLoopAction) safe->onLoopAction (r - 60); return; }
         if (r >= 41 && r <= 43)
         {
             if (auto* lane = safe->framework.findLane (layer[IDs::lane].toString()))
@@ -1432,4 +1507,40 @@ void TimelineView::laneClicked (const LayerRow& row, const juce::MouseEvent& e)
         toggleHighlight (framework.source (*cat).key(), data.scale.ids[i]);
     }
     if (onHighlightChanged) onHighlightChanged();
+}
+
+//== The loop region (stage 10a) ===============================================
+
+juce::Range<float> TimelineView::loopOnScreen() const
+{
+    const auto loop = project.getLoop();
+    if (loop.isEmpty()) return {};
+    const float a = timeToX (project.pieceToLevel (loop.getStart())), b = timeToX (project.pieceToLevel (loop.getEnd()));
+    if (b < (float) headerWidth || a > (float) getWidth()) return {};
+    return { juce::jmax ((float) headerWidth, a), juce::jmax ((float) headerWidth + 1.0f, b) };
+}
+
+int TimelineView::loopEdgeAt (float x) const
+{
+    const auto loop = project.getLoop();
+    if (loop.isEmpty()) return 0;
+    const float a = timeToX (project.pieceToLevel (loop.getStart())), b = timeToX (project.pieceToLevel (loop.getEnd()));
+    const float da = std::abs (x - a), db = std::abs (x - b);
+    if (da <= 5.0f && da <= db && a >= (float) headerWidth) return -1;
+    if (db <= 5.0f && b >= (float) headerWidth) return 1;
+    return 0;
+}
+
+void TimelineView::paintLoop (juce::Graphics& g)
+{
+    // Across the tracks, while looping: a light wash and its two edges.
+    if (! project.isLoopOn()) return;
+    const auto lx = loopOnScreen();
+    if (lx.isEmpty()) return;
+    const float top = (float) tracksTop();
+    g.setColour (Theme::loop.withAlpha (0.05f));
+    g.fillRect (lx.getStart(), top, lx.getLength(), (float) getHeight() - top);
+    g.setColour (Theme::loop.withAlpha (0.45f));
+    g.fillRect (lx.getStart(), top, 1.0f, (float) getHeight() - top);
+    g.fillRect (lx.getEnd() - 1.0f, top, 1.0f, (float) getHeight() - top);
 }

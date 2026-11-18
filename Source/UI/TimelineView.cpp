@@ -716,6 +716,8 @@ void TimelineView::paint (juce::Graphics& g)
         g.drawRect (lasso, 1);
     }
 
+    paintLoop (g);
+
     // Playhead
     const float px = timeToX (playhead);
     if (px >= (float) headerWidth)
@@ -2798,6 +2800,10 @@ void TimelineView::mouseDrag (const juce::MouseEvent& e)
         case DragMode::trackHeight: // above
         case DragMode::factorCurve:
         case DragMode::linkOut:     // above
+        case DragMode::loopDraw:
+        case DragMode::loopStart:
+        case DragMode::loopEnd:
+        case DragMode::loopMove:    // the loop (TimelineRuler.cpp)
         case DragMode::none:
             break;
     }

@@ -42,6 +42,13 @@ public:
     /** Moves the playhead (seconds on the timeline). */
     void locate (double seconds);
 
+    /** The loop region (10a): when on, playback that reaches its end goes on
+        from its start, with a short crossfade at the seam. Playback started
+        after its end plays on. */
+    void setLoop (bool on, double startSeconds, double endSeconds);
+    /** Crossfade at the loop's seam, seconds. */
+    static constexpr double loopSeamSeconds = 0.008;
+
     /** Frees arrangements the audio thread can no longer be using. Call regularly. */
     void purgeRetired();
 
@@ -66,6 +73,10 @@ public:
 private:
     /** Adds the clips' samples [from, from + n) (project samples) into l and r. */
     static void mix (const Arrangement&, int64_t from, int n, float* l, float* r) noexcept;
+    /** Renders from `position` and moves it on, at whatever device rate. */
+    void render (const Arrangement&, double& pos, float* l, float* r, int numSamples, double ratio) noexcept;
+    /** Renders with the loop: wraps, and crossfades the seam. */
+    void renderLooping (const Arrangement&, float* l, float* r, int numSamples, double ratio) noexcept;
     void processExact (const Arrangement&, float* l, float* r, int numSamples) noexcept;
     void processResampled (const Arrangement&, float* l, float* r, int numSamples, double ratio) noexcept;
 
@@ -82,6 +93,12 @@ private:
     std::atomic<double> deviceRate { 48000.0 };
     uint32_t lastLocate = 0;
     double position = 0.0;                    // project samples
+    // The loop (seconds; read on the audio thread)
+    std::atomic<bool> loopOn { false };
+    std::atomic<double> loopStartSec { 0.0 }, loopEndSec { 0.0 };
+    double seamFrom = 0.0;                    // where the old pass goes on, fading out (project samples)
+    int seamLeft = 0, seamTotal = 0;          // output samples of the seam still to go
+    std::vector<float> seamBuffer[4];
     // Other device rate: the clips are mixed at the project rate into scratch,
     // and the mix is read once through the kernel (cost independent of the
     // number of boxes).

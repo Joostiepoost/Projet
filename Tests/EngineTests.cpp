@@ -30,6 +30,7 @@
 #include "../Source/Model/Lanes.h"
 #include "../Source/Model/Board.h"
 #include "../Source/Model/ProjectFolder.h"
+#include "../Source/Engine/ReaperExport.h"
 
 #include <random>
 #include <thread>
@@ -2556,6 +2557,149 @@ void testGestures()
     line();
 }
 
+void testLoopAndReaper()
+{
+    line ("## 25. Loop region and Reaper export (stage 10a)");
+    line();
+    const double rate = 48000.0;
+
+    // == The loop in the model
+    {
+        Project p;
+        p.resetToDefault ("Loop", rate);
+        auto& um = p.getUndoManager();
+        check (! p.hasLoop() && ! p.isLoopOn(), "no loop to start with");
+        um.beginNewTransaction ("Loop");
+        p.setLoop ({ 2.0, 5.5 });
+        p.setLoopOn (true);
+        check (p.getLoop() == juce::Range<double> (2.0, 5.5) && p.isLoopOn(), "a loop drawn, and on");
+        um.beginNewTransaction ("Again");
+        p.setLoop ({ 3.0, 4.0 });
+        um.undo();
+        check (p.getLoop() == juce::Range<double> (2.0, 5.5) && p.isLoopOn(), "moving it is undone; looping stays on");
+        p.setLoop ({});
+        check (! p.hasLoop() && ! p.isLoopOn(), "removed, nothing loops");
+    }
+
+    // == Playback: a ramp, so every sample says where it was read
+    auto ramp = rampSound (rate, 4.0);
+    auto at = [] (double seconds) { return (float) (seconds / 4.0); };
+    for (double device : { 48000.0, 44100.0 })
+    {
+        PlaybackEngine engine;
+        engine.setArrangement (arrangementOf ({ makeClip (ramp, 0.0, rate) }, rate));
+        engine.setLoop (true, 1.0, 2.0);
+        auto out = render (engine, device, 3.5, 333);
+        const bool exact = device == rate;
+        const double position = engine.getPositionSeconds();
+        check (std::abs (position - 1.5) < 0.002, juce::String ("at ") + juce::String (device / 1000.0, 1) + " kHz: after 3.5 s of playing a loop from 1 s to 2 s, the playhead is at 1.5 s ("
+               + juce::String (position, 4) + ")");
+        if (exact)
+        {
+            const float a = out.getSample (0, (int) (2.5 * rate)), b = out.getSample (0, (int) (3.25 * rate));
+            check (std::abs (a - at (1.5)) < 1.0e-4 && std::abs (b - at (1.25)) < 1.0e-4, "second and third passes play the loop again, sample for sample");
+            float worst = 0.0f;
+            for (int i = (int) (1.99 * rate); i < (int) (2.03 * rate); ++i)
+                worst = juce::jmax (worst, std::abs (out.getSample (0, i) - out.getSample (0, i - 1)));
+            check (worst < 0.003f, "the seam is crossfaded: no jump between samples there (largest step " + juce::String (worst, 5) + ", a jump would be 0.25)");
+        }
+        engine.setLoop (true, 1.0, 2.0);
+        render (engine, device, 1.0, 512, 2.5);
+        check (std::abs (engine.getPositionSeconds() - 3.5) < 0.002, juce::String ("at ") + juce::String (device / 1000.0, 1) + " kHz: started after the loop, playback goes on");
+        engine.setLoop (false, 1.0, 2.0);
+        render (engine, device, 3.0, 512, 0.0);
+        check (std::abs (engine.getPositionSeconds() - 3.0) < 0.002, juce::String ("at ") + juce::String (device / 1000.0, 1) + " kHz: loop off, it plays through");
+    }
+
+    // == The Reaper export
+    Project p;
+    p.resetToDefault ("Export", rate);
+    auto work = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ProjetReaperTest");
+    work.deleteRecursively();
+    ProjectFolder folder;
+    check (folder.create (work.getChildFile ("Piece"), p, rate).wasOk(), "a project folder");
+    for (auto [id, name] : { std::pair<const char*, const char*> { "s1", "tone" }, { "s2", "noise" } })
+    {
+        juce::ValueTree rec (IDs::SOUND);
+        rec.setProperty (IDs::id, id, nullptr);
+        rec.setProperty (IDs::name, name, nullptr);
+        rec.setProperty (IDs::file, juce::String ("Sounds/") + name + ".ogg", nullptr);
+        rec.setProperty (IDs::lengthSamples, (juce::int64) (4.0 * rate), nullptr);
+        p.addSound (rec);
+        folder.resolve (juce::String ("Sounds/") + name + ".ogg").replaceWithText ("not really a sound");
+    }
+    auto& um = p.getUndoManager();
+    auto group = p.addFolder ("Group", 0);
+    auto track = p.addTrack ("Voices", 1, group[IDs::id].toString());
+    auto sound = p.addSoundBox (track, 1.0, "s1");
+    sound.setProperty (IDs::gainDb, -6.0, nullptr);
+    sound.setProperty (IDs::fadeIn, 0.5, nullptr);
+    sound.setProperty (IDs::fadeInShape, (int) FadeShape::linear, nullptr);
+    p.addTake (sound, Project::NewTake::sound, "s2");              // B, the active one
+    auto text = p.addTextBox (track, 6.0, 2.0, "Idea");
+    text.setProperty (IDs::notes, "Slowly **thinning**\nthen silence", nullptr);
+    auto lower = p.getTrack (p.getNumTracks() - 1);
+    auto container = p.addContainer (lower, 10.0, 4.0, "Section A");
+    container.setProperty (IDs::fadeIn, 1.0, nullptr);
+    container.setProperty (IDs::gainDb, -12.0, nullptr);
+    auto inner = Project::innerTracks (container).getChild (0);
+    p.addSoundBox (inner, 1.0, "s1");                               // 11 s to 15 s, cut at 14 s
+    auto board = p.addBoardBox (lower, 20.0, 3.0);
+    board.setProperty (IDs::name, "Plan", nullptr);
+    auto card = Board::makeSoundCard ("s2", { 0.0f, 0.0f, 240.0f, 92.0f }, 0);
+    card.setProperty (IDs::temporalOut, true, nullptr);
+    card.setProperty (IDs::outStart, 1.0, nullptr);
+    Project::boardOf (board).appendChild (card, nullptr);
+    auto words = Board::makeCard ({ 0.0f, 120.0f, 200.0f, 80.0f }, 0);
+    words.setProperty (IDs::notes, "A long breath", nullptr);
+    Project::boardOf (board).appendChild (words, nullptr);
+    um.beginNewTransaction ("Loop");
+    p.setLoop ({ 10.0, 14.0 });
+    p.setLoopOn (true);
+
+    Framework fw;
+    projet::ReaperExport::Options options;
+    options.rppFile = folder.getFolder().getChildFile ("Reaper").getChildFile ("Piece.rpp");
+    options.timeStamp = 1;
+    options.trackColour = [] (int index) { return juce::Colour (0xff000000 | (juce::uint32) (0x102030 * (index + 1))); };
+    const auto r = projet::ReaperExport::write (p, fw, folder, options);
+    if (std::getenv ("PROJET_DUMP_RPP") != nullptr) juce::File (std::getenv ("PROJET_DUMP_RPP")).replaceWithText (r.text);
+    const auto lines = juce::StringArray::fromLines (r.text.trimEnd());
+    auto has = [&lines] (const juce::String& l) { for (auto& x : lines) if (x.trim() == l) return true; return false; };
+    auto count = [&lines] (const juce::String& start) { int n = 0; for (auto& x : lines) if (x.trim().startsWith (start)) ++n; return n; };
+    check (lines[0].startsWith ("<REAPER_PROJECT") && lines[lines.size() - 1] == ">" && count ("<") == count (">"),
+           "a well-formed .rpp: every block closed (" + juce::String (count ("<")) + " blocks)");
+    const int numTracks = count ("<TRACK");
+    check (numTracks == r.tracks && numTracks == p.getNumTracks() + 3, "tracks: the piece's, plus the container's folder and its track, plus the board's outs (" + juce::String (numTracks) + ")");
+    check (has ("ISBUS 1 1") && has ("ISBUS 2 -1"), "the folder opens and closes");
+    check (has ("PEAKCOL " + juce::String (0x1000000 | (0x102030 * ((int) group[IDs::colour] + 1)))), "tracks in the folder's colour");
+    check (has ("FILE \"../Sounds/tone.ogg\"") && has ("<SOURCE VORBIS"), "sounds by their path from the Reaper folder, as Vorbis");
+    check (has ("TAKE SEL") && has ("NAME \"B: noise\"") && has ("NAME \"A: tone\"") && r.text.contains ("|tone"), "a sound box's takes as Reaper takes, the active one selected");
+    check (has ("VOLPAN 1 0 " + juce::String (juce::Decibels::decibelsToGain (-6.0), 10).trimCharactersAtEnd ("0") + " -1")
+           || r.text.contains ("VOLPAN 1 0 0.501187"), "its gain as the take's volume");
+    check (has ("POSITION 11") && has ("LENGTH 3"), "a sound in a container where it sounds (11 s), cut at the container's end (3 s)");
+    check (has ("FADEOUT 0 0.005 0 0 0 0 0"), "with a 5 ms fade where the container cuts it, as in playback");
+    check (has ("<VOLENV2") && has ("PT 10 0 2") && has ("PT 11 1 0"), "the container's fade-in as its folder's volume envelope");
+    check (r.text.contains ("VOLPAN 0.251188"), "and its gain as the folder's volume");
+    check (has ("|Idea") && has ("|Slowly **thinning**") && has ("IMGRESOURCEFLAGS 0"), "a text box: an empty item with its name and notes");
+    check (r.text.contains ("|- A long breath") && r.text.contains ("|Board: "), "a board: its summary and its cards' words");
+    check (has ("POSITION 21") && r.text.contains ("NAME \"Plan: temporal outs\""), "its temporal out on a track of its own, at 21 s");
+    check (has ("MARKER 1 10 \"Section A\" 1 0 1 R") && has ("MARKER 1 14 \"\" 1"), "the piece's containers as regions");
+    check (has ("LOOP 1") && has ("SELECTION 10 14"), "the loop as Reaper's loop and time selection");
+    check (r.missing.isEmpty(), "every sound file found");
+
+    options.span = { 10.0, 14.0 };
+    const auto part = projet::ReaperExport::write (p, fw, folder, options);
+    const auto partLines = juce::StringArray::fromLines (part.text.trimEnd());
+    auto partHas = [&partLines] (const juce::String& l) { for (auto& x : partLines) if (x.trim() == l) return true; return false; };
+    check (partHas ("POSITION 1") && partHas ("MARKER 1 0 \"Section A\" 1 0 1 R") && partHas ("SELECTION 0 4") && part.items == 1,
+           "the loop's span alone, moved to 0:00: only what sounds there");
+    check (projet::ReaperExport::quoted ("say \"no\"") == "'say \"no\"'" && projet::ReaperExport::colourFor ((int) 0xffff8000) == (0x1000000 | 0xff8000),
+           "names with quotes, and colours as Reaper on macOS keeps them");
+    work.deleteRecursively();
+    line();
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // message manager for the formats
@@ -2565,7 +2709,7 @@ int main (int argc, char** argv)
     {
         const juce::String a (argv[i]);
         if (a == "--quick") quick = true;
-        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); testSoundCards(); testGestures(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
+        else if (a == "--model") { testProportions(); testMarks(); testFramework(); testGlyphs(); testJunctions(); testOverview(); testDynamicForm(); testContainers(); testLevels(); testSections(); testMagnifier(); testTakes(); testFactors(); testBoards(); testSoundCards(); testGestures(); testLoopAndReaper(); std::cout << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks FAILED.") << std::endl; return failures == 0 ? 0 : 1; }
         else if (a == "--out" && i + 1 < argc) outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
     }
     outDir.createDirectory();
@@ -2606,6 +2750,7 @@ int main (int argc, char** argv)
     std::cout << "Boards..." << std::endl;             testBoards();
     std::cout << "Sound cards..." << std::endl;        testSoundCards();
     std::cout << "Gestures..." << std::endl;           testGestures();
+    std::cout << "Loop, Reaper..." << std::endl;       testLoopAndReaper();
 
     md << "\n" << (failures == 0 ? "All checks passed." : juce::String (failures) + " checks failed.") << "\n";
     outDir.getChildFile ("report.md").replaceWithText (md);
